@@ -1,3 +1,4 @@
+import { createObservation } from "../../domain/index.js";
 import type {
   EvidenceReference,
   JsonValue,
@@ -57,7 +58,7 @@ function observation(input: {
   quality?: Observation["quality"];
   unknownReason?: string;
 }): Observation {
-  return {
+  return createObservation({
     projectId: input.project.projectId,
     subject: input.subject,
     property: input.property,
@@ -67,7 +68,7 @@ function observation(input: {
     evidence: input.evidence,
     producingSystem: DEVELOPMENT_INTELLIGENCE_PROVIDER_ID,
     quality: input.quality ?? (input.value === undefined ? "unknown" : "authoritative")
-  };
+  });
 }
 
 function sourceEvidence(source: DevelopmentIntelligenceSourceDescriptor): readonly EvidenceReference[] {
@@ -126,7 +127,15 @@ function statusObservations(
 
   const graph = status.graph;
   output.push(
-    observation({ project, subject: "repository", property: "revision", value: graph.revision, observedAt, evidence }),
+    observation({
+      project,
+      subject: "repository",
+      property: "revision",
+      value: graph.revision,
+      observedAt,
+      evidence,
+      ...(graph.revision ? {} : { unknownReason: "Graph revision was not reported." })
+    }),
     observation({
       project,
       subject: "development_intelligence",
@@ -143,7 +152,8 @@ function statusObservations(
       value: graph.currentness as JsonValue | undefined,
       observedAt,
       evidence,
-      quality: "derived"
+      quality: graph.currentness === undefined ? "unknown" : "derived",
+      ...(graph.currentness === undefined ? { unknownReason: "Graph currentness was not reported." } : {})
     }),
     observation({
       project,
@@ -152,7 +162,8 @@ function statusObservations(
       value: graph.accepted as JsonValue | undefined,
       observedAt,
       evidence,
-      quality: "derived"
+      quality: graph.accepted === undefined ? "unknown" : "derived",
+      ...(graph.accepted === undefined ? { unknownReason: "Accepted graph state was not reported." } : {})
     }),
     observation({
       project,
@@ -161,7 +172,8 @@ function statusObservations(
       value: graph.working as JsonValue | undefined,
       observedAt,
       evidence,
-      quality: "derived"
+      quality: graph.working === undefined ? "unknown" : "derived",
+      ...(graph.working === undefined ? { unknownReason: "Working graph state was not reported." } : {})
     })
   );
   return output;
@@ -173,12 +185,55 @@ function overviewObservations(
   observedAt: string
 ): Observation[] {
   const evidence = toolEvidence(overview.project, "project_overview");
-  return [
-    observation({ project, subject: "development_intelligence", property: "graph_id", value: overview.graphId, observedAt, evidence }),
-    observation({ project, subject: "development_intelligence", property: "summary", value: overview.summary, observedAt, evidence, quality: "derived" }),
-    observation({ project, subject: "development_intelligence", property: "coverage", value: overview.coverage as JsonValue | undefined, observedAt, evidence, quality: coverageIncomplete(overview.coverage) ? "partial" : "derived" }),
-    observation({ project, subject: "development_intelligence", property: "counts", value: overview.counts, observedAt, evidence, quality: "derived" })
+  const output: Observation[] = [
+    observation({
+      project,
+      subject: "development_intelligence",
+      property: "graph_id",
+      value: overview.graphId,
+      observedAt,
+      evidence,
+      ...(overview.graphId ? {} : { unknownReason: "Project overview graph identifier was not reported." })
+    }),
+    observation({
+      project,
+      subject: "development_intelligence",
+      property: "coverage",
+      value: overview.coverage as JsonValue | undefined,
+      observedAt,
+      evidence,
+      quality: overview.coverage === undefined || overview.coverage === null
+        ? "unknown"
+        : coverageIncomplete(overview.coverage) ? "partial" : "derived",
+      ...(overview.coverage === undefined || overview.coverage === null
+        ? { unknownReason: "Project overview coverage was not reported." }
+        : {})
+    })
   ];
+
+  if (overview.summary !== undefined) {
+    output.push(observation({
+      project,
+      subject: "development_intelligence",
+      property: "summary",
+      value: overview.summary,
+      observedAt,
+      evidence,
+      quality: "derived"
+    }));
+  }
+  if (overview.counts !== undefined) {
+    output.push(observation({
+      project,
+      subject: "development_intelligence",
+      property: "counts",
+      value: overview.counts,
+      observedAt,
+      evidence,
+      quality: "derived"
+    }));
+  }
+  return output;
 }
 
 function sourceObservations(project: Project, sources: DevelopmentIntelligenceSources): Observation[] {
