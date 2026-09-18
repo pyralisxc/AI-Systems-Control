@@ -7,7 +7,7 @@ import type {
 
 export interface ResolveReadBindingsRequest {
   readonly project: Project;
-  readonly workspace: Workspace;
+  readonly workspace?: Workspace;
   readonly capabilities: readonly ReadCapability[];
 }
 
