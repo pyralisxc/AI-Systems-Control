@@ -23,15 +23,31 @@ export interface EvaluateDriftInput {
   readonly evaluatedAt?: string;
 }
 
+type JsonKind = "null" | "string" | "number" | "boolean" | "array" | "object";
+type JsonObject = Readonly<Record<string, JsonValue>>;
+
 function targetId(claim: Pick<DesiredStateClaim, "projectId" | "scope" | "key">): string {
   return `${claim.projectId}\u0000${claim.scope}\u0000${claim.key}`;
 }
 
-function jsonKind(value: JsonValue): "null" | "string" | "number" | "boolean" | "array" | "object" {
+function isJsonObject(value: JsonValue): value is JsonObject {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function jsonKind(value: JsonValue): JsonKind {
   if (value === null) return "null";
   if (Array.isArray(value)) return "array";
-  if (typeof value === "object") return "object";
-  return typeof value;
+  switch (typeof value) {
+    case "string":
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "object":
+      return "object";
+  }
+  throw new Error("Unsupported JSON value kind.");
 }
 
 function jsonEqual(left: JsonValue, right: JsonValue): boolean {
@@ -42,14 +58,7 @@ function jsonEqual(left: JsonValue, right: JsonValue): boolean {
     return left.length === right.length && left.every((value, index) => jsonEqual(value, right[index]!));
   }
 
-  if (
-    left !== null &&
-    right !== null &&
-    !Array.isArray(left) &&
-    !Array.isArray(right) &&
-    typeof left === "object" &&
-    typeof right === "object"
-  ) {
+  if (isJsonObject(left) && isJsonObject(right)) {
     const leftKeys = Object.keys(left).sort();
     const rightKeys = Object.keys(right).sort();
     if (leftKeys.length !== rightKeys.length) return false;
