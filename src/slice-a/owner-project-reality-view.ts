@@ -100,6 +100,7 @@ export async function buildOwnerProjectRealityView(
 
   const evaluatedAt = input.evaluatedAt ?? new Date().toISOString();
   const desired = input.desiredState ?? input.workspace.desiredStateOverlay ?? [];
+  const github = githubRepository(input.project);
 
   const [reality, bindings] = await Promise.all([
     input.composition.realityProvider.observeProject({
@@ -156,9 +157,7 @@ export async function buildOwnerProjectRealityView(
     project: Object.freeze({
       projectId: input.project.projectId,
       name: input.project.name,
-      ...(githubRepository(input.project)
-        ? { githubRepository: githubRepository(input.project) }
-        : {}),
+      ...(github ? { githubRepository: github } : {}),
       references: input.project.references
     }),
     workspaceId: input.workspace.workspaceId,
