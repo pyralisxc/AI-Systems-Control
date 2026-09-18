@@ -1,0 +1,39 @@
+schema_version: 1
+
+control_plane:
+  name: AI Systems Control
+  mode: development
+
+project:
+  id: cardforge
+  name: CardForge
+  references:
+    - kind: github_repository
+      value: pyralisxc/CardForge
+
+reality:
+  authority: development-intelligence
+  freshness:
+    warning_after_seconds: 300
+    stale_after_seconds: 1800
+
+capabilities:
+  bindings:
+    resolution: host-aware
+    deny_mutation_when_ambiguous: true
+
+actions:
+  require_governed_path_for_mutation: true
+  require_reconciliation: true
+  unknown_identity_policy: deny_mutation
+
+security:
+  redact_secrets_in_receipts: true
+  allow_credential_fallback: false
+
+founder_verification:
+  enabled: true
+  required_for:
+    - boundary_change
+    - permission_escalation
+    - high_risk_mutation

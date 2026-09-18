@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "status": "crystallized",
+  "crystallized_at": "2026-09-18",
+  "source": "Dev OS Outlook audit -> Resolve -> Crystallize",
+  "baseline_commit": "9fa512dbb4584b3ec8e20fe45f5451bd16f055e7",
+  "authority": {
+    "control_plane": "AI Systems Control",
+    "project_reality": "Development Intelligence",
+    "reasoning": "Development OS",
+    "orchestration": "Conductor",
+    "reusable_web_foundation": "Web Foundation"
+  },
+  "first_vertical_slice": "Slice A — GitHub Project Reality",
+  "invariants": [
+    "Project, Workspace, Capability, and Action remain the domain center",
+    "Observed truth carries provenance and freshness",
+    "Desired state is distinct from observed state",
+    "Capability bindings are host-aware",
+    "External mutation requires a governed Action",
+    "Effect Receipt is not equivalent to verified reality",
+    "Permission escalation never silently broadens credentials",
+    "Specialist-system ownership is not duplicated in this repository"
+  ],
+  "files": {
+    "README.md": {
+      "git_blob_sha": "f23778ad2f27f60ee5bae420e44732fc3c9c02a3"
+    },
+    "PRODUCT_CRYSTAL.md": {
+      "git_blob_sha": "253a53c17ac15ec992ffda762d3f1c9ea7a704a1"
+    },
+    "docs/DOMAIN_MODEL.md": {
+      "git_blob_sha": "c28c6b06804d4dc826d5c3a3034a8af68829c6fd"
+    },
+    "docs/OWNER_EXPERIENCE.md": {
+      "git_blob_sha": "39e41440b186bc03e9f58bf6f3261864020312e2"
+    },
+    "docs/ACTION_POLICY_SECURITY.md": {
+      "git_blob_sha": "5eeccbeee9e944a8efa3984c9b60a02a885c3f9a"
+    },
+    "docs/WEB_FOUNDATION.md": {
+      "git_blob_sha": "6786addb090fe118ef074c5455a12d0718e81365"
+    },
+    "docs/VERTICAL_SLICES.md": {
+      "git_blob_sha": "ced5e4910461f77e6210860a3a17cb3294b061c8"
+    },
+    "docs/BATTLE_TESTS.md": {
+      "git_blob_sha": "87b43f1be4a01bb64a1ec5038284ea7da10d56c0"
+    },
+    "docs/DECISIONS_AND_DEFERRALS.md": {
+      "git_blob_sha": "dcf89af7fc1ef8a1259614484dbca474a93eaf26"
+    },
+    "docs/adr/README.md": {
+      "git_blob_sha": "c52bc0a8dc69556b0977b86fb06c5307a48209bf"
+    },
+    "MCP.md": {
+      "git_blob_sha": "78add480f3acd30918afbe8a1873b6233a6d98d5"
+    },
+    "config/control-plane.example.yaml": {
+      "git_blob_sha": "4a37341608eb027086969b99c611d28867ed7516"
+    },
+    "AGENTS.md": {
+      "git_blob_sha": "d40db0864befda16304cb31f2b65b09c91a42d99"
+    },
+    "STATUS.md": {
+      "git_blob_sha": "7425bc476a22adc87be7bbc2b44fa9e9e57c37c0"
+    },
+    "DEVELOPMENT_PLAN.md": {
+      "git_blob_sha": "d7632a3b3721735a4186c25f3d871bcf13fc9244"
+    }
+  }
+}
