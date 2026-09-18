@@ -28,10 +28,41 @@ It proves the control-plane model end-to-end without beginning with mutation:
 
 See [PRODUCT_CRYSTAL.md](PRODUCT_CRYSTAL.md), [docs/VERTICAL_SLICES.md](docs/VERTICAL_SLICES.md), and [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Live Slice A owner entry point
+
+Slice A can connect to a running Development Intelligence server through its public read-only MCP endpoint.
+
+Requirements:
+- Node.js 22+
+- a reachable Development Intelligence deployment
+- a valid DI bearer token when that deployment requires one
+
+Run:
+
+```bash
+DEVINT_URL=http://127.0.0.1:8787 \
+npm run slice-a -- pyralisxc/AI-Systems-Control
+```
+
+For an authenticated deployment:
+
+```bash
+DEVINT_URL=https://development-intelligence.example \
+DEVINT_TOKEN=your-runtime-token \
+npm run slice-a -- pyralisxc/AI-Systems-Control
+```
+
+Optional environment:
+- `ASC_DESIRED_DEFAULT_REF=main` adds one owner desired-state claim for drift comparison.
+- `ASC_FRESHNESS_WARNING_SECONDS=300` controls the aging threshold.
+- `ASC_FRESHNESS_STALE_SECONDS=1800` controls the stale threshold.
+
+The command prints the complete Slice A owner view as JSON: Project identity, Observed/Inferred/Desired truth, evidence and freshness, drift, problems, and read-capability binding availability. It exposes no provider mutation operation.
+
 ## Core invariant
 
 > No externally meaningful mutation occurs because a tool happens to be available. It occurs because an Action was proposed, evaluated by policy, explicitly authorized when required, executed through a capability binding, and reconciled into an Effect Receipt plus fresh observed state.
 
 ## Development status
 
-**Crystallized / ready for Slice A implementation.** The documents in this repository are the initial implementation authority. Changes to frozen system boundaries require an ADR and corresponding battle-test changes.
+**Slice A live integration in progress.** The control-plane spine, battle-test gates, and executable DI client/owner entry point are implemented. The remaining acceptance step is exercising this command against an actual reachable Development Intelligence deployment and preserving the resulting evidence that the real vertical slice works.
