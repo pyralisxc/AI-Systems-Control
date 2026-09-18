@@ -39,6 +39,10 @@ export function resolveDevelopmentIntelligenceProject(project: Project): string 
   );
 }
 
+export function resolveDevelopmentIntelligenceRef(project: Project): string | undefined {
+  return reference(project, "development_intelligence_ref")?.value;
+}
+
 function toolEvidence(project: string, tool: string): readonly EvidenceReference[] {
   return [
     {
@@ -300,7 +304,7 @@ export class DevelopmentIntelligenceProjectRealityProvider implements ProjectRea
     }
 
     const observedAt = this.#now();
-    const ref = request.host;
+    const ref = resolveDevelopmentIntelligenceRef(request.project);
     const [statusResult, overviewResult, sourcesResult] = await Promise.allSettled([
       this.#client.projectStatus({ project: projectKey, checkUpstream: true }),
       this.#client.projectOverview({ project: projectKey, ...(ref ? { ref } : {}) }),
