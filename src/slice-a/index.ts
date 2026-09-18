@@ -1,6 +1,7 @@
 export { createSliceACapabilityCatalog } from "./read-capability-catalog.js";
 export type { SliceACapabilityCatalog } from "./read-capability-catalog.js";
 export type { SliceAComposition, SliceAProjectRealityView } from "./contracts.js";
+export * from "./owner-project-reality-view.js";
 
 export type {
   CapabilityBinding,
