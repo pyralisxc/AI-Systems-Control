@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   normalizeOwnerReturnPath
-} from "../../../../dist/application/index.js";
+} from "../../../../../dist/application/index.js";
 import {
   authenticateOwnerPassword,
   OWNER_SESSION_COOKIE,
