@@ -13,7 +13,7 @@ interface HomePageProps {
 }
 
 function scalar(value: string | readonly string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
+  return typeof value === "string" ? value : value?.[0];
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
