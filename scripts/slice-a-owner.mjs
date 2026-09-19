@@ -1,15 +1,11 @@
 import {
-  HostAwareReadCapabilityBindingResolver,
   InMemoryProjectRegistry
 } from "../dist/application/index.js";
 import {
-  DevelopmentIntelligenceMcpHttpClient,
-  DevelopmentIntelligenceProjectRealityProvider,
-  DevelopmentIntelligenceReadBindingCandidateSource
-} from "../dist/adapters/development-intelligence/index.js";
+  createSliceADevelopmentIntelligenceComposition
+} from "../dist/composition/index.js";
 import {
-  buildOwnerProjectRealityView,
-  createSliceACapabilityCatalog
+  buildOwnerProjectRealityView
 } from "../dist/slice-a/index.js";
 
 const repository = process.argv[2];
@@ -45,52 +41,13 @@ if (!repository) {
         desiredStateOverlay
       };
 
-      const client = new DevelopmentIntelligenceMcpHttpClient({
+      const composition = createSliceADevelopmentIntelligenceComposition({
         baseUrl,
         ...(process.env.DEVINT_TOKEN ? { token: process.env.DEVINT_TOKEN } : {})
       });
-      const realityProvider = new DevelopmentIntelligenceProjectRealityProvider({ client });
-      const candidateSource = new DevelopmentIntelligenceReadBindingCandidateSource({
-        probe: client
-      });
-      const bindingResolver = new HostAwareReadCapabilityBindingResolver(candidateSource);
-
-      const capabilityCatalog = createSliceACapabilityCatalog([
-        {
-          capabilityId: "project.observe",
-          name: "Observe project reality",
-          inputSchema: { type: "object" },
-          outputSchema: { type: "object" },
-          effectClass: "read",
-          riskClass: "none",
-          ownerSystem: "development-intelligence"
-        },
-        {
-          capabilityId: "project.coverage",
-          name: "Read project coverage",
-          inputSchema: { type: "object" },
-          outputSchema: { type: "object" },
-          effectClass: "read",
-          riskClass: "none",
-          ownerSystem: "development-intelligence"
-        },
-        {
-          capabilityId: "project.sources",
-          name: "Read project sources",
-          inputSchema: { type: "object" },
-          outputSchema: { type: "object" },
-          effectClass: "read",
-          riskClass: "none",
-          ownerSystem: "development-intelligence"
-        }
-      ]);
 
       const view = await buildOwnerProjectRealityView({
-        composition: {
-          realityProvider,
-          bindingResolver,
-          capabilityCatalog
-        },
+        composition,
         project,
         workspace,
         freshnessPolicy: {
