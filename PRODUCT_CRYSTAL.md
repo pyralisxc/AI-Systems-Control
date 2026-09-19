@@ -47,7 +47,8 @@ Supporting nouns include Capability Binding, Desired State, Observation, Evidenc
 - policy evaluation and authorization state;
 - effect execution handoff;
 - Effect Receipts and reconciliation status;
-- owner-facing status and escalation presentation.
+- owner-facing status and escalation presentation;
+- the canonical integrated human surface for specialist development systems, including Development Intelligence projections, Development OS reasoning surfaces, and Conductor run surfaces.
 
 ### Development Intelligence owns
 - repository/project evidence gathering;
@@ -56,6 +57,8 @@ Supporting nouns include Capability Binding, Desired State, Observation, Evidenc
 - source attribution and confidence/freshness semantics for its observations.
 
 AI Systems Control consumes this reality. It does not reproduce Development Intelligence inside the control plane.
+
+AI Systems Control is the canonical integrated owner-facing surface for Development Intelligence. Development Intelligence remains a separate evidence engine and service authority. Its direct Workbench remains a supported diagnostic/reference surface for developing, debugging, and independently verifying the intelligence engine; it is not the primary integrated owner experience.
 
 ### Development OS owns
 - reasoning frameworks;
@@ -94,7 +97,7 @@ The owner must be able to tell which category a statement belongs to.
 
 ## Non-goals for the initial build
 - replacing GitHub;
-- replacing Development Intelligence;
+- replacing or reimplementing the Development Intelligence evidence engine;
 - embedding Development OS as copied prompts/docs;
 - replacing Conductor with a generic task engine;
 - directly editing provider state from arbitrary UI controls;

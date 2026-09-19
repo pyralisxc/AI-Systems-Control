@@ -69,3 +69,27 @@ The control plane should make it easier to approve a well-specified Action than 
 ## Progressive depth
 
 Default views show the operator model. Evidence, provider payloads, and specialist-system details remain inspectable one level deeper. This keeps the system approachable without discarding rigor.
+
+
+## Specialist capability surfaces
+
+AI Systems Control is the canonical integrated human surface for specialist systems.
+
+Development Intelligence capabilities should appear natively inside the Project/Workspace experience—for example Overview, Intelligence, Architecture, Explore, Inspector, Evidence, Changes, Coverage, Sources, Parity, and assessment projections—while Development Intelligence remains the authority that computes those results.
+
+A specialist system may retain its own direct UI when that surface is valuable for:
+- engine development and debugging;
+- independent verification of ASC presentation;
+- specialist diagnostics;
+- compatibility or external-client use.
+
+The owner should not need to leave AI Systems Control for routine specialist-system use. Deep links to specialist surfaces are escape hatches, not the primary navigation model.
+
+## Surface parity rule
+
+A specialist capability is not considered migrated merely because ASC can display a summary of it. Before ASC supersedes a specialist human workflow:
+1. the underlying specialist capability remains the source of truth;
+2. ASC preserves evidence, uncertainty, coverage, and source identity;
+3. the ASC surface provides equivalent or intentionally improved access to the capability;
+4. battle tests cover the new presentation path;
+5. the specialist direct surface remains available until parity is demonstrated.

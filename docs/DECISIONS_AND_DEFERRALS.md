@@ -10,7 +10,10 @@
 - Permission failures become explicit escalation requirements.
 - Slice A starts with GitHub Project Reality.
 - Reusable web/product infrastructure is extracted source-first into a separate Web Foundation.
-- Specialist systems retain ownership rather than being folded into the control plane.
+- Specialist systems retain engine/domain ownership rather than being folded into the control plane.
+- AI Systems Control is the canonical integrated owner-facing website for specialist-system capabilities.
+- Development Intelligence's direct Workbench is retained as a diagnostic/reference surface, not the primary integrated owner experience.
+- Hosting follows ownership: AI Systems Control and Development Intelligence use separate Vercel projects in the same Vercel team.
 
 ## Deferred
 - full autonomous policy authoring;

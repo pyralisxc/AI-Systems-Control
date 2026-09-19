@@ -4,6 +4,8 @@ AI Systems Control is the owner-facing control plane for connecting projects, wo
 
 This repository crystallizes the architecture resolved in the Dev OS Outlook audit. It is intentionally a control plane, not a replacement for the specialist systems around it.
 
+AI Systems Control is also the **canonical integrated owner-facing website** for those specialist systems. Development Intelligence, Development OS, Conductor, and future systems remain separate authorities behind explicit capability boundaries; ASC presents their capabilities as one coherent operating environment.
+
 ## Ownership boundary
 
 - **AI Systems Control** owns Project, Workspace, Capability, Capability Binding, Desired/Observed State, governed Action, Policy Decision, and Effect Receipt.
@@ -58,6 +60,12 @@ Optional environment:
 - `ASC_FRESHNESS_STALE_SECONDS=1800` controls the stale threshold.
 
 The command prints the complete Slice A owner view as JSON: Project identity, Observed/Inferred/Desired truth, evidence and freshness, drift, problems, and read-capability binding availability. It exposes no provider mutation operation.
+
+## Web and deployment ownership
+
+ASC gets its own Vercel project in the existing Vercel team. The existing Development Intelligence Vercel project remains the independent evidence-service deployment. See [Hosting Topology](docs/HOSTING_TOPOLOGY.md) and [ADR-005/006](docs/adr/README.md).
+
+Development Intelligence's direct Workbench remains a diagnostic/reference surface while routine intelligence workflows migrate into ASC.
 
 ## Core invariant
 
