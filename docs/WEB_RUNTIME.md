@@ -10,7 +10,10 @@ The runtime is intentionally split:
 
 - `tsconfig.core.json` compiles the control-plane core to `dist/`.
 - `tsconfig.json` type-checks the Next application.
-- the web layer consumes core contracts; core domain/ports do not depend on Next or React.
+- the web runtime consumes the compiled `dist/` boundary instead of bundling NodeNext source modules directly.
+- core domain/ports do not depend on Next or React.
+
+Consuming the compiled boundary is intentional: it makes the owner website behave like a real client of the control-plane package and prevents Turbopack/module-resolution behavior from changing core import semantics.
 
 This is a source-lineage decision, not a wholesale CardForge copy. Generic design-system extraction remains owned by the separate Web Foundation boundary.
 

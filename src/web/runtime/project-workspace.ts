@@ -1,11 +1,11 @@
 import {
   InMemoryProjectRegistry
-} from "@/application/index";
+} from "../../../dist/application/index.js";
 import {
   createSliceADevelopmentIntelligenceComposition,
   createUnavailableSliceAComposition
-} from "@/composition/index";
-import type { OwnerProjectRealityView } from "@/slice-a/index";
+} from "../../../dist/composition/index.js";
+import type { OwnerProjectRealityView } from "../../../dist/slice-a/index.js";
 import { buildOwnerProjectRealityView } from "@/slice-a/index";
 
 const DEFAULT_REPOSITORY = "pyralisxc/AI-Systems-Control";

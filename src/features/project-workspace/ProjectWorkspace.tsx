@@ -3,7 +3,7 @@ import type {
   OwnerDesiredItem,
   OwnerProjectRealityView,
   OwnerRealityItem
-} from "@/slice-a/index";
+} from "../../../dist/slice-a/index.js";
 
 interface ProjectWorkspaceProps {
   readonly view: OwnerProjectRealityView;
