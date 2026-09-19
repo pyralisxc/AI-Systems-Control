@@ -6,7 +6,7 @@ import {
   createUnavailableSliceAComposition
 } from "../../../dist/composition/index.js";
 import type { OwnerProjectRealityView } from "../../../dist/slice-a/index.js";
-import { buildOwnerProjectRealityView } from "@/slice-a/index";
+import { buildOwnerProjectRealityView } from "../../../dist/slice-a/index.js";
 
 const DEFAULT_REPOSITORY = "pyralisxc/AI-Systems-Control";
 
