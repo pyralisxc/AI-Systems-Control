@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadProjectWorkspace } from "@/web/runtime/project-workspace";
+import { isOwnerAuthenticated } from "@/web/auth/owner-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  if (!(await isOwnerAuthenticated())) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: { "cache-control": "no-store" } }
+    );
+  }
+
   const repository = request.nextUrl.searchParams.get("repository")?.trim();
   if (!repository) {
     return NextResponse.json(

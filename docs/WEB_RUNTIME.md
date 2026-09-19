@@ -52,3 +52,24 @@ When the DI deployment requires a machine credential, `DEVINT_TOKEN` remains ser
 This first shell does not introduce provider mutation. Do not add provider write controls until the Action/policy/authorization path is implemented.
 
 Before exposing private repository intelligence on a public production hostname, add the ASC owner-auth boundary or enforce equivalent deployment protection. The project-reality route must be treated as owner data when DI can inspect private sources.
+
+
+## Owner access boundary
+
+The canonical Project Workspace and `/api/project-reality` require an
+authenticated owner session.
+
+Bootstrap authentication uses:
+- `ASC_OWNER_PASSWORD` — the owner's deployment-only password;
+- `ASC_SESSION_SECRET` — an independent high-entropy signing secret;
+- a 12-hour HMAC-signed `asc_owner_session` cookie;
+- `HttpOnly`, `SameSite=Strict`, and `Secure` cookies in production;
+- constant-length password comparison;
+- same-origin relative return paths only.
+
+The public `/api/health` endpoint exposes only whether owner auth and DI are
+configured, never secret values.
+
+This is a deliberately narrow single-owner boundary. A future identity
+provider may replace the password flow when multi-user/organization identity
+becomes a real product requirement.
