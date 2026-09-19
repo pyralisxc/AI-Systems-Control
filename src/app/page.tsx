@@ -1,4 +1,9 @@
+import { redirect } from "next/navigation";
+import {
+  normalizeOwnerReturnPath
+} from "../../dist/application/index.js";
 import { ProjectWorkspace } from "@/features/project-workspace/ProjectWorkspace";
+import { isOwnerAuthenticated } from "@/web/auth/owner-auth";
 import {
   defaultRepository,
   loadProjectWorkspace
@@ -19,6 +24,13 @@ function scalar(value: string | readonly string[] | undefined): string | undefin
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
   const repository = scalar(params.repository)?.trim() || defaultRepository();
+  const returnPath = normalizeOwnerReturnPath(
+    `/?repository=${encodeURIComponent(repository)}`
+  );
+
+  if (!(await isOwnerAuthenticated())) {
+    redirect(`/login?returnTo=${encodeURIComponent(returnPath)}`);
+  }
 
   try {
     const view = await loadProjectWorkspace(repository);

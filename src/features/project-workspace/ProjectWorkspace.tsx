@@ -360,6 +360,9 @@ export function ProjectWorkspace({
         <footer className="workspace-footer">
           <span>Slice A · read-only project reality</span>
           <span>Mutations remain unreachable from this surface.</span>
+          <form method="post" action="/api/auth/logout">
+            <button className="logout-button" type="submit">Sign out</button>
+          </form>
         </footer>
       </main>
     </div>
