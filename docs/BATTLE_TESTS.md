@@ -55,6 +55,7 @@ These scenarios test the current supervisory-control architecture. The legacy Sl
 - **F04** GitHub/provider-native state is referenced, not duplicated as a second authority.
 - **F05** DevOS can remain usable without ASC-specific tools.
 - **F06** ASC deterministic control state is readable with no LLM running.
+- **F07** A feature that needs another system's semantic state stores only the minimum reference/control metadata in ASC; duplicating the owned semantics fails architecture review.
 
 ## G. Conversational / agent resilience
 
@@ -74,4 +75,4 @@ These scenarios test the current supervisory-control architecture. The legacy Sl
 - **H05** Candidate audit findings can exist without becoming executable work.
 - **H06** Owner attention is exception-driven; successful routine events do not flood the attention queue.
 
-Total: **48 v2 scenarios**.
+Total: **49 v2 scenarios**.

@@ -95,6 +95,28 @@ ASC authorizes/observes execution; it does not duplicate Conductor's mechanics.
 ### Provider systems own
 GitHub, Vercel, Google, Supabase, email providers, and future services remain authoritative for their own native state.
 
+## Authority placement invariant
+
+ASC may **reference, observe, authorize access to, correlate, or route** another system's state or capability without taking ownership of its semantics.
+
+Before adding any new ASC concept or persisted field, ask:
+
+1. Does another Project/system/provider already own the underlying truth or behavior?
+2. If yes, can ASC store only an opaque reference, relationship, authorization, control state, or observation pointer?
+3. Would placing the full concept in ASC create a second source of truth, a second executor, or duplicated specialist logic?
+
+If another bounded system owns the semantics, the default answer is **do not move that semantic state into ASC**.
+
+Examples:
+- project/product meaning stays in the Project repository and is interpreted by DI;
+- work items/PRs stay in GitHub;
+- project graph/evidence stays in DI;
+- provider execution mechanics and receipts stay in Conductor/provider systems;
+- provider-native state stays with the provider;
+- reusable agent method stays in DevOS.
+
+ASC owns only the supervisory/control relationship that cannot be correctly owned elsewhere.
+
 ## Owner verification
 
 Owner Verification is orthogonal to work lifecycle status.
