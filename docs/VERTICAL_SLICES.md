@@ -1,78 +1,98 @@
-# Vertical Slices
+# Vertical Slices — ASC v2
 
-The system is built through end-to-end slices that prove control-plane invariants rather than horizontal framework construction.
+The v2 system is built through small end-to-end control slices.
 
-## Slice A — GitHub Project Reality
+The 2026-09-18 Slice A project-reality implementation remains in the codebase as historical/prototype evidence. The following slices define the current target direction.
 
-**Status: first build referent**
+## Slice 1 — Owner Verification
 
 ### Goal
-Open a real GitHub-backed Project in AI Systems Control and present trustworthy current project reality with provenance, desired-vs-observed comparison, and capability availability.
-
-### Boundary
-This slice is read-oriented. It must not require a mutation path to prove value.
+Prove that work lifecycle state and owner authorization are independent.
 
 ### Flow
-1. Register/resolve a Project from canonical GitHub repository identity.
-2. Open a Workspace for the Project.
-3. Resolve host-aware capability bindings for observation.
-4. Request normalized project reality from the project-reality boundary, with Development Intelligence as the semantic authority.
-5. Preserve source references and freshness.
-6. Render observed state.
-7. Load any applicable desired-state declarations.
-8. Compute alignment/drift/unknown/stale outcomes.
-9. Render capability availability, including permission-blocked states.
-10. Produce no external mutation.
+1. Resolve one Project and one GitHub work item.
+2. Observe that the work item may be Ready without being executable.
+3. Record Owner Verified intent against an exact scope/fingerprint.
+4. Re-read the authorization deterministically.
+5. Revoke or invalidate it.
 
-### Minimum observed model
-- project/repository identity;
-- default branch;
-- referenced revision/HEAD when available;
-- branch/revision freshness;
-- open pull-request summary;
-- issue/work state summary where available;
-- CI/workflow status summary where available;
-- Development Intelligence analysis status/evidence availability;
-- explicit unknowns for unavailable data.
+### Acceptance
+- Ready does not imply authorized.
+- authorization records owner, time, Project, work reference, and exact reviewed scope;
+- material scope change does not silently inherit authorization;
+- authorization can be revoked without changing the backing GitHub issue's meaning.
 
-### Acceptance criteria
-- A Project is stable across multiple Workspaces.
-- The UI never reports provider data without source/freshness metadata.
-- Development Intelligence output is consumed through an interface, not copied into this codebase.
-- Missing DI/provider connectivity degrades to unknown/unavailable instead of fabricated state.
-- Desired-vs-observed comparison can represent aligned, divergent, unknown, incomparable, and stale.
-- Capability resolution reports why a known capability is unavailable.
-- No GitHub write tool is callable from the Slice A application path.
+## Slice 2 — Worker Lease and Stop
 
-## Slice B — Governed GitHub Action
+### Goal
+Prove one manually started worker can receive temporary authority and lose it immediately.
 
-Introduce the first low-risk mutation through the complete Action lifecycle, such as creating a clearly scoped development issue.
+### Flow
+1. Attach WorkerSession to an active WorkAuthorization.
+2. Issue an ExecutionLease for a bounded capability set.
+3. Execute/read a harmless test capability through the governed boundary.
+4. Stop the worker or Project.
+5. Increment/revoke the applicable control generation.
+6. Attempt the stale operation again.
 
-Must prove:
-- Action proposal;
-- binding resolution;
-- policy check;
-- explicit authorization if required;
-- effect execution;
-- Effect Receipt;
-- fresh reconciliation;
-- verified vs indeterminate outcomes.
+### Acceptance
+- stale lease is rejected at the execution boundary;
+- stopping does not depend on model cooperation;
+- owner stop cannot be auto-cleared by a worker;
+- ASC remains legible with no LLM running.
 
-## Slice C — Conductor Handoff
+## Slice 3 — Account Domain / Connection Separation
 
-A verified/authorized objective is handed to Conductor for multi-step execution while AI Systems Control remains the control and audit surface.
+### Goal
+Prove personal and business identities cannot bleed into each other.
 
-Must prove:
-- orchestration ownership remains in Conductor;
-- action/run correlation;
-- progress observation;
-- pause/escalation propagation;
-- final receipts and reconciliation.
+### Flow
+1. Create two AccountDomains for one Owner.
+2. Attach distinct provider Connection references.
+3. Attach a Project to one domain.
+4. Resolve capabilities/connections for that Project.
+5. attempt cross-domain access.
 
-## Slice D — Multi-host Capability Binding
+### Acceptance
+- only explicitly permitted connections are visible/usable;
+- cross-domain capability use is denied unless explicitly authorized;
+- raw provider secrets are not returned to workers.
 
-Demonstrate one logical Capability realized differently across hosts/environments without leaking provider-specific behavior into the domain model.
+## Slice 4 — Manual Conversational Worker
 
-## Slice E — Foundation-aware Project
+### Goal
+Prove a natural-language session can operate over the control spine without becoming durable project truth.
 
-Represent a project that consumes the reusable Web Foundation and surface its version/capability/upgrade state without moving foundation ownership into this repository.
+### Inputs
+- DevOS working method;
+- Project-local truth through DI;
+- Owner Verified work;
+- scoped Conductor capabilities;
+- ASC lease/control state.
+
+### Acceptance
+- session can be replaced without losing work/authorization/control state;
+- complex project truth is retrieved from DI/project sources rather than transcript archaeology;
+- owner can stop the session through ASC;
+- transcript is evidence/context, not canonical project meaning.
+
+## Slice 5 — Controlled Dispatch
+
+### Goal
+Allow ASC to start a worker for already Owner Verified work when explicit dispatch policy permits.
+
+### Acceptance
+- dispatch does not create new authorization;
+- capacity/scheduling policy is deterministic and inspectable;
+- ambiguous product/scope changes return to owner attention;
+- global/project stop prevents new dispatch as well as ongoing execution.
+
+## Later slices
+
+Only after the above are proven:
+- recurring/scheduled agent work;
+- richer portfolio orchestration;
+- browser execution;
+- stronger conversational cockpit;
+- policy-derived candidate work;
+- multi-user/organization administration.

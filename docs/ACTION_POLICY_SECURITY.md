@@ -1,61 +1,88 @@
-# Action, Policy, and Security Contract
+# Authorization, Execution, and Security Contract — ASC v2
 
-## Governed mutation rule
+## Authority rule
 
-Any operation that can materially change an external system must enter the Action lifecycle before execution.
+Work status, model confidence, tool availability, and provider connectivity do not grant execution authority.
 
-Examples:
-- create/update/delete GitHub issues or PRs;
-- change repository settings;
-- deploy;
-- mutate infrastructure;
-- change secrets or permissions;
-- write to product data;
-- publish or release.
+Externally meaningful work requires:
+1. a valid owner WorkAuthorization where policy requires owner consent;
+2. an active WorkerSession when performed by an agent;
+3. a valid ExecutionLease for the requested capability;
+4. matching ControlState generation;
+5. successful Conductor/provider policy checks.
 
-Read-only observation does not require an Action, but it still requires provenance.
+## Owner Verification
 
-## Action phases
+Owner Verification is the durable consent boundary.
 
-1. **Propose** — normalize target, capability, parameters, rationale, and expected effect.
-2. **Resolve binding** — determine the concrete host/provider/adapter.
-3. **Policy check** — evaluate risk, scope, permissions, environment, and approval requirements.
-4. **Authorize** — collect explicit authorization where policy requires it.
-5. **Execute** — perform the effect through the resolved binding.
-6. **Receipt** — record the executor/provider response.
-7. **Reconcile** — obtain fresh observed state.
-8. **Verify/close** — mark verified only when observed reality supports the requested effect.
+It must bind to the exact reviewed work/scope and remain:
+- inspectable;
+- revocable;
+- supersedable;
+- invalidatable when material context changes.
 
-## Security principles
+Agents may recommend work or enrich issues without creating owner authority.
 
-- least privilege per capability binding;
-- no secret material in Action logs or receipts;
-- permission state is explicit and can be unknown;
-- capability discovery must not imply capability authorization;
-- deny-by-default for mutations with unresolved identity/scope;
-- immutable audit history for Action decisions and receipts;
-- idempotency/correlation keys for retryable effects;
-- replay protection for approvals where practical.
+## Capability rule
 
-## Permission escalation object
+Workers receive scoped capability references/leases, not durable raw credentials.
 
-When execution is blocked by permission, create an escalation requirement containing:
-- blocked capability;
-- provider/host;
-- missing permission/scope when known;
-- affected Action;
-- safe next step;
-- whether owner intervention is required.
+Capability availability is not capability authorization.
 
-Do not silently switch to a broader credential or different host.
+Missing permission must not cause silent fallback to a broader identity, different AccountDomain, or alternate credential.
+
+## Stop and fencing
+
+Control scopes may include:
+- system;
+- AccountDomain;
+- Project;
+- WorkerSession.
+
+An owner stop:
+- increments/revokes the applicable control generation;
+- prevents new lease issuance/dispatch within scope;
+- causes stale leases to fail on subsequent execution;
+- cannot be auto-cleared by a worker/supervisor.
+
+Best-effort runtime cancellation may accompany stop, but authorization revocation is the security boundary.
+
+## Execution boundary
+
+Conductor owns exact provider/code/deployment execution mechanics, idempotency, correlation, receipts, and provider-specific failures.
+
+ASC references those executions; it does not duplicate the provider executor.
+
+## Observation / verification
+
+A provider success response is not independently verified project reality.
+
+Where verification matters:
+- use provider read-back;
+- tests;
+- DI evidence/parity;
+- runtime/browser evidence;
+- or an explicit owner result review.
+
+The required proof should be proportional to the change/risk.
+
+## Secrets and identity
+
+- secrets remain opaque in logs/owner surfaces;
+- workers receive only minimum scoped authority;
+- personal/business AccountDomains do not mix implicitly;
+- revoked/expired connection authority invalidates dependent leases;
+- cross-project/cross-domain mutations require explicit scope.
 
 ## Failure semantics
 
-An Action can end as:
-- verified;
-- failed before effect;
-- reported-but-unverified;
-- indeterminate;
-- cancelled.
+ASC should distinguish:
+- blocked before effect;
+- stopped/revoked;
+- expired;
+- provider execution failed;
+- indeterminate external effect;
+- execution reported;
+- independently verified result.
 
-A timeout after provider submission must not be labeled failed if the external effect may have happened. It becomes indeterminate until reconciliation resolves it.
+Do not collapse these into one success/failure badge.

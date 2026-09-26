@@ -1,39 +1,45 @@
-schema_version: 1
+schema_version: 2
 
 control_plane:
   name: AI Systems Control
   mode: development
 
+owner:
+  id: owner-1
+
+account_domain:
+  id: business-cardforge
+  name: CardForge Business
+
 project:
   id: cardforge
   name: CardForge
+  account_domain_id: business-cardforge
   references:
-    - kind: github_repository
-      value: pyralisxc/CardForge
+    github_repository: pyralisxc/CardForge
+    development_intelligence: pyralisxc/CardForge
+    conductor: CardForge
 
-reality:
+authorization:
+  owner_verified_required_for_execution: true
+  material_scope_change_requires_revalidation: true
+
+control:
+  default_mode: running
+  fencing_enabled: true
+  worker_leases:
+    default_ttl_seconds: 1800
+  owner_stop:
+    blocks_new_dispatch: true
+    lower_authority_can_clear: false
+
+connections:
+  deny_cross_domain_by_default: true
+  expose_raw_credentials_to_workers: false
+
+execution:
+  authority: conductor
+
+project_understanding:
   authority: development-intelligence
-  freshness:
-    warning_after_seconds: 300
-    stale_after_seconds: 1800
-
-capabilities:
-  bindings:
-    resolution: host-aware
-    deny_mutation_when_ambiguous: true
-
-actions:
-  require_governed_path_for_mutation: true
-  require_reconciliation: true
-  unknown_identity_policy: deny_mutation
-
-security:
-  redact_secrets_in_receipts: true
-  allow_credential_fallback: false
-
-founder_verification:
-  enabled: true
-  required_for:
-    - boundary_change
-    - permission_escalation
-    - high_risk_mutation
+  preserve_uncertainty_and_coverage: true

@@ -1,75 +1,77 @@
-# Battle Tests — 56 Scenarios
+# Battle Tests — ASC v2
 
-These are architecture-level scenarios. Slice implementations should automate the relevant subset and preserve the invariant when new providers are added.
+These scenarios test the current supervisory-control architecture. The legacy Slice A test suite remains useful implementation evidence but does not define the v2 product center.
 
-## A. Project identity and source truth (A01–A08)
-- **A01** Same GitHub repo opened twice resolves to one Project identity.
-- **A02** Repo rename preserves durable Project identity through canonical reference reconciliation.
-- **A03** Deleted/inaccessible repo becomes unavailable, not deleted Project truth.
-- **A04** Conflicting repository references are surfaced, not silently merged.
-- **A05** Stale observation is labeled stale.
-- **A06** Provider response without evidence/provenance is rejected from observed truth.
-- **A07** Partial provider outage produces partial/unknown observations.
-- **A08** A Workspace cannot overwrite canonical Project identity.
+## A. Authority separation
 
-## B. Workspace and capability binding (B01–B08)
-- **B01** Two Workspaces over one Project can select different hosts without duplicating the Project.
-- **B02** Capability known globally but unsupported on selected host is unavailable with reason.
-- **B03** Capability supported but missing permission is permission-blocked.
-- **B04** Permission refresh causes binding re-resolution.
-- **B05** Adapter outage does not remove the Capability definition.
-- **B06** Workspace-local filters do not alter observed provider state.
-- **B07** Binding selection is deterministic for equal inputs/policy.
-- **B08** Ambiguous bindings require explicit resolution rather than arbitrary choice.
+- **A01** Ready GitHub issue without Owner Verification cannot receive an execution lease.
+- **A02** Owner Verified issue remains a GitHub issue; ASC does not create a duplicate canonical task.
+- **A03** Agent recommendation cannot set Owner Verified.
+- **A04** Green CI does not imply owner authorization.
+- **A05** Merge state does not imply permanent product-direction acceptance.
+- **A06** Result verification is distinguishable from intent/work verification.
 
-## C. Desired vs observed state (C01–C08)
-- **C01** Equal comparable values resolve aligned.
-- **C02** Unequal comparable values resolve divergent.
-- **C03** Missing observation resolves unknown.
-- **C04** Stale observation resolves stale rather than aligned.
-- **C05** Different schemas resolve incomparable.
-- **C06** Desired state records its authority/source.
-- **C07** Multiple desired-state authorities with conflict are surfaced.
-- **C08** Fresh reconciliation can move drift from divergent to aligned.
+## B. Authorization integrity
 
-## D. Action and policy (D01–D08)
-- **D01** Mutating capability cannot execute without an Action.
-- **D02** Read capability does not create a mutation Action.
-- **D03** Denied policy decision prevents execution.
-- **D04** Required approval blocks until matching authorization exists.
-- **D05** Approval for one target cannot authorize another target.
-- **D06** Expired/revoked authorization cannot execute.
-- **D07** Parameter changes after approval invalidate authorization when material.
-- **D08** Policy explanation is persisted with the Action.
+- **B01** Authorization records exact owner, Project, work reference, scope/fingerprint, and time.
+- **B02** Material work-scope change invalidates or requires revalidation.
+- **B03** Authorization for one Project cannot authorize another.
+- **B04** Revoked authorization cannot issue a new lease.
+- **B05** Superseded authorization remains historically inspectable but non-executable.
+- **B06** Work-status changes do not silently mutate authorization state.
 
-## E. Effect receipt and reconciliation (E01–E08)
-- **E01** Provider success creates a Receipt but not verified state.
-- **E02** Fresh observation confirming effect marks verified.
-- **E03** Provider timeout after submission becomes indeterminate.
-- **E04** Reconciliation can discover effect succeeded despite timeout.
-- **E05** Reconciliation can discover reported success did not persist.
-- **E06** Retry uses idempotency/correlation semantics when supported.
-- **E07** Receipt preserves provider identifiers without storing secrets.
-- **E08** Verification evidence is traceable from closed Action.
+## C. Worker / lease control
 
-## F. Permission escalation and security (F01–F08)
-- **F01** Missing scope produces an escalation requirement.
-- **F02** System does not silently switch to a broader credential.
-- **F03** Secret-bearing provider payload is redacted from audit surfaces.
-- **F04** Unknown identity blocks high-risk mutation.
-- **F05** Cross-project authorization is rejected.
-- **F06** High-risk Action cannot bypass founder verification policy.
-- **F07** Permission increase triggers binding/policy re-evaluation.
-- **F08** Revoked permission during execution yields explicit failure/indeterminate state.
+- **C01** WorkerSession requires a valid authorization for executable work.
+- **C02** Lease has bounded capabilities and expiry.
+- **C03** Expired lease cannot execute.
+- **C04** Revoked lease cannot execute.
+- **C05** Worker stop prevents subsequent mutations even if the process keeps running.
+- **C06** Parent worker cannot grant a child more authority than the parent holds.
 
-## G. System boundaries and resilience (G01–G08)
-- **G01** Development Intelligence unavailable -> reality fields degrade to unknown, not locally reinvented analysis.
-- **G02** Development OS unavailable -> reasoning capability unavailable, control-plane state remains intact.
-- **G03** Conductor unavailable -> orchestration capability unavailable, direct mutation path is not substituted.
-- **G04** Web Foundation unavailable -> control-plane domain still functions.
-- **G05** Provider-specific fields remain behind adapter/projection boundaries.
-- **G06** A new provider can bind an existing Capability without changing Action semantics.
-- **G07** Agent cannot add a direct mutation shortcut without failing architecture tests/review.
-- **G08** Historical Actions/Receipts remain interpretable after adapter/version upgrades.
+## D. Stop / fencing
 
-Total: **56 scenarios**.
+- **D01** Project stop blocks all project worker mutations.
+- **D02** Project stop blocks new dispatch/lease issuance.
+- **D03** STOP ALL blocks all ASC-mediated mutable execution.
+- **D04** Lower-authority agent cannot clear an owner stop.
+- **D05** Old control-generation token fails after stop/resume generation changes.
+- **D06** Already-completed external effects are reported/reconciled rather than pretended undone.
+
+## E. Account / connection isolation
+
+- **E01** One Owner can hold distinct personal/business AccountDomains.
+- **E02** Project in Business A cannot see Personal connections by default.
+- **E03** Two Google/GitHub/provider identities remain separately addressable.
+- **E04** Missing permission does not silently switch to another connection.
+- **E05** Worker never receives raw long-lived provider credentials through normal control APIs.
+- **E06** Explicit cross-domain grant is narrow, attributable, and revocable.
+
+## F. System boundaries
+
+- **F01** Project meaning stays in Project repository/history, not copied into ASC canonical state.
+- **F02** DI unavailable does not cause ASC to invent project understanding.
+- **F03** Conductor unavailable does not cause ASC to add direct provider-mutation shortcuts.
+- **F04** GitHub/provider-native state is referenced, not duplicated as a second authority.
+- **F05** DevOS can remain usable without ASC-specific tools.
+- **F06** ASC deterministic control state is readable with no LLM running.
+
+## G. Conversational / agent resilience
+
+- **G01** New worker can cold-start from Project/DI/work authorization without complete prior chat transcript.
+- **G02** Transcript wording cannot override revoked authorization.
+- **G03** Messy natural-language owner input may be interpreted, but ambiguous consequential scope returns to owner attention.
+- **G04** Replacing/saturating a worker does not lose durable work/control state.
+- **G05** Unsupported consumer ChatGPT-chat access degrades cleanly rather than becoming a hidden dependency.
+- **G06** Lightweight control/informer model cannot bypass deterministic authority checks.
+
+## H. Evidence and change
+
+- **H01** DI parity/impact conclusions retain coverage/uncertainty rather than becoming a binary safety oracle.
+- **H02** Provider success and DI verification remain distinct observations.
+- **H03** Authorization may reference Project/DI revision context without making ASC the owner of product meaning.
+- **H04** Historical project documentation may evolve without rewriting ASC history.
+- **H05** Candidate audit findings can exist without becoming executable work.
+- **H06** Owner attention is exception-driven; successful routine events do not flood the attention queue.
+
+Total: **48 v2 scenarios**.
