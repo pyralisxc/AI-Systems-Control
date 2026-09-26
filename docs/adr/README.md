@@ -1,32 +1,58 @@
 # Architecture Decision Records
 
 ## ADR-001 — Control plane, not monolith
-**Decision:** AI Systems Control owns control semantics while Development Intelligence, Development OS, Conductor, and Web Foundation remain separate authorities.  
-**Reason:** specialist ownership preserves clarity, independent evolution, and evidence boundaries.  
-**Consequence:** integrations require explicit interfaces; duplicated specialist logic is an architecture defect.
+**Decision:** ASC owns supervisory control semantics while DI, DevOS, Conductor, GitHub, and providers remain separate authorities.  
+**Reason:** specialist ownership preserves clarity, independent evolution, and enforceable boundaries.  
+**Consequence:** duplicated specialist logic in ASC is an architecture defect.
 
-## ADR-002 — Desired and observed state are separate
-**Decision:** desired state is never stored as if it were current external reality.  
-**Reason:** control requires visible drift and uncertainty.  
-**Consequence:** every comparison must support unknown/stale/incomparable outcomes, not just equal/not-equal.
+## ADR-002 — Project meaning stays with the Project
+**Decision:** durable product direction, principles, architecture, constraints, and project-local decisions remain in the Project's own repository/history.  
+**Reason:** moving project meaning into ASC would create a second truth and detach evolution from the project itself.  
+**Consequence:** ASC stores references/authorization; DI interprets and evaluates project meaning from authoritative sources.
 
-## ADR-003 — Govern mutations through Actions and Effect Receipts
-**Decision:** externally meaningful mutations enter the Action lifecycle and finish only after reconciliation.  
-**Reason:** tool execution, authorization, and real-world effect are different facts.  
-**Consequence:** provider success cannot directly produce "verified."
+## ADR-003 — DI owns machine understanding, not owner authority
+**Decision:** DI is the evidence-backed project-understanding layer for semantic meaning, parity, provenance, uncertainty, and blast-radius evidence.  
+**Reason:** general agents should not repeatedly reconstruct project truth from raw files/chat history.  
+**Consequence:** ASC and workers consume DI evidence but must not treat DI as owner authorization or omniscient certainty.
 
-## ADR-004 — Source-first Web Foundation extraction
-**Decision:** reusable website primitives are extracted from mature source systems after ownership seams are established.  
-**Reason:** cumulative development should preserve proven behavior without freezing product-specific accidental architecture into a generic foundation.  
-**Consequence:** AI Systems Control can consume the foundation but does not own it.
+## ADR-004 — Owner Verification is independent of work status
+**Decision:** issue/PR lifecycle status does not authorize execution. Owner Verification is a separate, revocable record bound to exact reviewed scope/revision/fingerprint.  
+**Reason:** Ready/In Progress/green CI answer different questions than "did the owner authorize this work/result?"  
+**Consequence:** agents cannot infer authority from status, historical behavior, or technical feasibility.
 
+## ADR-005 — Worker authority is leased and fenceable
+**Decision:** workers receive short-lived capability leases bound to control generations; owner stop increments/revokes authority so stale workers cannot mutate state.  
+**Reason:** a real kill switch must work even when a model/process does not cooperate.  
+**Consequence:** autonomous workers must not hold unmediated long-lived provider credentials.
 
-## ADR-005 — ASC owns the canonical integrated owner surface
-**Decision:** AI Systems Control is the canonical human/product surface for routine use of specialist development systems. Development Intelligence remains a separate evidence engine; its Workbench becomes a diagnostic/reference surface rather than the primary integrated owner application.  
-**Reason:** maintaining multiple equally primary owner websites duplicates navigation, authentication, product composition, and presentation work while fragmenting the control-plane experience. ASC can present specialist capabilities deeply without taking ownership of their truth engines.  
-**Consequence:** DI capabilities migrate into ASC progressively with evidence/parity preserved. Specialist UIs remain available until equivalent ASC access is battle-tested. ASC must never reimplement DI graph/evidence semantics merely to render them.
+## ADR-006 — Conductor owns bounded execution
+**Decision:** exact provider/code/deployment mutation mechanics, receipts, retries/idempotency, and execution scope belong to Conductor.  
+**Reason:** duplicating these mechanics in ASC creates competing execution authorities.  
+**Consequence:** ASC authorizes/observes; Conductor executes.
 
-## ADR-006 — Separate Vercel projects for ASC and DI
-**Decision:** AI Systems Control receives its own Vercel project in the existing Vercel team. The existing `development-intelligence` Vercel project remains the DI service deployment.  
-**Reason:** the canonical website and the specialist evidence service have different deployment, rollback, scaling, authentication, and failure domains. Reusing one Vercel project would couple releases and blur service ownership.  
-**Consequence:** ASC may call DI over a private/trusted service boundary, but each system keeps independent deployments. Shared domains/design systems may make them feel like one product without sharing a deployment unit.
+## ADR-007 — DevOS is portable agent method
+**Decision:** DevOS defines reusable agent working behavior without being hard-wired to ASC/DI/Conductor.  
+**Reason:** methodology should remain useful outside this owner's current tool stack.  
+**Consequence:** ASC may select/supply DevOS method to workers but does not absorb its reasoning corpus.
+
+## ADR-008 — Headless control before cockpit
+**Decision:** prove owner verification, worker registry, leases, stops, and event reconstruction through deterministic interfaces before expanding the rich UI.  
+**Reason:** presentation must not substitute for enforceable control.  
+**Consequence:** the first v2 implementation slice may be API/CLI-first.
+
+## ADR-009 — Account domains separate identities and connections
+**Decision:** personal/business contexts are explicit AccountDomains; Projects and provider Connections are scoped to them.  
+**Reason:** one owner can operate multiple businesses/accounts without granting every worker access to every identity.  
+**Consequence:** cross-domain capability use requires explicit authorization.
+
+## Historical decisions
+
+The 2026-09-18 ADRs around Desired State, Action/Effect Receipt ownership, canonical specialist UI, and separate ASC/DI deployment captured useful early reasoning but no longer define the v2 product center.
+
+Their durable invariants remain:
+- observed evidence needs provenance;
+- unknown/stale/indeterminate are valid;
+- tool availability is not authorization;
+- provider success is not independently verified reality.
+
+Historical source remains available in Git history.

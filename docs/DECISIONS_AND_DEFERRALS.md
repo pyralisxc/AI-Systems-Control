@@ -1,44 +1,66 @@
 # Decisions, Deferrals, and Rejected Directions
 
-## Accepted
-- AI Systems Control is a control plane centered on Project, Workspace, Capability, and Action.
-- Capability realization is host-aware through explicit bindings.
-- Desired state and observed state are distinct.
-- Observed truth requires provenance and freshness.
-- External mutation is governed through Actions.
-- Provider/executor success produces an Effect Receipt, then reconciliation verifies reality.
-- Permission failures become explicit escalation requirements.
-- Slice A starts with GitHub Project Reality.
-- Reusable web/product infrastructure is extracted source-first into a separate Web Foundation.
-- Specialist systems retain engine/domain ownership rather than being folded into the control plane.
-- AI Systems Control is the canonical integrated owner-facing website for specialist-system capabilities.
-- Development Intelligence's direct Workbench is retained as a diagnostic/reference surface, not the primary integrated owner experience.
-- Hosting follows ownership: AI Systems Control and Development Intelligence use separate Vercel projects in the same Vercel team.
+## Accepted — 2026-09-26 crystal
+
+- ASC is a supervisory/orchestration/control plane, not the source of project meaning.
+- Project repositories own durable product direction, architecture, constraints, and project-local decisions.
+- DI owns evidence-backed machine understanding of project reality/meaning, parity, provenance, uncertainty, and change interpretation.
+- DevOS owns portable agent working method and should not be hard-wired to this tool stack.
+- Conductor owns bounded execution/provider mechanics, receipts, retries, and exact mutation scope.
+- GitHub and provider systems remain authoritative for their native state.
+- Owner Verification is separate from issue/PR lifecycle status and from merge state.
+- Owner Verification binds to exact reviewed scope/revision/fingerprint and is revocable.
+- Workers are ephemeral and receive short-lived scoped capability leases rather than durable provider credentials.
+- Worker/project/system stops must be enforced by deterministic control state/fencing, not model cooperation.
+- Lower-authority agents cannot clear an owner stop.
+- ASC is headless-first; a rich cockpit is built after control semantics are proven.
+- ASC should support multiple account domains/identities, including personal/business separation.
+- Chat transcripts are not durable project truth.
+- Existing Slice A code is retained as prototype evidence until a bounded v2 migration proves what to reuse.
+
+## Superseded from the 2026-09-18 crystal
+
+The following are no longer accepted as ASC's product center:
+- ASC as the canonical integrated UI for every specialist capability;
+- ASC owning project Desired State as a separate canonical product-intent store;
+- ASC owning the complete Action -> provider execution -> Effect Receipt lifecycle;
+- Project/Workspace/Capability/Action as the frozen universal domain center;
+- migration of routine DI workflows into ASC as a product requirement.
+
+Useful invariants from that work remain and should be preserved where relevant.
 
 ## Deferred
-- full autonomous policy authoring;
-- multi-user organization/role administration beyond what the first slices require;
-- generalized deployment/infrastructure providers;
-- cross-project portfolio automation;
-- advanced cost/budget policy;
-- rich mobile experience;
-- autonomous remediation of drift;
-- marketplace/plugin distribution semantics.
 
-Deferred means "not required to prove the control-plane spine," not rejected.
+- automatic dispatch of Owner Verified work;
+- policy-derived creation of executable work from broad project direction;
+- rich multi-project cockpit;
+- general scheduling/recurring agent work;
+- multi-user organization administration beyond architecture compatibility;
+- browser execution provider;
+- cost/budget allocation policy;
+- external commercialization/marketplace semantics;
+- direct integration with consumer ChatGPT Project chat history unless an official supported interface exists.
 
-## Rejected for the initial architecture
-- direct provider mutation from arbitrary UI buttons;
-- one universal agent that owns reasoning, orchestration, reality, and execution;
-- treating chats as durable Project state;
-- treating tool availability as authorization;
-- treating a provider success response as verified reality;
-- copying CardForge wholesale into a generic website template repository before source ownership is understood;
-- maintaining parallel feature implementations after a canonical reusable owner exists.
+Deferred means not required for the first control spine, not rejected.
+
+## Rejected
+
+- ASC as a second DI/project-truth database;
+- ASC as a second Conductor/provider executor;
+- replacing GitHub Issues/PRs with an ASC task database;
+- granting execution because a work item is Ready;
+- granting execution because a tool is available;
+- giving autonomous workers permanent provider credentials;
+- making an LLM necessary to read/enforce control state;
+- relying on prompt instructions as a kill switch;
+- treating merge-to-main as permanent product-direction acceptance;
+- silently broadening credentials/connections after permission failure;
+- automatically mixing personal/business provider context.
 
 ## Change rule
-A change to an Accepted decision requires:
-1. a new ADR or explicit amendment;
-2. impact analysis against the battle tests;
-3. migration consequences for existing slices;
-4. owner-visible rationale.
+
+A future change to an Accepted decision should include:
+1. owner-visible rationale;
+2. DI/evidence-backed impact analysis where applicable;
+3. migration consequences for existing control state;
+4. an ADR/amendment when authority boundaries change.

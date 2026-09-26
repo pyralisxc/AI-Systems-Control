@@ -1,76 +1,66 @@
 # AI Systems Control
 
-AI Systems Control is the owner-facing control plane for connecting projects, workspaces, capabilities, and governed actions across the development system.
+AI Systems Control (ASC) is the owner-facing supervisory and orchestration plane for a network of projects, accounts, specialist systems, provider connections, and temporary AI workers.
 
-This repository crystallizes the architecture resolved in the Dev OS Outlook audit. It is intentionally a control plane, not a replacement for the specialist systems around it.
+ASC is deliberately **not** the source of product meaning, technical project intelligence, or provider execution logic. It connects those authorities, records owner authorization, observes active work, and preserves immediate owner control.
 
-AI Systems Control is also the **canonical integrated owner-facing website** for those specialist systems. Development Intelligence, Development OS, Conductor, and future systems remain separate authorities behind explicit capability boundaries; ASC presents their capabilities as one coherent operating environment.
+## System ownership
 
-## Ownership boundary
+- **Project repositories** own durable product meaning: product direction, architecture, legal/product constraints, decisions, and project-local documentation.
+- **Development Intelligence (DI)** owns evidence-backed machine understanding of project reality and meaning: semantic relationships, provenance, parity/evaluation, uncertainty, change interpretation, and historical comparison.
+- **Development OS (DevOS)** owns reusable agent working method: how agents explore, challenge assumptions, resolve ambiguity, crystallize, build, and verify. DevOS remains portable and tool-neutral.
+- **Conductor** owns bounded execution: exact code/provider/deployment operations, work scope, receipts, retries/idempotency, and execution mechanics.
+- **GitHub and external providers** remain authoritative for their native state.
+- **ASC** owns supervisory relationships: project/account identity, provider connections, owner authorization, worker/session state, capability grants, control state, stop/revocation, and cross-system visibility.
+- **Agents/sessions** are ephemeral reasoning workers. They receive bounded context and capabilities and may be replaced without losing durable project truth or owner authority.
 
-- **AI Systems Control** owns Project, Workspace, Capability, Capability Binding, Desired/Observed State, governed Action, Policy Decision, and Effect Receipt.
-- **Development Intelligence** owns evidence-backed project reality and semantic repository understanding.
-- **Development OS** owns development reasoning, methods, and specialist decision procedures.
-- **Conductor** owns multi-step work orchestration and execution sequencing.
-- **Web Foundation** remains a separate reusable website/product foundation extracted source-first from proven implementations such as CardForge.
-- Provider systems such as GitHub remain external sources/effectors. Their native state is not duplicated as a second truth.
+## Core authority rule
 
-## First build referent
+A work item being present, ready, technically feasible, or agent-recommended does not authorize implementation.
 
-The first vertical slice is **Slice A — GitHub Project Reality**.
+ASC introduces an owner-verification boundary:
 
-It proves the control-plane model end-to-end without beginning with mutation:
-1. identify a Project from a GitHub repository;
-2. create/open an operator Workspace;
-3. resolve the available host-aware capabilities;
-4. obtain normalized observed reality through the project-reality boundary;
-5. compare desired and observed state with evidence and freshness;
-6. preserve explicit provenance and degraded/unknown states;
-7. stop before any provider mutation unless it is represented as a governed Action.
+- **Owner Verified — intent**: the owner has accepted the current bounded work intent as eligible for implementation.
+- **Owner Verified — result**: the owner has accepted the resulting change for its next consequential boundary.
 
-See [PRODUCT_CRYSTAL.md](PRODUCT_CRYSTAL.md), [docs/VERTICAL_SLICES.md](docs/VERTICAL_SLICES.md), and [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+Verification is revocable and must bind to the exact scope/revision/fingerprint that was reviewed. Material changes require revalidation.
 
-## Live Slice A owner entry point
+## Control rule
 
-Slice A can connect to a running Development Intelligence server through its public read-only MCP endpoint.
+Owner control must not depend on model cooperation.
 
-Requirements:
-- Node.js 22+
-- a reachable Development Intelligence deployment
-- a valid DI bearer token when that deployment requires one
+The target control plane supports:
+- stop one worker;
+- pause/stop one project;
+- owner STOP ALL;
+- short-lived worker/capability leases;
+- fencing/control epochs so stale workers lose execution authority;
+- lower-authority agents cannot clear an owner stop.
 
-Run:
+Workers receive scoped capabilities, not durable provider credentials.
 
-```bash
-DEVINT_URL=http://127.0.0.1:8787 \
-npm run slice-a -- pyralisxc/AI-Systems-Control
-```
+## Product meaning
 
-For an authenticated deployment:
+ASC does not maintain a second product-truth database.
 
-```bash
-DEVINT_URL=https://development-intelligence.example \
-DEVINT_TOKEN=your-runtime-token \
-npm run slice-a -- pyralisxc/AI-Systems-Control
-```
+Project-local documents and Git history remain durable product truth. DI interprets and evaluates that truth for machines. ASC may reference the relevant project/DI revision when authorizing work, but it does not become the author of project direction.
 
-Optional environment:
-- `ASC_DESIRED_DEFAULT_REF=main` adds one owner desired-state claim for drift comparison.
-- `ASC_FRESHNESS_WARNING_SECONDS=300` controls the aging threshold.
-- `ASC_FRESHNESS_STALE_SECONDS=1800` controls the stale threshold.
+## Account and connection separation
 
-The command prints the complete Slice A owner view as JSON: Project identity, Observed/Inferred/Desired truth, evidence and freshness, drift, problems, and read-capability binding availability. It exposes no provider mutation operation.
+ASC must support multiple owner context domains, such as personal and business contexts, with explicit project membership and provider identities. Connections and credentials must not bleed across domains merely because they belong to the same owner.
 
-## Web and deployment ownership
+## Automation posture
 
-ASC gets its own Vercel project in the existing Vercel team. The existing Development Intelligence Vercel project remains the independent evidence-service deployment. See [Hosting Topology](docs/HOSTING_TOPOLOGY.md) and [ADR-005/006](docs/adr/README.md).
+Automation is a dial, not a cliff:
 
-Development Intelligence's direct Workbench remains a diagnostic/reference surface while routine intelligence workflows migrate into ASC.
+1. Owner verifies work and manually starts a worker.
+2. Owner verifies work and ASC may dispatch a worker when capacity exists.
+3. Only after those flows are proven should broader policy-driven derivation/dispatch be considered.
 
-## Core invariant
+ASC must remain useful with no model running.
 
-> No externally meaningful mutation occurs because a tool happens to be available. It occurs because an Action was proposed, evaluated by policy, explicitly authorized when required, executed through a capability binding, and reconciled into an Effect Receipt plus fresh observed state.
+## Current implementation
 
-## Development status
+The existing Slice A project-reality implementation is retained as historical/prototype evidence. It proved several valuable invariants—provenance, unknown/stale states, capability-versus-authorization separation—but its earlier product framing is superseded by the 2026-09-26 control-plane crystal.
 
-**Slice A live integration in progress.** The control-plane spine, battle-test gates, and executable DI client/owner entry point are implemented. The remaining acceptance step is exercising this command against an actual reachable Development Intelligence deployment and preserving the resulting evidence that the real vertical slice works.
+See [PRODUCT_CRYSTAL.md](PRODUCT_CRYSTAL.md), [docs/DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md), [docs/DECISIONS_AND_DEFERRALS.md](docs/DECISIONS_AND_DEFERRALS.md), and [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).

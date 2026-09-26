@@ -1,95 +1,87 @@
-# Owner Experience
+# Owner Experience — ASC v2
 
 ## Product posture
 
-The primary experience is an owner/operator console: one place to understand what exists, what is connected, what differs from intent, what can be done, and what requires explicit authorization.
+ASC is an owner-control cockpit over independently authoritative systems.
 
-The console should optimize for legibility before density.
+The owner experience should optimize for:
+1. what needs the owner;
+2. what is currently working;
+3. what is connected/authorized;
+4. how to stop it immediately;
+5. where to inspect deeper evidence when needed.
 
-## Project view
+ASC is not required to reproduce every specialist UI.
 
-Every Project view should answer, without opening specialist tools:
-- What project am I looking at?
-- Which source/reality references identify it?
-- What is the latest observed state?
-- How fresh is that observation?
-- What desired state applies?
-- What is aligned, drifting, unknown, or stale?
-- Which systems are currently reachable?
-- Which capabilities are available, unavailable, or permission-blocked?
-- What Actions are pending, executing, failed, or awaiting verification?
+## Default cockpit questions
 
-## Workspace view
+A Project view should quickly answer:
+- What Project/account domain am I controlling?
+- Which provider identities/connections are in scope?
+- What work is Owner Verified?
+- Which workers are active, on what work, and under which leases?
+- What is waiting for owner verification/review?
+- Are any workers or projects paused/stopped?
+- Which capabilities are currently available or blocked?
+- Where is the underlying DI/GitHub/Conductor/provider evidence?
+- Can I stop the worker/project/system immediately?
 
-A Workspace is where the owner works with a Project. It may change the lens without changing the underlying truth.
+## Needs You
 
-Expected controls:
-- environment/host selector;
-- objective/context;
-- capability palette;
-- desired-state overlay;
-- evidence/source drawer;
-- Action queue;
-- escalation queue;
-- receipts/history.
+Owner attention should be exception-driven.
 
-## Truth presentation
+Examples:
+- candidate work awaiting Owner Verification;
+- material scope/intent ambiguity;
+- authorization requiring revalidation;
+- result awaiting consequential acceptance;
+- permission/connection escalation;
+- worker blocked outside its verified scope.
 
-The UI must visually distinguish:
-- **Observed** — backed by current evidence.
-- **Desired** — declared intent.
-- **Inferred** — normalized/interpreted by a specialist system.
-- **Proposed** — would change external state if authorized/executed.
-- **Reported** — executor/provider says an effect occurred.
-- **Verified** — fresh observation confirms the effect.
+Ten successful background steps should not create ten owner notifications.
 
-Do not collapse these categories into one "status" badge.
+## Working
 
-## Permission escalation
+Show active and recently completed workers with:
+- project;
+- authorized work;
+- worker/session identity;
+- state;
+- lease/capability scope;
+- latest meaningful event;
+- stop control.
 
-If a capability exists but cannot be realized:
-1. show the capability as known but blocked;
-2. show the concrete reason when available;
-3. produce an escalation requirement, not an improvised workaround;
-4. after permission changes, re-resolve the binding rather than assuming success.
+## Conversational control
 
-## Founder verification
+ASC should support a natural-language project/control agent without requiring formal ticket syntax.
 
-For high-impact or boundary-changing Actions, the owner sees:
-- exact target;
-- requested change;
-- provider/host;
-- why the Action is needed;
-- policy decision;
-- expected effect;
-- verification plan.
+A lightweight model may be sufficient for:
+- reading deterministic ASC state;
+- querying DI;
+- moving/updating work through allowed operations;
+- explaining blockers;
+- invoking stop/pause/verification commands.
 
-The control plane should make it easier to approve a well-specified Action than to perform an opaque direct mutation.
+Complex product/architecture reasoning may escalate to a stronger worker.
+
+The conversation is an interface to durable systems, not the durable source of project truth.
+
+## ChatGPT and external chats
+
+ASC may reference/ingest external chats when a supported interface exists, but normal consumer ChatGPT Project chats must not be assumed to be programmatically readable/writable.
+
+ASC-managed agent sessions are a separate future execution surface.
 
 ## Progressive depth
 
-Default views show the operator model. Evidence, provider payloads, and specialist-system details remain inspectable one level deeper. This keeps the system approachable without discarding rigor.
+Default views remain compact.
 
+DI graph detail, provider payloads, logs, PRs, deployment evidence, and historical events are available one level deeper rather than duplicated into the main cockpit.
 
-## Specialist capability surfaces
+## Account-domain separation
 
-AI Systems Control is the canonical integrated human surface for specialist systems.
+Personal and business contexts must remain visually and technically distinct.
 
-Development Intelligence capabilities should appear natively inside the Project/Workspace experience—for example Overview, Intelligence, Architecture, Explore, Inspector, Evidence, Changes, Coverage, Sources, Parity, and assessment projections—while Development Intelligence remains the authority that computes those results.
+A worker for a business Project must not implicitly gain access to the owner's personal Google/email/provider context.
 
-A specialist system may retain its own direct UI when that surface is valuable for:
-- engine development and debugging;
-- independent verification of ASC presentation;
-- specialist diagnostics;
-- compatibility or external-client use.
-
-The owner should not need to leave AI Systems Control for routine specialist-system use. Deep links to specialist surfaces are escape hatches, not the primary navigation model.
-
-## Surface parity rule
-
-A specialist capability is not considered migrated merely because ASC can display a summary of it. Before ASC supersedes a specialist human workflow:
-1. the underlying specialist capability remains the source of truth;
-2. ASC preserves evidence, uncertainty, coverage, and source identity;
-3. the ASC surface provides equivalent or intentionally improved access to the capability;
-4. battle tests cover the new presentation path;
-5. the specialist direct surface remains available until parity is demonstrated.
+Cross-domain access requires explicit authorization.

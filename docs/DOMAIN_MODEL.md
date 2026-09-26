@@ -1,149 +1,168 @@
-# Domain Model
+# Domain Model — ASC v2 Target
+
+This document describes the target control-plane model after the 2026-09-26 re-crystallization.
+
+The current codebase still contains Slice A domain types from the 2026-09-18 architecture. Those types are retained until a bounded migration proves what can be reused.
 
 ## Primary entities
 
-### Project
-A durable identity for a product/system.
+### Owner
+The human authority controlling ASC.
 
-Required fields:
-- `project_id`
+ASC may begin single-owner, but owner identity must still be explicit because authorization and account separation depend on it.
+
+### AccountDomain
+A bounded personal/business context belonging to an Owner.
+
+Examples:
+- personal;
+- one business;
+- another business entity.
+
+An AccountDomain scopes Projects, provider connections, and default authorization context. Provider identities must not bleed across domains implicitly.
+
+Minimum fields:
+- `account_domain_id`
+- `owner_id`
 - `name`
-- `references[]` — provider/reality references such as GitHub repository identity
-- `created_at`
 - `status`
 
-A Project is not a checkout, browser tab, chat, or temporary execution.
+### ProjectReference
+ASC's durable reference to a Project.
 
-### Workspace
-An operator-scoped context over one Project.
+The Project itself owns its product meaning in its own repository/systems. ASC stores only enough identity and references to locate authoritative sources.
 
-A Workspace may hold:
-- selected environment/host;
-- active objective;
-- desired-state overlay;
-- visible panels;
-- capability bindings;
-- session-local filters.
-
-Workspace state must never silently overwrite Project identity or provider truth.
-
-### Capability
-A typed declaration of something that can be done.
-
-Minimum contract:
-- `capability_id`
-- `name`
-- `input_schema`
-- `output_schema`
-- `effect_class`: read | propose | mutate
-- `risk_class`
-- `owner_system`
-
-A Capability is abstract until it is bound.
-
-### CapabilityBinding
-Resolves a Capability to the host/provider/adapter that can realize it in the current Project/Workspace.
-
-Minimum contract:
-- `binding_id`
-- `capability_id`
+Minimum fields:
 - `project_id`
-- optional `workspace_id`
-- `host`
+- `account_domain_id`
+- `name`
+- `references[]` (GitHub repository, DI project, Conductor execution referent, provider project ids, etc.)
+- `status`
+
+A Project is not a checkout, chat, worker, or copied project-truth database.
+
+### Connection
+An owner-authorized identity/installation/account for an external provider.
+
+Examples:
+- GitHub App installation;
+- Google identity;
+- Vercel team/account;
+- Supabase organization/project access.
+
+ASC brokers references/scoped grants. It must not become a raw-secret distributor.
+
+Minimum fields:
+- `connection_id`
+- `account_domain_id`
 - `provider`
-- `adapter`
-- `permission_state`
-- `availability_state`
-- `reason` when unavailable
+- opaque provider/identity reference
+- granted scopes/capabilities
+- status/freshness
+- no raw secret material in owner/audit surfaces
 
-Bindings are host-aware. "The system supports GitHub" is insufficient; availability is evaluated for the current project, host, identity, and permission state.
+### WorkAuthorization
+An explicit owner-verification record granting bounded work authority.
 
-## State model
-
-### DesiredState
-Operator/control-plane intent expressed declaratively where possible.
-
-Each desired-state claim must have:
-- scope;
-- key/path;
-- value;
-- authority/source;
-- effective time;
-- optional policy owner.
-
-### Observation
-A normalized statement about external reality.
-
-Each Observation must include:
-- subject;
-- property;
-- value or explicit unknown;
-- observed_at;
-- source/evidence references;
-- producing system;
-- confidence/quality when applicable.
-
-### Drift
-A computed relation between DesiredState and sufficiently comparable Observations.
-
-Drift is not allowed to invent certainty. Valid outcomes include:
-- aligned;
-- divergent;
-- unknown;
-- incomparable;
-- stale.
-
-## Action model
-
-### Action
-A durable proposal for an externally meaningful mutation.
-
-Lifecycle:
-`draft -> proposed -> policy_checked -> awaiting_authorization? -> authorized -> executing -> effect_reported -> reconciling -> verified | failed | cancelled | indeterminate`
+Work lifecycle status is not authorization.
 
 Minimum fields:
-- `action_id`
-- target Project/Workspace
-- capability + selected binding
-- normalized intent
-- requested effect
-- proposer
-- policy decision
-- authorization evidence when required
-- execution correlation
-- timestamps
+- `authorization_id`
+- `project_id`
+- work/objective reference
+- `verification_kind`: intent | result
+- reviewed scope/fingerprint
+- optional project/DI revision references used at verification time
+- `verified_by`
+- `verified_at`
+- `state`: active | revoked | superseded | needs_revalidation
 
-### PolicyDecision
-Records whether an Action is allowed, denied, or requires escalation.
+Material scope or controlling-context changes may move an authorization to `needs_revalidation`.
 
-It must preserve:
-- rule/policy identifiers;
-- inputs considered;
-- decision;
-- explanation;
-- required approver or permission change.
-
-### EffectReceipt
-Records what the executor/provider reported after an attempted Action.
-
-It is not equivalent to verified reality.
+### WorkerSession
+An ephemeral reasoning/execution session assigned to authorized work.
 
 Minimum fields:
-- action_id;
-- executor/provider;
-- request fingerprint/correlation id;
-- reported result;
-- provider identifiers/URLs when available;
-- reported_at;
-- reconciliation status.
+- `worker_id`
+- `project_id`
+- `authorization_id`
+- runtime/model/session reference
+- optional parent worker
+- `state`: starting | active | stopping | stopped | blocked | completed | expired
+- started/ended timestamps
+- heartbeat/last-observed time when available
 
-### Reconciliation
-A fresh observation pass that determines whether the requested external effect is actually present.
+Workers are replaceable and do not own project truth.
 
-## Key invariants
-1. External reality has provenance.
-2. Unknown is a valid state.
-3. Tool availability is not authorization.
-4. Reported success is not verified success.
-5. Workspace convenience cannot create a second provider truth.
-6. Specialist-system ownership remains explicit at every boundary.
+### ExecutionLease
+Short-lived permission for a WorkerSession to use bounded capabilities.
+
+Minimum fields:
+- `lease_id`
+- `worker_id`
+- `authorization_id`
+- allowed capability references/scopes
+- `issued_at`
+- `expires_at`
+- `control_generation`
+- `state`: active | expired | revoked
+
+A lease is invalid if its control generation no longer matches the applicable control state.
+
+### ControlState
+Deterministic stop/pause authority.
+
+Scopes:
+- system;
+- account domain;
+- project;
+- worker.
+
+Minimum fields:
+- scope identity;
+- `mode`: running | paused | owner_stopped
+- monotonically increasing `generation`;
+- changed_by;
+- changed_at;
+- reason/reference when applicable.
+
+Lower-authority agents cannot clear an owner stop.
+
+### CapabilityGrant
+A scoped permission to request an externally realized capability.
+
+Capabilities are discovered from owning systems such as Conductor or DI. ASC records which capability references may be used under which connection/project/lease; it does not reimplement the capability.
+
+### OrchestrationEvent
+Minimal append-only event/reference used to reconstruct control flow.
+
+Examples:
+- authorization granted/revoked;
+- worker assigned/started/stopped/completed;
+- lease issued/revoked/expired;
+- control state changed;
+- execution/result reference attached;
+- owner attention requested.
+
+Events should reference provider/DI/GitHub/Conductor evidence rather than copying complete native state.
+
+## Project meaning
+
+Product direction, principles, architecture, legal/product constraints, and project-local decisions belong to the Project's own repository and history.
+
+DI owns evidence-backed interpretation/evaluation of those sources.
+
+ASC may bind authorization to relevant project/DI revisions, but does not store a competing canonical intent model.
+
+## Legacy concepts
+
+The original ASC architecture centered on Workspace, CapabilityBinding, DesiredState/Drift, Action, PolicyDecision, EffectReceipt, and Reconciliation.
+
+Useful invariants from those concepts remain:
+- observed truth requires provenance;
+- unknown/stale/indeterminate are valid;
+- tool availability is not authorization;
+- provider success is not verified reality;
+- permission failures must not silently broaden credentials.
+
+Execution receipts and provider mechanics now primarily belong to Conductor; project meaning/evaluation belongs to Project + DI. Legacy types should be migrated only when a concrete v2 slice proves the replacement.

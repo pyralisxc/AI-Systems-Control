@@ -1,28 +1,44 @@
 # Status
 
-Date: **2026-09-18**
+Date: **2026-09-26**
 
 ## Phase
-**Crystallized -> implementation-ready**
+**Re-crystallized -> headless control-spine candidate**
 
-## Baseline
+## Repository baseline
 - Repository: `pyralisxc/AI-Systems-Control`
-- Initial repository commit: `9fa512dbb4584b3ec8e20fe45f5451bd16f055e7`
-- Architecture source: resolved Dev OS Outlook audit
-- First build referent: **Slice A — GitHub Project Reality**
+- Current accepted `main` at crystallization start: `36c9162d94b974500535ce211aa018512432485c`
+- Original crystal: 2026-09-18
+- Architecture v2 exploration/crystallization: 2026-09-26
+- Canonical architecture work item: #24
 
-## Frozen decisions
-- control-plane ownership boundary accepted;
-- Project/Workspace/Capability/Action domain center accepted;
-- host-aware Capability Bindings accepted;
-- desired-vs-observed state accepted;
-- governed Actions + Effect Receipts + reconciliation accepted;
-- permission escalation accepted;
-- source-first separate Web Foundation accepted;
-- specialist authority boundaries accepted.
+## Current decisions
+- ASC is a supervisory/orchestration/control plane, not the source of project meaning.
+- Project repositories own durable project/product meaning.
+- DI owns evidence-backed machine understanding of project reality/meaning.
+- DevOS owns portable agent working method.
+- Conductor owns bounded execution/provider mechanics.
+- GitHub/providers retain native-state authority.
+- Owner Verification is distinct from Ready/In Progress/Review and from merge state.
+- Worker authority is temporary, revocable, and lease/fence based.
+- ASC must provide worker/project/global stop controls that do not depend on model cooperation.
+- ASC is headless-first; a rich cockpit is downstream of proven control semantics.
+- Personal/business account domains and provider identities must be explicitly separated.
+- Normal chat transcripts are not durable project truth.
 
-## Next implementation gate
-Slice A is complete only when a real GitHub-backed Project can be opened in a Workspace with provenance-bearing observed state, desired-state comparison, and capability availability, while external mutation remains impossible from the slice.
+## Existing implementation
+The current Slice A code is retained as useful prototype evidence. Its provenance/uncertainty/capability-boundary work may be reused, but the old Project/Workspace/Desired-State/Action center is no longer the target product model.
 
-## Not started
-Application/runtime code, persistent store selection, concrete UI framework wiring, and production deployment are intentionally not frozen by the crystal. They should be chosen to serve Slice A rather than precede it.
+## Next gate
+Resolve and implement the smallest headless slice that proves:
+1. account/project identity;
+2. owner-verification record;
+3. worker/session registry;
+4. execution lease + fencing generation;
+5. worker/project/global stop;
+6. minimal event reconstruction.
+
+No autonomous dispatch is required for this gate.
+
+## Repository flow note
+ASC currently has no `preview` / `vercel-preview` branch. Architecture changes should remain on bounded `work/*` branches until the integration lane is established; Main remains gated.
