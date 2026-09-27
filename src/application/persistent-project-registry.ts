@@ -50,6 +50,8 @@ export class PersistentProjectRegistry {
         result,
         projects,
         connections: snapshot.connections,
+        projectConnectionBindings: snapshot.projectConnectionBindings,
+        delegations: snapshot.delegations,
         changed: before !== stableJson(projects)
       };
     });
@@ -65,6 +67,8 @@ export class PersistentProjectRegistry {
         result,
         projects,
         connections: snapshot.connections,
+        projectConnectionBindings: snapshot.projectConnectionBindings,
+        delegations: snapshot.delegations,
         changed: before !== stableJson(projects)
       };
     });
@@ -83,6 +87,8 @@ export class PersistentProjectRegistry {
         result,
         projects,
         connections: snapshot.connections,
+        projectConnectionBindings: snapshot.projectConnectionBindings,
+        delegations: snapshot.delegations,
         changed: before !== stableJson(projects)
       };
     });
@@ -98,6 +104,8 @@ export class PersistentProjectRegistry {
         result,
         projects,
         connections: snapshot.connections,
+        projectConnectionBindings: snapshot.projectConnectionBindings,
+        delegations: snapshot.delegations,
         changed: before !== stableJson(projects)
       };
     });

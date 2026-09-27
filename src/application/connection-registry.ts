@@ -59,7 +59,7 @@ function connectionIdentityKey(input: {
 
 function generatedConnectionId(identityKey: string, provider: string): string {
   const digest = createHash("sha256").update(identityKey).digest("hex").slice(0, 20);
-  return `connection:${normalizedProvider(provider)}:${digest}`;
+  return "connection:" + normalizedProvider(provider) + ":" + digest;
 }
 
 function normalizedCapabilities(capabilities: readonly string[] | undefined): readonly string[] {
@@ -96,7 +96,7 @@ export class InMemoryConnectionRegistry {
     const existingById = this.#connections.get(connection.connectionId);
     if (existingById && existingById !== connection) {
       throw new ConnectionIdentityConflictError(
-        `Duplicate connection ID: ${connection.connectionId}`
+        "Duplicate connection ID: " + connection.connectionId
       );
     }
 
@@ -104,7 +104,7 @@ export class InMemoryConnectionRegistry {
     const existingByIdentity = this.#identity.get(key);
     if (existingByIdentity && existingByIdentity !== connection.connectionId) {
       throw new ConnectionIdentityConflictError(
-        `Provider identity already belongs to connection ${existingByIdentity}.`
+        "Provider identity already belongs to connection " + existingByIdentity + "."
       );
     }
 
@@ -163,14 +163,14 @@ export class InMemoryConnectionRegistry {
     if (existingId) {
       if (input.connectionId && input.connectionId !== existingId) {
         throw new ConnectionIdentityConflictError(
-          `Provider identity already belongs to ${existingId}, not ${input.connectionId}.`
+          "Provider identity already belongs to " + existingId + ", not " + input.connectionId + "."
         );
       }
 
       const existing = this.#connections.get(existingId)!;
       if (existing.ownerId !== ownerId) {
         throw new ConnectionIdentityConflictError(
-          `Connection ${existingId} is authorized by owner ${existing.ownerId}, not ${ownerId}.`
+          "Connection " + existingId + " is authorized by owner " + existing.ownerId + ", not " + ownerId + "."
         );
       }
 
@@ -186,6 +186,7 @@ export class InMemoryConnectionRegistry {
         ...(environment ? { environment } : {}),
         authenticationStrategy: input.authenticationStrategy,
         status: "active",
+        generation: existing.generation + 1,
         capabilities: normalizedCapabilities(input.capabilities ?? existing.capabilities),
         updatedAt,
         lastVerifiedAt: input.verifiedAt ?? updatedAt
@@ -206,6 +207,7 @@ export class InMemoryConnectionRegistry {
       ...(environment ? { environment } : {}),
       authenticationStrategy: input.authenticationStrategy,
       status: "active",
+      generation: 1,
       capabilities: normalizedCapabilities(input.capabilities),
       createdAt,
       updatedAt: input.verifiedAt ?? createdAt,
@@ -222,12 +224,13 @@ export class InMemoryConnectionRegistry {
     at = nowIso()
   ): Connection {
     const connection = this.#connections.get(connectionId);
-    if (!connection) throw new Error(`Unknown connection: ${connectionId}`);
+    if (!connection) throw new Error("Unknown connection: " + connectionId);
 
     if (status === "revoked") {
       return this.#replace({
         ...connection,
         status,
+        generation: connection.generation + 1,
         updatedAt: at,
         revokedAt: at
       });
@@ -236,6 +239,7 @@ export class InMemoryConnectionRegistry {
     return this.#replace({
       ...withoutRevokedAt(connection),
       status,
+      generation: connection.generation + 1,
       updatedAt: at
     });
   }
@@ -248,12 +252,13 @@ export class InMemoryConnectionRegistry {
     } = {}
   ): Connection {
     const connection = this.#connections.get(connectionId);
-    if (!connection) throw new Error(`Unknown connection: ${connectionId}`);
+    if (!connection) throw new Error("Unknown connection: " + connectionId);
 
     const verifiedAt = options.verifiedAt ?? nowIso();
     return this.#replace({
       ...withoutRevokedAt(connection),
       status: "active",
+      generation: connection.generation + 1,
       capabilities: normalizedCapabilities(options.capabilities ?? connection.capabilities),
       updatedAt: verifiedAt,
       lastVerifiedAt: verifiedAt
@@ -303,6 +308,8 @@ export class PersistentConnectionRegistry {
         result,
         projects: snapshot.projects,
         connections,
+        projectConnectionBindings: snapshot.projectConnectionBindings,
+        delegations: snapshot.delegations,
         changed: before !== stableJson(connections)
       };
     });
@@ -322,6 +329,8 @@ export class PersistentConnectionRegistry {
         result,
         projects: snapshot.projects,
         connections,
+        projectConnectionBindings: snapshot.projectConnectionBindings,
+        delegations: snapshot.delegations,
         changed: before !== stableJson(connections)
       };
     });
@@ -343,6 +352,8 @@ export class PersistentConnectionRegistry {
         result,
         projects: snapshot.projects,
         connections,
+        projectConnectionBindings: snapshot.projectConnectionBindings,
+        delegations: snapshot.delegations,
         changed: before !== stableJson(connections)
       };
     });

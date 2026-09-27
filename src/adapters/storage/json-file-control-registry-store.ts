@@ -30,15 +30,15 @@ function assertNoSecretLikeFields(value: unknown, path = "registry"): void {
   if (!value || typeof value !== "object") return;
 
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => assertNoSecretLikeFields(entry, `${path}[${index}]`));
+    value.forEach((entry, index) => assertNoSecretLikeFields(entry, path + "[" + index + "]"));
     return;
   }
 
   for (const [key, nested] of Object.entries(value)) {
     if (SECRET_FIELD_PATTERN.test(key)) {
-      throw new Error(`Secret-like field ${path}.${key} cannot be persisted in ASC registry metadata.`);
+      throw new Error("Secret-like field " + path + "." + key + " cannot be persisted in ASC registry metadata.");
     }
-    assertNoSecretLikeFields(nested, `${path}.${key}`);
+    assertNoSecretLikeFields(nested, path + "." + key);
   }
 }
 
@@ -46,33 +46,52 @@ function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnaps
   return Object.freeze({
     ...snapshot,
     projects: Object.freeze([...snapshot.projects]),
-    connections: Object.freeze([...snapshot.connections])
+    connections: Object.freeze([...snapshot.connections]),
+    projectConnectionBindings: Object.freeze([...snapshot.projectConnectionBindings]),
+    delegations: Object.freeze([...snapshot.delegations])
   });
 }
 
-function parseSnapshot(raw: string): ControlRegistrySnapshot {
-  const parsed = JSON.parse(raw) as Partial<ControlRegistrySnapshot>;
+function normalizeConnections(connections: readonly Record<string, unknown>[]) {
+  return connections.map((connection) => ({
+    ...connection,
+    generation:
+      typeof connection.generation === "number" && Number.isInteger(connection.generation)
+        ? connection.generation
+        : 1
+  }));
+}
 
-  if (parsed.schemaVersion !== CONTROL_REGISTRY_SCHEMA_VERSION) {
-    throw new Error(
-      `Unsupported control registry schema version: ${String(parsed.schemaVersion)}`
-    );
+function parseSnapshot(raw: string): ControlRegistrySnapshot {
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  const version = parsed.schemaVersion;
+  if (version !== 1 && version !== CONTROL_REGISTRY_SCHEMA_VERSION) {
+    throw new Error("Unsupported control registry schema version: " + String(version));
   }
-  if (!Number.isInteger(parsed.revision) || (parsed.revision ?? -1) < 0) {
+  if (!Number.isInteger(parsed.revision) || Number(parsed.revision) < 0) {
     throw new Error("Control registry revision must be a non-negative integer.");
   }
   if (!Array.isArray(parsed.projects) || !Array.isArray(parsed.connections)) {
     throw new Error("Control registry must contain projects and connections arrays.");
   }
 
+  const connections = normalizeConnections(parsed.connections as readonly Record<string, unknown>[]);
   const snapshot: ControlRegistrySnapshot = {
     schemaVersion: CONTROL_REGISTRY_SCHEMA_VERSION,
-    revision: parsed.revision!,
-    projects: parsed.projects,
-    connections: parsed.connections,
+    revision: Number(parsed.revision),
+    projects: parsed.projects as ControlRegistrySnapshot["projects"],
+    connections: connections as unknown as ControlRegistrySnapshot["connections"],
+    projectConnectionBindings: Array.isArray(parsed.projectConnectionBindings)
+      ? parsed.projectConnectionBindings as ControlRegistrySnapshot["projectConnectionBindings"]
+      : Object.freeze([]),
+    delegations: Array.isArray(parsed.delegations)
+      ? parsed.delegations as ControlRegistrySnapshot["delegations"]
+      : Object.freeze([]),
     ...(typeof parsed.updatedAt === "string" ? { updatedAt: parsed.updatedAt } : {})
   };
   assertNoSecretLikeFields(snapshot.connections, "registry.connections");
+  assertNoSecretLikeFields(snapshot.projectConnectionBindings, "registry.projectConnectionBindings");
+  assertNoSecretLikeFields(snapshot.delegations, "registry.delegations");
   return freezeSnapshot(snapshot);
 }
 
@@ -86,7 +105,7 @@ export class JsonFileControlRegistryStore implements ControlRegistryStore {
 
   constructor(path: string) {
     this.#path = path;
-    this.#lockPath = `${path}.lock`;
+    this.#lockPath = path + ".lock";
   }
 
   async #readUnlocked(): Promise<ControlRegistrySnapshot> {
@@ -125,6 +144,8 @@ export class JsonFileControlRegistryStore implements ControlRegistryStore {
 
   async save(input: SaveControlRegistryInput): Promise<ControlRegistrySnapshot> {
     assertNoSecretLikeFields(input.connections, "registry.connections");
+    assertNoSecretLikeFields(input.projectConnectionBindings, "registry.projectConnectionBindings");
+    assertNoSecretLikeFields(input.delegations, "registry.delegations");
 
     return this.#withLock(async () => {
       const current = await this.#readUnlocked();
@@ -140,11 +161,13 @@ export class JsonFileControlRegistryStore implements ControlRegistryStore {
         revision: current.revision + 1,
         projects: Object.freeze([...input.projects]),
         connections: Object.freeze([...input.connections]),
+        projectConnectionBindings: Object.freeze([...input.projectConnectionBindings]),
+        delegations: Object.freeze([...input.delegations]),
         ...(input.updatedAt ? { updatedAt: input.updatedAt } : {})
       };
 
-      const temporaryPath = `${this.#path}.tmp-${process.pid}-${Date.now()}`;
-      await writeFile(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, {
+      const temporaryPath = this.#path + ".tmp-" + process.pid + "-" + Date.now();
+      await writeFile(temporaryPath, JSON.stringify(next, null, 2) + "\n", {
         encoding: "utf8",
         mode: 0o600
       });
