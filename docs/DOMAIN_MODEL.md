@@ -1,149 +1,307 @@
-# Domain Model
+# Domain Model — ASC v2 Target
+
+This document describes the target control-plane model after the 2026-09-26 re-crystallization and the 2026-09-27 multi-user foundation correction.
+
+The current codebase still contains Slice A domain types from the 2026-09-18 architecture. Those types are retained until bounded migrations prove what can be reused.
 
 ## Primary entities
 
-### Project
-A durable identity for a product/system.
+### Principal
+A stable ASC actor identity independent from authentication provider.
 
-Required fields:
-- `project_id`
+Kinds:
+- human;
+- service.
+
+A Principal may authenticate through local bootstrap, OIDC/federation, or a future enterprise identity adapter. Email is not canonical identity.
+
+Minimum fields:
+- `principal_id`
+- `kind`
+- `display_name`
+- `status`
+- created/updated timestamps
+
+### AccountDomain
+ASC's primary tenant/security boundary for personal or organizational use.
+
+Examples:
+- one person's private ASC context;
+- CardForge;
+- another company or business unit when independent isolation is required.
+
+An AccountDomain does not belong to a singular Owner object. Principals relate to it through Memberships.
+
+Minimum fields:
+- `account_domain_id`
+- `kind`: personal | organization
 - `name`
-- `references[]` — provider/reality references such as GitHub repository identity
-- `created_at`
 - `status`
 
-A Project is not a checkout, browser tab, chat, or temporary execution.
+Tenant-owned Projects, Connections, Threads, authorizations, workers/leases, control state, budgets, and orchestration events must carry/enforce AccountDomain context.
 
-### Workspace
-An operator-scoped context over one Project.
+### Membership
+The explicit relationship between a Principal and an AccountDomain.
 
-A Workspace may hold:
-- selected environment/host;
-- active objective;
-- desired-state overlay;
-- visible panels;
-- capability bindings;
-- session-local filters.
+Minimum fields:
+- `membership_id`
+- `principal_id`
+- `account_domain_id`
+- role/policy references
+- `status`
+- created/updated/revoked timestamps
 
-Workspace state must never silently overwrite Project identity or provider truth.
+"Owner" is a role/authority held by a Membership, not ASC's root identity type.
 
-### Capability
-A typed declaration of something that can be done.
+Personal mode is one human Principal + one personal AccountDomain + one active owner Membership.
 
-Minimum contract:
-- `capability_id`
-- `name`
-- `input_schema`
-- `output_schema`
-- `effect_class`: read | propose | mutate
-- `risk_class`
-- `owner_system`
+### AuthenticationIdentityBinding
+A durable mapping from one stable external authentication identity to one ASC Principal.
 
-A Capability is abstract until it is bound.
+Identity key:
+- normalized OAuth/OIDC issuer;
+- stable provider subject.
 
-### CapabilityBinding
-Resolves a Capability to the host/provider/adapter that can realize it in the current Project/Workspace.
-
-Minimum contract:
-- `binding_id`
-- `capability_id`
-- `project_id`
-- optional `workspace_id`
-- `host`
-- `provider`
-- `adapter`
-- `permission_state`
-- `availability_state`
-- `reason` when unavailable
-
-Bindings are host-aware. "The system supports GitHub" is insufficient; availability is evaluated for the current project, host, identity, and permission state.
-
-## State model
-
-### DesiredState
-Operator/control-plane intent expressed declaratively where possible.
-
-Each desired-state claim must have:
-- scope;
-- key/path;
-- value;
-- authority/source;
-- effective time;
-- optional policy owner.
-
-### Observation
-A normalized statement about external reality.
-
-Each Observation must include:
+Minimum fields:
+- binding ID;
+- Principal ID;
+- issuer;
 - subject;
-- property;
-- value or explicit unknown;
-- observed_at;
-- source/evidence references;
-- producing system;
-- confidence/quality when applicable.
+- optional display label;
+- status;
+- created/updated/revoked timestamps.
 
-### Drift
-A computed relation between DesiredState and sufficiently comparable Observations.
+Email, display name, token ID, OAuth grant, or session ID are not canonical identity.
 
-Drift is not allowed to invent certainty. Valid outcomes include:
-- aligned;
-- divergent;
-- unknown;
-- incomparable;
-- stale.
+A Principal may have multiple authentication bindings. One issuer+subject identity may not be rebound to another Principal.
 
-## Action model
+AccountDomain authority does not live in the authentication binding. A verified token still needs an active Membership in the selected AccountDomain.
 
-### Action
-A durable proposal for an externally meaningful mutation.
+### ProjectReference
+ASC's durable reference to a Project.
 
-Lifecycle:
-`draft -> proposed -> policy_checked -> awaiting_authorization? -> authorized -> executing -> effect_reported -> reconciling -> verified | failed | cancelled | indeterminate`
+The Project itself owns its product meaning in its own repository/systems. ASC stores only enough identity and references to locate authoritative sources.
 
 Minimum fields:
-- `action_id`
-- target Project/Workspace
-- capability + selected binding
-- normalized intent
-- requested effect
-- proposer
-- policy decision
-- authorization evidence when required
-- execution correlation
-- timestamps
+- `project_id`
+- `account_domain_id`
+- `name`
+- `references[]`
+- `status`
 
-### PolicyDecision
-Records whether an Action is allowed, denied, or requires escalation.
+A Project is not a checkout, chat, worker, or copied project-truth database.
 
-It must preserve:
-- rule/policy identifiers;
-- inputs considered;
-- decision;
-- explanation;
-- required approver or permission change.
+### Connection
+An AccountDomain-scoped external provider identity/installation/account authorized by a Principal.
 
-### EffectReceipt
-Records what the executor/provider reported after an attempted Action.
+Examples:
+- GitHub App installation;
+- Google identity;
+- Vercel team/account;
+- Supabase organization/project access.
 
-It is not equivalent to verified reality.
+ASC brokers references/scoped grants. It must not become a raw-secret distributor.
 
 Minimum fields:
-- action_id;
-- executor/provider;
-- request fingerprint/correlation id;
-- reported result;
-- provider identifiers/URLs when available;
-- reported_at;
-- reconciliation status.
+- `connection_id`
+- `account_domain_id`
+- `authorized_by_principal_id`
+- `provider`
+- opaque provider/identity reference
+- granted capabilities
+- status/generation/freshness
+- no raw secret material in owner/audit surfaces
 
-### Reconciliation
-A fresh observation pass that determines whether the requested external effect is actually present.
+A Connection belongs to its AccountDomain. Replacing the administering human does not transfer Connection identity.
 
-## Key invariants
-1. External reality has provenance.
-2. Unknown is a valid state.
-3. Tool availability is not authorization.
-4. Reported success is not verified success.
-5. Workspace convenience cannot create a second provider truth.
-6. Specialist-system ownership remains explicit at every boundary.
+### WorkAuthorization
+A durable bounded authorization produced from valid approval/policy.
+
+Personal UI may continue to say "Owner Verified", but the underlying record must not assume one global human owner.
+
+Minimum fields:
+- `authorization_id`
+- `account_domain_id`
+- `project_id`
+- work/objective reference
+- `verification_kind`: intent | result
+- reviewed scope/fingerprint
+- optional project/DI revision references
+- approving Principal/approval references
+- `verified_at`
+- `state`: active | revoked | superseded | needs_revalidation
+
+Material scope or controlling-context changes may move an authorization to `needs_revalidation`.
+
+### WorkEnvelope
+A versioned bounded continuation contract for one Project objective, optionally narrowed to one ConversationThread.
+
+A WorkEnvelope defines what continuation may attempt; it never creates authority beyond the underlying WorkAuthorization.
+
+Minimum fields:
+- `envelope_id` + version/state;
+- AccountDomain + Project + optional Thread;
+- objective/work reference + scope fingerprint;
+- allowed work classes;
+- allowed effect classes/capabilities;
+- repository ceiling: read_only | work_branch | preview | main;
+- continuation policy: interactive | continue_until_gate | autonomous_bounded;
+- owner-gate conditions;
+- optional budget/expiry;
+- WorkAuthorization reference when mutable/integration authority is included;
+- creating Principal/time.
+
+A newer envelope version supersedes the earlier active version for the same bounded objective.
+
+### AutonomyGrant
+A dated, scoped delegation over one Project work class.
+
+Autonomy is not a global trust score.
+
+Levels:
+- 0 Observe;
+- 1 Suggest;
+- 2 Continue;
+- 3 Integrate;
+- 4 Operate;
+- 5 Extended.
+
+Minimum fields:
+- grant ID;
+- AccountDomain + Project;
+- work class;
+- level;
+- repository ceiling;
+- granting Principal/time;
+- evidence-basis references;
+- last-proven/review-after timestamps when applicable;
+- invalidation conditions;
+- state: active | needs_review | revoked.
+
+Effective continuation authority is the intersection of the active WorkEnvelope, AutonomyGrant, WorkAuthorization where mutation is involved, and current ControlState. A high level never widens an envelope or overrides STOP.
+
+### ConversationThread
+A durable owner-facing conversation identity independent from any one model/runtime session.
+
+Minimum fields:
+- `thread_id`
+- AccountDomain + optional Project
+- mode: external | bridged | managed
+- lifecycle
+- runtime capability flags
+- optional external provider/thread/navigation reference
+- created/updated timestamps
+
+Thread checkpoints, activity, Relay records, and synopsis history are interaction/orchestration state. They are not canonical Project meaning.
+
+### FounderRelayRecord
+A provenance-preserving proposed or delivered owner-channel continuation attached to one ConversationThread.
+
+Minimum fields:
+- Relay ID, Thread, AccountDomain, Project;
+- represented human Principal;
+- generating service Principal;
+- proposal mode: suggest | auto_candidate;
+- immutable proposed text;
+- optional final text;
+- work class + requested effect/repository boundary/capability;
+- source/evidence refs;
+- proposal-time continuation-authority evaluation;
+- optional delivery-time continuation-authority evaluation;
+- state: suggested | owner_approved | edited | rejected | auto_sent;
+- owner feedback Principal/time;
+- delivery time/reference when actually delivered.
+
+`owner_approved` and `edited` are owner-assisted interaction records. They are not retroactively rewritten as literal owner-authored text.
+
+`auto_sent` is reserved for a Relay that:
+1. re-evaluated current continuation authority at delivery time and received `allow`; and
+2. was actually accepted by a send-capable idempotent transport.
+
+An external/bridged Thread with no send-capable transport can never be labeled auto-sent.
+
+### WorkerSession / WorkerRun
+An ephemeral reasoning/execution episode assigned to authorized work.
+
+Minimum fields:
+- worker/run identity
+- AccountDomain + Project
+- authorization reference
+- service Principal / runtime/model/session reference
+- optional parent worker
+- lifecycle state
+- started/ended/heartbeat timestamps
+
+Workers are replaceable and do not own Project truth.
+
+### ExecutionLease
+Short-lived permission for a WorkerSession/Run to use bounded capabilities.
+
+Minimum fields:
+- `lease_id`
+- worker/run identity
+- authorization reference
+- allowed capability references/scopes
+- issued/expires timestamps
+- `control_generation`
+- `state`
+
+A lease is invalid if its control generation no longer matches applicable ControlState.
+
+### ControlState
+Deterministic stop/pause authority.
+
+Scopes:
+- system;
+- AccountDomain;
+- Project;
+- Worker.
+
+Minimum fields:
+- scope identity
+- `mode`: running | paused | owner_stopped
+- monotonically increasing `generation`
+- changed-by Principal/service identity
+- changed-at
+- reason/reference
+
+Lower-authority agents cannot clear an owner-level stop.
+
+### CapabilityGrant
+A scoped permission to request an externally realized capability.
+
+Capabilities are discovered from owning systems such as Conductor or DI. ASC records which capability references may be used under which connection/project/lease; it does not reimplement the capability.
+
+### OrchestrationEvent
+Minimal append-only event/reference used to reconstruct control flow.
+
+Events should identify AccountDomain and actor Principal/service identity and reference provider/DI/GitHub/Conductor evidence rather than copying complete native state.
+
+## Identity / authentication boundary
+
+Authentication identity is not ASC resource authority.
+
+Authentication providers map authenticated identities to Principals. Membership establishes tenant context. Authorization policy then evaluates what that Principal may do in that AccountDomain.
+
+Future OIDC/SAML/SCIM adapters must not change Principal, Membership, Project, Connection, Thread, or WorkAuthorization identity semantics.
+
+## Project meaning
+
+Product direction, principles, architecture, legal/product constraints, and project-local decisions belong to the Project's own repository and history.
+
+DI owns evidence-backed interpretation/evaluation of those sources.
+
+ASC may bind authorization to relevant project/DI revisions, but does not store a competing canonical intent model.
+
+## Legacy concepts
+
+The original ASC architecture centered on Workspace, CapabilityBinding, DesiredState/Drift, Action, PolicyDecision, EffectReceipt, and Reconciliation.
+
+Useful invariants from those concepts remain:
+- observed truth requires provenance;
+- unknown/stale/indeterminate are valid;
+- tool availability is not authorization;
+- provider success is not verified reality;
+- permission failures must not silently broaden credentials.
+
+Execution receipts/provider mechanics now primarily belong to Conductor; Project meaning/evaluation belongs to Project + DI.

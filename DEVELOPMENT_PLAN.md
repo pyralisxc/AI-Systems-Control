@@ -2,78 +2,103 @@
 
 ## Principle
 
-Build the thinnest end-to-end control-plane spine that can tell the truth about one real project. Do not front-load a generic platform.
+Build the smallest deterministic control spine that can authorize, observe, and stop one real worker on one real Project.
 
-## Milestone 0 — Repository bootstrap
-- establish package/runtime skeleton;
-- add lint/type/test/verify gates;
-- add architecture tests that guard direct provider mutation boundaries;
-- encode the domain interfaces from docs/DOMAIN_MODEL.md;
-- keep provider and specialist adapters behind ports.
+Do not front-load a dashboard, autonomous scheduler, generic task engine, or duplicated specialist logic.
 
-Exit: repository can compile/test and the core contracts are executable types.
+## Phase 0 — Architecture reconciliation
 
-## Milestone 1 — Slice A: GitHub Project Reality
-Implement in this order:
+- replace the 2026-09-18 canonical-owner-console framing;
+- preserve useful existing code and invariants;
+- establish the new ownership boundaries;
+- keep historical decisions explicit rather than silently rewriting them.
 
-1. **Project identity**
-   - canonical GitHub repository reference;
-   - stable Project record;
-   - deterministic lookup.
+Exit: repository documentation describes one coherent supervisory-control product.
 
-2. **Workspace**
-   - open one Workspace over a Project;
-   - store workspace-local context separately.
+## Phase 1 — Owner authorization spine
 
-3. **Reality port**
-   - define `ProjectRealityProvider`;
-   - implement Development Intelligence adapter contract;
-   - support unavailable/partial states.
+Implement the minimum durable contracts for:
+- AccountDomain;
+- ProjectReference / ProjectMembership;
+- WorkAuthorization (Owner Verified);
+- exact scope/revision/fingerprint binding;
+- revocation/supersession/invalidation.
 
-4. **Observation model**
-   - provenance;
-   - timestamps/freshness;
-   - explicit unknowns;
-   - normalized project summary.
+Use GitHub issues/PRs as durable work objects; do not create an ASC task database.
 
-5. **Desired state + drift**
-   - minimal declarative desired-state input;
-   - aligned/divergent/unknown/incomparable/stale comparison.
+Exit: a Ready issue is still non-executable until an explicit owner authorization exists.
 
-6. **Capability catalog/bindings**
-   - register observation capabilities;
-   - resolve availability by host/provider/permission;
-   - expose blocked reason.
+## Phase 2 — Worker control spine
 
-7. **Owner view**
-   - project identity;
-   - observed state;
-   - source/freshness;
-   - desired state/drift;
-   - capability availability.
+Implement:
+- WorkerSession registry;
+- ExecutionLease;
+- capability scope;
+- expiry;
+- parent/child worker relationship when needed;
+- control generation/fencing;
+- Worker stop;
+- Project pause/stop;
+- Owner STOP ALL;
+- authoritative owner-stop semantics.
 
-8. **Slice A tests**
-   - automate A01–A08, B01–B08 where applicable, C01–C08, and G01/G05;
-   - assert no mutation adapter is reachable from Slice A.
+No autonomous worker is required yet; a human-invoked/manual test worker is enough.
 
-Exit: real project reality is legible and trustworthy.
+Exit: stale/revoked workers cannot use mutable capabilities even if they keep running.
 
-## Milestone 2 — Slice B: first governed Action
-Choose one low-risk GitHub effect and implement the full Action -> policy -> authorization -> execution -> Receipt -> reconciliation loop.
+## Phase 3 — Account and connection brokerage
 
-Do not add several mutations at once.
+Implement the smallest provider-connection model that supports:
+- personal/business account-domain separation;
+- multiple identities/installations for the same provider;
+- explicit Project membership/binding;
+- scoped downstream capability handles;
+- no raw credential exposure to workers.
 
-## Milestone 3 — Conductor handoff
-Connect a governed objective to Conductor while retaining Action/run/receipt correlation in AI Systems Control.
+Avoid duplicating provider-native state.
 
-## Development issues to create
-1. Slice A epic — GitHub Project Reality.
-2. Bootstrap executable domain contracts and verification gates.
-3. Development Intelligence reality adapter contract.
-4. Observation + provenance + freshness model.
-5. Desired-vs-observed drift engine.
-6. Host-aware capability binding resolver.
-7. Slice A owner view.
-8. Slice A architecture/battle-test automation.
+## Phase 4 — Observation and reconstruction
 
-These issues are implementation decomposition, not new architecture.
+Represent the minimum references/events needed to answer:
+- what workers are active;
+- what authorized work they are attached to;
+- what capabilities/leases they hold;
+- what stopped/blocked/completed;
+- where provider/DI/GitHub evidence can be inspected.
+
+Prefer references to authoritative systems over copied state.
+
+## Phase 5 — Manual conversational worker
+
+Connect one manually started ephemeral agent session to:
+- relevant DevOS method;
+- project-local documentation through DI;
+- authorized work;
+- bounded Conductor capabilities;
+- ASC lease/control state.
+
+Prove natural-language interaction without autonomous dispatch.
+
+## Phase 6 — Controlled dispatch
+
+Only after manual operation is reliable:
+1. allow owner-verified work to be queued;
+2. allow ASC to dispatch when explicit policy/capacity permits;
+3. stop at product ambiguity, scope invalidation, hard policy boundaries, or owner stop.
+
+Do not derive new executable work from broad project intent in the first automation tranche.
+
+## UI / cockpit
+
+The cockpit is a projection over proven control semantics, not the architecture foundation.
+
+Likely owner surfaces:
+- Needs You;
+- Working;
+- Projects / Account Domains;
+- Connections;
+- Worker/control status;
+- live conversational agent;
+- expandable DI/provider evidence.
+
+Build this only after the headless control spine is trustworthy.

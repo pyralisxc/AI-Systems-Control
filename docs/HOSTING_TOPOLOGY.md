@@ -1,62 +1,103 @@
-# Hosting Topology
+# Hosting Topology — ASC v2
 
-Status: **Frozen for initial web implementation**  
-Decision date: **2026-09-18**
+Status: **architecture direction; deployment details remain reversible**  
+Revised: **2026-09-26**
 
-## Decision
+## Boundary
 
-AI Systems Control and Development Intelligence are deployed as separate Vercel projects inside the existing Vercel team.
+ASC, DI, Conductor, and product applications are independent authorities and should retain independent failure/deployment boundaries where they are separately deployed.
 
-- **AI Systems Control Vercel project:** create new project `ai-systems-control`.
-- **Development Intelligence Vercel project:** continue using existing `development-intelligence`.
-- **CardForge and other products:** remain independent deployments.
+ASC is not the canonical product UI for DI or other specialist systems. It is the supervisory/control surface that may link to or project their state.
 
-## Why separate projects
-
-ASC is the canonical owner-facing application. Development Intelligence is a specialist evidence service. They must be able to deploy, roll back, scale, authenticate, and fail independently.
-
-Putting ASC into the existing DI Vercel project would create the wrong operational ownership:
-- an ASC UI release could accidentally redeploy the DI evidence service;
-- a DI engine rollback could roll back the owner website;
-- environment variables and credentials would become unnecessarily shared;
-- service health and website health would become harder to distinguish;
-- specialist-system independence would erode into a deployment monolith.
-
-## Product topology
+## Current topology
 
 ```text
-Owner / operator
-      |
-      v
-AI Systems Control
-(canonical website)
-      |
-      +--> Development Intelligence
-      |    (evidence / project-reality service)
-      |
-      +--> Development OS
-      |    (reasoning authority)
-      |
-      +--> Conductor
-           (orchestration authority)
+Owner
+  |
+  v
+ASC
+(identity / accounts / connections / authorization / worker control)
+  |
+  +--> DI
+  |    (project understanding / evidence / parity)
+  |
+  +--> Conductor
+  |    (bounded execution / provider effects)
+  |
+  +--> Agent runtime(s)
+  |    (ephemeral reasoning sessions)
+  |
+  +--> Provider/account connections
+       (GitHub, Vercel, Google, Supabase, ...)
 ```
 
-ASC owns navigation and integrated presentation. Specialist systems own their domain truth and execution semantics.
+Project applications such as CardForge remain independent systems.
 
-## Authentication posture
+## Deployment posture
 
-Human authentication belongs primarily at the ASC application boundary.
+Separate deployments are preferred when systems have independent:
+- authority;
+- release cadence;
+- secrets/connections;
+- scaling behavior;
+- rollback needs;
+- failure modes.
 
-ASC-to-specialist communication should use narrowly scoped server-side service credentials where appropriate. Development Intelligence may continue to expose OAuth for independent external clients such as ChatGPT while accepting a trusted machine credential for ASC.
+Do not merge services merely to make them feel like one cockpit.
 
-Browser code must not receive specialist service credentials.
+## ASC durable control state
 
-## Domain posture
+ASC control state is behind the provider-neutral `ControlRegistryStore` contract.
 
-The deployments may share a product/domain family while remaining operationally independent. Exact public hostnames are deferred until the ASC web shell is ready to deploy.
+Current adapters:
+- JSON-file storage for a persistent local/self-hosted server volume;
+- PostgreSQL storage for hosted/serverless or self-hosted Postgres.
 
-The existing stable DI hostname should not be repurposed for ASC.
+The Postgres adapter uses standard PostgreSQL semantics rather than a vendor-specific API, so deployment may use a compatible managed provider or a future owner-operated database without changing ASC domain contracts.
 
-## Migration rule
+Ephemeral function filesystem storage is not an acceptable authority store.
 
-Do not remove or degrade the DI Workbench while migrating its human workflows into ASC. Retire a DI human workflow from primary use only after ASC demonstrates equivalent or intentionally better access with preserved evidence and uncertainty semantics.
+## Authentication and connections
+
+Human owner authentication belongs at ASC's control boundary when using ASC.
+
+Provider credentials/connections are brokered server-side and scoped by AccountDomain/Project/lease. Browser code and workers should receive capability handles or short-lived delegated authority rather than raw long-lived secrets.
+
+Specialist systems may keep independent authentication for their direct clients.
+
+### ChatGPT / MCP OAuth topology
+
+```text
+ChatGPT / MCP client
+       |
+       | OAuth 2.1 / bearer token
+       v
+external authorization server / IdP
+       |
+       | signed access token
+       v
+ASC /mcp resource server
+       |
+       +--> issuer+subject -> Principal
+       +--> token AccountDomain -> active Membership
+       +--> tenant-scoped Thread / control services
+```
+
+ASC publishes protected-resource metadata and verifies tokens but does not issue them.
+
+The authorization server must support the MCP/OpenAI OAuth client flow used by the target host, including appropriate discovery/PKCE/resource-audience behavior. Provider choice remains a deployment adapter decision.
+
+## Failure posture
+
+- ASC unavailable: specialist systems may remain independently usable; no new ASC-mediated authorization/dispatch occurs.
+- DI unavailable: project understanding becomes unavailable/stale; ASC must not invent replacement semantic truth.
+- Conductor unavailable: execution becomes unavailable; ASC must not substitute an ungoverned direct mutation path.
+- Agent runtime unavailable: deterministic ASC control state remains readable and stoppable.
+
+## UI posture
+
+ASC may eventually provide a rich cockpit, but specialist UIs do not need to migrate into ASC. Deep links/projections are valid long-term boundaries.
+
+## Current web shell
+
+The existing Next.js shell remains a prototype client from the 2026-09-18 Slice A architecture. It may be reused selectively, but it does not define v2 ownership or navigation.

@@ -14,6 +14,7 @@ import type {
 export interface ReadBindingCandidate {
   readonly bindingId: string;
   readonly capabilityId: string;
+  readonly connectionId?: string;
   readonly host: string;
   readonly provider: string;
   readonly adapter: string;
@@ -56,6 +57,7 @@ function binding(
     capabilityId: candidate.capabilityId,
     projectId: project.projectId,
     ...(workspace ? { workspaceId: workspace.workspaceId } : {}),
+    ...(candidate.connectionId ? { connectionId: candidate.connectionId } : {}),
     host: candidate.host,
     provider: candidate.provider,
     adapter: candidate.adapter,

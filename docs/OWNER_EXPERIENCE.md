@@ -1,95 +1,152 @@
-# Owner Experience
+# Owner Experience — ASC v2
 
 ## Product posture
 
-The primary experience is an owner/operator console: one place to understand what exists, what is connected, what differs from intent, what can be done, and what requires explicit authorization.
+ASC is an owner-control cockpit over independently authoritative systems.
 
-The console should optimize for legibility before density.
+The owner experience should optimize for:
+1. what needs the owner;
+2. what is currently working;
+3. what is connected/authorized;
+4. how to stop it immediately;
+5. where to inspect deeper evidence when needed.
 
-## Project view
+ASC is not required to reproduce every specialist UI.
 
-Every Project view should answer, without opening specialist tools:
-- What project am I looking at?
-- Which source/reality references identify it?
-- What is the latest observed state?
-- How fresh is that observation?
-- What desired state applies?
-- What is aligned, drifting, unknown, or stale?
-- Which systems are currently reachable?
-- Which capabilities are available, unavailable, or permission-blocked?
-- What Actions are pending, executing, failed, or awaiting verification?
+## Default cockpit questions
 
-## Workspace view
+A Project view should quickly answer:
+- What Project/account domain am I controlling?
+- Which provider identities/connections are in scope?
+- What work is Owner Verified?
+- Which workers are active, on what work, and under which leases?
+- What is waiting for owner verification/review?
+- Are any workers or projects paused/stopped?
+- Which capabilities are currently available or blocked?
+- Where is the underlying DI/GitHub/Conductor/provider evidence?
+- Can I stop the worker/project/system immediately?
+- What WorkEnvelope currently bounds this Thread/work?
+- Which work classes are allowed to continue automatically, at what dated autonomy level, and up to which repository boundary?
 
-A Workspace is where the owner works with a Project. It may change the lens without changing the underlying truth.
+## Needs You
 
-Expected controls:
-- environment/host selector;
-- objective/context;
-- capability palette;
-- desired-state overlay;
-- evidence/source drawer;
-- Action queue;
-- escalation queue;
-- receipts/history.
+Owner attention should be exception-driven.
 
-## Truth presentation
+Examples:
+- candidate work awaiting Owner Verification;
+- material scope/intent ambiguity;
+- authorization requiring revalidation;
+- result awaiting consequential acceptance;
+- permission/connection escalation;
+- worker blocked outside its verified scope.
 
-The UI must visually distinguish:
-- **Observed** — backed by current evidence.
-- **Desired** — declared intent.
-- **Inferred** — normalized/interpreted by a specialist system.
-- **Proposed** — would change external state if authorized/executed.
-- **Reported** — executor/provider says an effect occurred.
-- **Verified** — fresh observation confirms the effect.
+Ten successful background steps should not create ten owner notifications.
 
-Do not collapse these categories into one "status" badge.
+## Bounded autonomy
 
-## Permission escalation
+The owner experience should not present one global "autonomy" toggle.
 
-If a capability exists but cannot be realized:
-1. show the capability as known but blocked;
-2. show the concrete reason when available;
-3. produce an escalation requirement, not an improvised workaround;
-4. after permission changes, re-resolve the binding rather than assuming success.
+For each Project/work class, ASC should be able to explain:
+- the active WorkEnvelope;
+- the dated AutonomyGrant and level;
+- the repository ceiling;
+- whether mutable authority is backed by current WorkAuthorization;
+- when the grant was last proven / must be reviewed;
+- why the next proposed continuation is allowed, needs the owner, or is blocked.
 
-## Founder verification
+A normal progression is Observe → Suggest → Continue → Integrate → Operate, but grants remain reversible and scope-specific.
 
-For high-impact or boundary-changing Actions, the owner sees:
-- exact target;
-- requested change;
-- provider/host;
-- why the Action is needed;
-- policy decision;
-- expected effect;
-- verification plan.
+A Project or lane may be evidence-saturated without being creatively finished; saturation is a reason to stop the current search, not authorization to invent additional work.
 
-The control plane should make it easier to approve a well-specified Action than to perform an opaque direct mutation.
+## Founder Relay
+
+Founder Relay should begin as an owner-review loop before it becomes automatic.
+
+Suggested Relay UX:
+- show the immutable proposed continuation;
+- show why ASC proposed it and the current authority result;
+- let the represented human Principal Approve, Edit, or Reject;
+- retain edits/rejections as calibration evidence;
+- label approved/edited drafts as owner-assisted;
+- label a Relay as auto-sent only after current authority permits it and a real transport confirms delivery.
+
+For an external ChatGPT/other consumer Thread that ASC cannot send into, an authorized Relay becomes a manual owner handoff. Pulse should surface Needs You rather than claiming the chat was steered.
+
+The owner should be able to understand:
+- who the Relay represents;
+- which service generated it;
+- which WorkEnvelope/AutonomyGrant/WorkAuthorization supported it;
+- whether it was merely suggested, owner-assisted, rejected, or actually auto-delivered.
+
+Relay calibration should learn from accepted/edited/rejected continuation behavior, not turn every conversation sentence into a durable personality or Project-intent model.
+
+### Relay calibration evidence
+
+ASC may derive deterministic interaction-calibration evidence per represented Principal + AccountDomain + Project + work class.
+
+Useful owner-facing measures include:
+- explicit response count;
+- unchanged approvals;
+- edits;
+- rejections;
+- actual auto-send outcomes;
+- acceptance/edit/rejection rates;
+- bounded deterministic edit magnitude;
+- latest evidence time;
+- stable evidence fingerprint/reference.
+
+A pending Relay may count as a proposal, but it must not alter the calibration evidence fingerprint until the owner responds or a real auto-send outcome exists.
+
+Thresholds may surface an **autonomy review candidate** such as "47/49 accepted; review Continue authority?" The owner still decides. Calibration must never create or widen an AutonomyGrant automatically.
+
+The first earned-autonomy owner action is deliberately narrow: the represented Principal may explicitly convert review-ready calibration into Level 2 (Continue) with a read-only repository ceiling. The server recomputes calibration from durable Relay evidence at click time and records the stable evidence reference/fingerprint on the grant.
+
+That action does not create a WorkEnvelope, WorkAuthorization, or mutation authority. A matching WorkEnvelope remains required before automatic continuation can actually proceed, and Integrate/Preview/Main authority requires separate explicit decisions.
+
+One Principal's calibration never trains another Principal's owner-channel behavior.
+
+## Working
+
+Show active and recently completed workers with:
+- project;
+- authorized work;
+- worker/session identity;
+- state;
+- lease/capability scope;
+- latest meaningful event;
+- stop control.
+
+## Conversational control
+
+ASC should support a natural-language project/control agent without requiring formal ticket syntax.
+
+A lightweight model may be sufficient for:
+- reading deterministic ASC state;
+- querying DI;
+- moving/updating work through allowed operations;
+- explaining blockers;
+- invoking stop/pause/verification commands.
+
+Complex product/architecture reasoning may escalate to a stronger worker.
+
+The conversation is an interface to durable systems, not the durable source of project truth.
+
+## ChatGPT and external chats
+
+ASC may reference/ingest external chats when a supported interface exists, but normal consumer ChatGPT Project chats must not be assumed to be programmatically readable/writable.
+
+ASC-managed agent sessions are a separate future execution surface.
 
 ## Progressive depth
 
-Default views show the operator model. Evidence, provider payloads, and specialist-system details remain inspectable one level deeper. This keeps the system approachable without discarding rigor.
+Default views remain compact.
 
+DI graph detail, provider payloads, logs, PRs, deployment evidence, and historical events are available one level deeper rather than duplicated into the main cockpit.
 
-## Specialist capability surfaces
+## Account-domain separation
 
-AI Systems Control is the canonical integrated human surface for specialist systems.
+Personal and business contexts must remain visually and technically distinct.
 
-Development Intelligence capabilities should appear natively inside the Project/Workspace experience—for example Overview, Intelligence, Architecture, Explore, Inspector, Evidence, Changes, Coverage, Sources, Parity, and assessment projections—while Development Intelligence remains the authority that computes those results.
+A worker for a business Project must not implicitly gain access to the owner's personal Google/email/provider context.
 
-A specialist system may retain its own direct UI when that surface is valuable for:
-- engine development and debugging;
-- independent verification of ASC presentation;
-- specialist diagnostics;
-- compatibility or external-client use.
-
-The owner should not need to leave AI Systems Control for routine specialist-system use. Deep links to specialist surfaces are escape hatches, not the primary navigation model.
-
-## Surface parity rule
-
-A specialist capability is not considered migrated merely because ASC can display a summary of it. Before ASC supersedes a specialist human workflow:
-1. the underlying specialist capability remains the source of truth;
-2. ASC preserves evidence, uncertainty, coverage, and source identity;
-3. the ASC surface provides equivalent or intentionally improved access to the capability;
-4. battle tests cover the new presentation path;
-5. the specialist direct surface remains available until parity is demonstrated.
+Cross-domain access requires explicit authorization.
