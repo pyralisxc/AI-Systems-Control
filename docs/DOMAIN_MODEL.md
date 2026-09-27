@@ -1,31 +1,59 @@
 # Domain Model — ASC v2 Target
 
-This document describes the target control-plane model after the 2026-09-26 re-crystallization.
+This document describes the target control-plane model after the 2026-09-26 re-crystallization and the 2026-09-27 multi-user foundation correction.
 
-The current codebase still contains Slice A domain types from the 2026-09-18 architecture. Those types are retained until a bounded migration proves what can be reused.
+The current codebase still contains Slice A domain types from the 2026-09-18 architecture. Those types are retained until bounded migrations prove what can be reused.
 
 ## Primary entities
 
-### Owner
-The human authority controlling ASC.
+### Principal
+A stable ASC actor identity independent from authentication provider.
 
-ASC may begin single-owner, but owner identity must still be explicit because authorization and account separation depend on it.
+Kinds:
+- human;
+- service.
+
+A Principal may authenticate through local bootstrap, OIDC/federation, or a future enterprise identity adapter. Email is not canonical identity.
+
+Minimum fields:
+- `principal_id`
+- `kind`
+- `display_name`
+- `status`
+- created/updated timestamps
 
 ### AccountDomain
-A bounded personal/business context belonging to an Owner.
+ASC's primary tenant/security boundary for personal or organizational use.
 
 Examples:
-- personal;
-- one business;
-- another business entity.
+- one person's private ASC context;
+- CardForge;
+- another company or business unit when independent isolation is required.
 
-An AccountDomain scopes Projects, provider connections, and default authorization context. Provider identities must not bleed across domains implicitly.
+An AccountDomain does not belong to a singular Owner object. Principals relate to it through Memberships.
 
 Minimum fields:
 - `account_domain_id`
-- `owner_id`
+- `kind`: personal | organization
 - `name`
 - `status`
+
+Tenant-owned Projects, Connections, Threads, authorizations, workers/leases, control state, budgets, and orchestration events must carry/enforce AccountDomain context.
+
+### Membership
+The explicit relationship between a Principal and an AccountDomain.
+
+Minimum fields:
+- `membership_id`
+- `principal_id`
+- `account_domain_id`
+- role/policy references
+- `status`
+- created/updated/revoked timestamps
+
+"Owner" is a role/authority held by a Membership, not ASC's root identity type.
+
+Personal mode is one human Principal + one personal AccountDomain + one active owner Membership.
 
 ### ProjectReference
 ASC's durable reference to a Project.
@@ -36,13 +64,13 @@ Minimum fields:
 - `project_id`
 - `account_domain_id`
 - `name`
-- `references[]` (GitHub repository, DI project, Conductor execution referent, provider project ids, etc.)
+- `references[]`
 - `status`
 
 A Project is not a checkout, chat, worker, or copied project-truth database.
 
 ### Connection
-An owner-authorized identity/installation/account for an external provider.
+An AccountDomain-scoped external provider identity/installation/account authorized by a Principal.
 
 Examples:
 - GitHub App installation;
@@ -55,78 +83,80 @@ ASC brokers references/scoped grants. It must not become a raw-secret distributo
 Minimum fields:
 - `connection_id`
 - `account_domain_id`
+- `authorized_by_principal_id`
 - `provider`
 - opaque provider/identity reference
-- granted scopes/capabilities
-- status/freshness
+- granted capabilities
+- status/generation/freshness
 - no raw secret material in owner/audit surfaces
 
-### WorkAuthorization
-An explicit owner-verification record granting bounded work authority.
+A Connection belongs to its AccountDomain. Replacing the administering human does not transfer Connection identity.
 
-Work lifecycle status is not authorization.
+### WorkAuthorization
+A durable bounded authorization produced from valid approval/policy.
+
+Personal UI may continue to say "Owner Verified", but the underlying record must not assume one global human owner.
 
 Minimum fields:
 - `authorization_id`
+- `account_domain_id`
 - `project_id`
 - work/objective reference
 - `verification_kind`: intent | result
 - reviewed scope/fingerprint
-- optional project/DI revision references used at verification time
-- `verified_by`
+- optional project/DI revision references
+- approving Principal/approval references
 - `verified_at`
 - `state`: active | revoked | superseded | needs_revalidation
 
 Material scope or controlling-context changes may move an authorization to `needs_revalidation`.
 
-### WorkerSession
-An ephemeral reasoning/execution session assigned to authorized work.
+### WorkerSession / WorkerRun
+An ephemeral reasoning/execution episode assigned to authorized work.
 
 Minimum fields:
-- `worker_id`
-- `project_id`
-- `authorization_id`
-- runtime/model/session reference
+- worker/run identity
+- AccountDomain + Project
+- authorization reference
+- service Principal / runtime/model/session reference
 - optional parent worker
-- `state`: starting | active | stopping | stopped | blocked | completed | expired
-- started/ended timestamps
-- heartbeat/last-observed time when available
+- lifecycle state
+- started/ended/heartbeat timestamps
 
-Workers are replaceable and do not own project truth.
+Workers are replaceable and do not own Project truth.
 
 ### ExecutionLease
-Short-lived permission for a WorkerSession to use bounded capabilities.
+Short-lived permission for a WorkerSession/Run to use bounded capabilities.
 
 Minimum fields:
 - `lease_id`
-- `worker_id`
-- `authorization_id`
+- worker/run identity
+- authorization reference
 - allowed capability references/scopes
-- `issued_at`
-- `expires_at`
+- issued/expires timestamps
 - `control_generation`
-- `state`: active | expired | revoked
+- `state`
 
-A lease is invalid if its control generation no longer matches the applicable control state.
+A lease is invalid if its control generation no longer matches applicable ControlState.
 
 ### ControlState
 Deterministic stop/pause authority.
 
 Scopes:
 - system;
-- account domain;
-- project;
-- worker.
+- AccountDomain;
+- Project;
+- Worker.
 
 Minimum fields:
-- scope identity;
+- scope identity
 - `mode`: running | paused | owner_stopped
-- monotonically increasing `generation`;
-- changed_by;
-- changed_at;
-- reason/reference when applicable.
+- monotonically increasing `generation`
+- changed-by Principal/service identity
+- changed-at
+- reason/reference
 
-Lower-authority agents cannot clear an owner stop.
+Lower-authority agents cannot clear an owner-level stop.
 
 ### CapabilityGrant
 A scoped permission to request an externally realized capability.
@@ -136,15 +166,15 @@ Capabilities are discovered from owning systems such as Conductor or DI. ASC rec
 ### OrchestrationEvent
 Minimal append-only event/reference used to reconstruct control flow.
 
-Examples:
-- authorization granted/revoked;
-- worker assigned/started/stopped/completed;
-- lease issued/revoked/expired;
-- control state changed;
-- execution/result reference attached;
-- owner attention requested.
+Events should identify AccountDomain and actor Principal/service identity and reference provider/DI/GitHub/Conductor evidence rather than copying complete native state.
 
-Events should reference provider/DI/GitHub/Conductor evidence rather than copying complete native state.
+## Identity / authentication boundary
+
+Authentication identity is not ASC resource authority.
+
+Authentication providers map authenticated identities to Principals. Membership establishes tenant context. Authorization policy then evaluates what that Principal may do in that AccountDomain.
+
+Future OIDC/SAML/SCIM adapters must not change Principal, Membership, Project, Connection, Thread, or WorkAuthorization identity semantics.
 
 ## Project meaning
 
@@ -165,4 +195,4 @@ Useful invariants from those concepts remain:
 - provider success is not verified reality;
 - permission failures must not silently broaden credentials.
 
-Execution receipts and provider mechanics now primarily belong to Conductor; project meaning/evaluation belongs to Project + DI. Legacy types should be migrated only when a concrete v2 slice proves the replacement.
+Execution receipts/provider mechanics now primarily belong to Conductor; Project meaning/evaluation belongs to Project + DI.

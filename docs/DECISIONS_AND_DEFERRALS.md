@@ -1,41 +1,53 @@
 # Decisions, Deferrals, and Rejected Directions
 
-## Accepted — 2026-09-26 crystal
+## Accepted — 2026-09-26/27 crystal
 
-- ASC is a supervisory/orchestration/control plane, not the source of project meaning.
+- ASC is a supervisory/orchestration/control plane, not the source of Project meaning.
 - Project repositories own durable product direction, architecture, constraints, and project-local decisions.
-- DI owns evidence-backed machine understanding of project reality/meaning, parity, provenance, uncertainty, and change interpretation.
+- DI owns evidence-backed machine understanding of Project reality/meaning, parity, provenance, uncertainty, and change interpretation.
 - DevOS owns portable agent working method and should not be hard-wired to this tool stack.
 - Conductor owns bounded execution/provider mechanics, receipts, retries, and exact mutation scope.
 - GitHub and provider systems remain authoritative for their native state.
+- Personal mode and enterprise mode share one identity/authority architecture.
+- Principal is the stable actor identity; Owner is an AccountDomain Membership role, not ASC's identity root.
+- AccountDomain is the primary tenant/security boundary unless later evidence justifies a higher organization grouping layer.
+- Human and service Principals are distinct and auditable.
+- Authentication identity, AccountDomain Membership, and authorization are separate concerns.
+- Tenant control state is partitioned by AccountDomain; normal tenant requests do not load unrelated tenants.
+- Connections belong to AccountDomains and retain the Principal that authorized them.
 - Owner Verification is separate from issue/PR lifecycle status and from merge state.
-- Owner Verification binds to exact reviewed scope/revision/fingerprint and is revocable.
+- Personal "Owner Verified" UX maps to Principal approval/policy-backed WorkAuthorization.
 - Workers are ephemeral and receive short-lived scoped capability leases rather than durable provider credentials.
-- Worker/project/system stops must be enforced by deterministic control state/fencing, not model cooperation.
-- Lower-authority agents cannot clear an owner stop.
+- Worker/Project/system stops are enforced by deterministic control state/fencing, not model cooperation.
+- Lower-authority agents cannot clear an owner-level stop.
 - ASC is headless-first; a rich cockpit is built after control semantics are proven.
-- ASC should support multiple account domains/identities, including personal/business separation.
-- Chat transcripts are not durable project truth.
-- Existing Slice A code is retained as prototype evidence until a bounded v2 migration proves what to reuse.
+- Chat transcripts are not durable Project truth.
+- Existing Slice A code is retained as prototype evidence until bounded migration proves what to reuse.
 
-## Superseded from the 2026-09-18 crystal
+## Superseded from earlier crystal
 
-The following are no longer accepted as ASC's product center:
-- ASC as the canonical integrated UI for every specialist capability;
-- ASC owning project Desired State as a separate canonical product-intent store;
+No longer accepted as ASC's product center:
+- ASC as canonical integrated UI for every specialist capability;
+- ASC owning Project Desired State as a separate canonical product-intent store;
 - ASC owning the complete Action -> provider execution -> Effect Receipt lifecycle;
 - Project/Workspace/Capability/Action as the frozen universal domain center;
-- migration of routine DI workflows into ASC as a product requirement.
+- one singular Owner object as the root identity/authority model;
+- one global `primary` hosted control-registry document.
 
-Useful invariants from that work remain and should be preserved where relevant.
+Useful invariants from earlier work remain where relevant.
 
 ## Deferred
 
 - automatic dispatch of Owner Verified work;
-- policy-derived creation of executable work from broad project direction;
+- policy-derived creation of executable work from broad Project direction;
 - rich multi-project cockpit;
 - general scheduling/recurring agent work;
-- multi-user organization administration beyond architecture compatibility;
+- multi-user administration UI;
+- invitations/groups UI;
+- OIDC/SAML enterprise setup UI;
+- SCIM provisioning;
+- custom role editor;
+- enterprise billing/seats/compliance exports;
 - browser execution provider;
 - cost/budget allocation policy;
 - external commercialization/marketplace semantics;
@@ -45,7 +57,7 @@ Deferred means not required for the first control spine, not rejected.
 
 ## Rejected
 
-- ASC as a second DI/project-truth database;
+- ASC as a second DI/Project-truth database;
 - ASC as a second Conductor/provider executor;
 - replacing GitHub Issues/PRs with an ASC task database;
 - granting execution because a work item is Ready;
@@ -55,7 +67,9 @@ Deferred means not required for the first control spine, not rejected.
 - relying on prompt instructions as a kill switch;
 - treating merge-to-main as permanent product-direction acceptance;
 - silently broadening credentials/connections after permission failure;
-- automatically mixing personal/business provider context.
+- automatically mixing personal/business provider context;
+- using email as canonical Principal identity;
+- making enterprise mode a separate domain model from personal mode.
 
 ## Change rule
 
