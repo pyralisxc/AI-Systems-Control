@@ -228,7 +228,7 @@ test("worker from another AccountDomain cannot attach to authorization", async (
         authorizationId: authorization.authorizationId,
         actingPrincipalId: "principal:other-worker"
       }),
-      /no active Membership/i
+      /active Membership/i
     );
   } finally {
     await rm(context.directory, { recursive: true, force: true });

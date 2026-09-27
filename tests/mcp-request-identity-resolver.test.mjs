@@ -5,10 +5,12 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
-  McpAuthenticationError,
   McpRequestIdentityResolver,
   PersistentIdentityRegistry
 } from "../dist/application/index.js";
+import {
+  McpAuthenticationError
+} from "../dist/ports/index.js";
 import {
   JsonFileIdentityDirectoryStore
 } from "../dist/adapters/index.js";

@@ -15,8 +15,63 @@ import {
   type SaveControlRegistryInput
 } from "../../ports/index.js";
 
-const SECRET_FIELD_PATTERN =
-  /(^|_)(secret|token|password|cookie|api[_-]?key|access[_-]?key|refresh[_-]?token|credential)(_|$)/iu;
+const SECRET_FIELD_NAMES = new Set([
+  "secret",
+  "token",
+  "password",
+  "cookie",
+  "api_key",
+  "access_key",
+  "access_token",
+  "refresh_token",
+  "credential",
+  "client_secret",
+  "private_key",
+  "authorization_code"
+]);
+
+function normalizeSecretFieldKey(key: string): string {
+  let normalized = "";
+
+  for (let index = 0; index < key.length; index += 1) {
+    const character = key[index]!;
+    const previous = index > 0 ? key[index - 1] : undefined;
+
+    if (
+      character >= "A" &&
+      character <= "Z" &&
+      previous &&
+      previous !== "_" &&
+      previous !== "-"
+    ) {
+      normalized += "_";
+    }
+
+    normalized +=
+      character === "-" || character === " "
+        ? "_"
+        : character.toLowerCase();
+  }
+
+  return normalized;
+}
+
+function isSecretLikeField(key: string): boolean {
+  const normalized = normalizeSecretFieldKey(key);
+  if (SECRET_FIELD_NAMES.has(normalized)) return true;
+
+  for (const name of SECRET_FIELD_NAMES) {
+    if (
+      normalized.startsWith(name + "_") ||
+      normalized.endsWith("_" + name) ||
+      normalized.includes("_" + name + "_")
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 export interface PostgresQueryResult {
   readonly rowCount: number | null;
@@ -50,7 +105,7 @@ function assertNoSecretLikeFields(value: unknown, path = "registry"): void {
   }
 
   for (const [key, nested] of Object.entries(value)) {
-    if (SECRET_FIELD_PATTERN.test(key)) {
+    if (isSecretLikeField(key)) {
       throw new Error(
         "Secret-like field " + path + "." + key +
         " cannot be persisted in ASC registry metadata."
