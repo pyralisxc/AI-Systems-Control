@@ -475,6 +475,20 @@ export class ContinuationAuthorityService {
     });
   }
 
+  async getLatestAutonomyGrant(
+    projectIdInput: string,
+    workClassInput: string
+  ): Promise<AutonomyGrant | undefined> {
+    const projectId = required(projectIdInput, "Project");
+    const workClass = required(workClassInput, "Work class");
+    const snapshot = await this.#store.load();
+    return latestGrant(
+      snapshot.continuationControl.autonomyGrants,
+      projectId,
+      workClass
+    );
+  }
+
   async setGrantState(
     input: SetAutonomyGrantStateInput
   ): Promise<AutonomyGrant> {

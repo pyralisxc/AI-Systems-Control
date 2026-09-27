@@ -17,3 +17,4 @@ export * from "./continuation-authority-service.js";
 export * from "./founder-relay-service.js";
 export * from "./mcp-request-identity-resolver.js";
 export * from "./relay-calibration-service.js";
+export * from "./owner-autonomy-review-service.js";
