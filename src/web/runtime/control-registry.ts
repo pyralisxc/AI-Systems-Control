@@ -130,6 +130,21 @@ export function controlRegistryStoreForDomain(
   );
 }
 
+function bootstrapAuthenticationIdentity():
+  | { readonly issuer: string; readonly subject: string }
+  | undefined {
+  const issuer = process.env.ASC_BOOTSTRAP_AUTH_ISSUER?.trim();
+  const subject = process.env.ASC_BOOTSTRAP_AUTH_SUBJECT?.trim();
+
+  if (!issuer && !subject) return undefined;
+  if (!issuer || !subject) {
+    throw new Error(
+      "ASC_BOOTSTRAP_AUTH_ISSUER and ASC_BOOTSTRAP_AUTH_SUBJECT must be configured together."
+    );
+  }
+  return Object.freeze({ issuer, subject });
+}
+
 async function ensurePersonalBootstrap(
   identities: PersistentIdentityRegistry
 ): Promise<void> {
@@ -139,14 +154,25 @@ async function ensurePersonalBootstrap(
   const existing = domains.find(
     (domain) => domain.accountDomainId === defaultAccountDomainId()
   );
-  if (existing) return;
 
-  await identities.bootstrapPersonal({
-    principalId: bootstrapPrincipalId(),
-    principalDisplayName: bootstrapPrincipalName(),
-    accountDomainId: defaultAccountDomainId(),
-    accountDomainName: defaultAccountDomainName()
-  });
+  if (!existing) {
+    await identities.bootstrapPersonal({
+      principalId: bootstrapPrincipalId(),
+      principalDisplayName: bootstrapPrincipalName(),
+      accountDomainId: defaultAccountDomainId(),
+      accountDomainName: defaultAccountDomainName()
+    });
+  }
+
+  const externalIdentity = bootstrapAuthenticationIdentity();
+  if (externalIdentity) {
+    await identities.registerAuthenticationIdentity({
+      principalId: bootstrapPrincipalId(),
+      issuer: externalIdentity.issuer,
+      subject: externalIdentity.subject,
+      label: "Personal bootstrap identity"
+    });
+  }
 }
 
 export async function identityRegistryServices() {
