@@ -672,7 +672,6 @@ export class ContinuationAuthorityService {
     }
     if (
       input.capabilityId &&
-      envelope.allowedCapabilities.length > 0 &&
       !envelope.allowedCapabilities.includes(input.capabilityId)
     ) {
       return this.#result(
