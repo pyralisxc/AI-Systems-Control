@@ -37,6 +37,8 @@
 - Relay calibration is derived from explicit feedback/outcomes rather than arbitrary chat text.
 - Pending Relay suggestions may affect proposal counts but do not affect settled calibration evidence fingerprints.
 - Calibration readiness can propose an owner autonomy review but never creates or widens an AutonomyGrant automatically.
+- The first earned-autonomy action is an explicit represented-owner decision capped at Level 2 / read-only.
+- Earned Continue grants do not create WorkEnvelopes or WorkAuthorizations and therefore do not independently start or authorize work.
 
 ## Superseded from earlier crystal
 

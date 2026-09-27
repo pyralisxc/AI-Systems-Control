@@ -99,6 +99,10 @@ A pending Relay may count as a proposal, but it must not alter the calibration e
 
 Thresholds may surface an **autonomy review candidate** such as "47/49 accepted; review Continue authority?" The owner still decides. Calibration must never create or widen an AutonomyGrant automatically.
 
+The first earned-autonomy owner action is deliberately narrow: the represented Principal may explicitly convert review-ready calibration into Level 2 (Continue) with a read-only repository ceiling. The server recomputes calibration from durable Relay evidence at click time and records the stable evidence reference/fingerprint on the grant.
+
+That action does not create a WorkEnvelope, WorkAuthorization, or mutation authority. A matching WorkEnvelope remains required before automatic continuation can actually proceed, and Integrate/Preview/Main authority requires separate explicit decisions.
+
 One Principal's calibration never trains another Principal's owner-channel behavior.
 
 ## Working

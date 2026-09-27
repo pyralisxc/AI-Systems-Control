@@ -104,6 +104,14 @@ Derived Relay calibration is a read projection over explicit Relay outcomes. It 
 - satisfying a threshold may surface owner attention but cannot mutate AutonomyGrant;
 - changing calibration policy does not rewrite underlying Relay history.
 
+An owner-facing earned-autonomy review may create a bounded grant only after server-side evidence recomputation. The initial supported action is Level 2 / read-only:
+- represented Principal must equal the reviewing authenticated Principal;
+- readiness must still be `review_candidate`;
+- evidence reference/fingerprint are recomputed from ThreadStore, not trusted from browser input;
+- an active Level 2+ grant is not duplicated or downgraded;
+- no WorkEnvelope or WorkAuthorization is created;
+- no mutation, work-branch, Preview, or Main authority is granted.
+
 ## Capability rule
 
 Workers receive scoped capability references/leases, not durable raw credentials.
