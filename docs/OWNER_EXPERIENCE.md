@@ -25,6 +25,8 @@ A Project view should quickly answer:
 - Which capabilities are currently available or blocked?
 - Where is the underlying DI/GitHub/Conductor/provider evidence?
 - Can I stop the worker/project/system immediately?
+- What WorkEnvelope currently bounds this Thread/work?
+- Which work classes are allowed to continue automatically, at what dated autonomy level, and up to which repository boundary?
 
 ## Needs You
 
@@ -39,6 +41,22 @@ Examples:
 - worker blocked outside its verified scope.
 
 Ten successful background steps should not create ten owner notifications.
+
+## Bounded autonomy
+
+The owner experience should not present one global "autonomy" toggle.
+
+For each Project/work class, ASC should be able to explain:
+- the active WorkEnvelope;
+- the dated AutonomyGrant and level;
+- the repository ceiling;
+- whether mutable authority is backed by current WorkAuthorization;
+- when the grant was last proven / must be reviewed;
+- why the next proposed continuation is allowed, needs the owner, or is blocked.
+
+A normal progression is Observe → Suggest → Continue → Integrate → Operate, but grants remain reversible and scope-specific.
+
+A Project or lane may be evidence-saturated without being creatively finished; saturation is a reason to stop the current search, not authorization to invent additional work.
 
 ## Working
 

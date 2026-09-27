@@ -23,6 +23,12 @@
 - ASC is headless-first; a rich cockpit is built after control semantics are proven.
 - Chat transcripts are not durable Project truth.
 - Existing Slice A code is retained as prototype evidence until bounded migration proves what to reuse.
+- WorkEnvelope is the versioned bounded continuation contract; it cannot expand underlying WorkAuthorization.
+- Autonomy is dated and scoped per Project/work class, not a global model/user trust score.
+- Effective autonomous authority is the intersection of WorkEnvelope, AutonomyGrant, WorkAuthorization where required, and ControlState.
+- Repository ceilings are explicit; high autonomy does not silently widen Preview to Main.
+- Owner STOP and explicit owner gates outrank all autonomy grants.
+- Autonomy can regress or require review without changing Project meaning.
 
 ## Superseded from earlier crystal
 
@@ -69,7 +75,10 @@ Deferred means not required for the first control spine, not rejected.
 - silently broadening credentials/connections after permission failure;
 - automatically mixing personal/business provider context;
 - using email as canonical Principal identity;
-- making enterprise mode a separate domain model from personal mode.
+- making enterprise mode a separate domain model from personal mode;
+- a global "trusted AI" autonomy flag;
+- model-confidence-based authorization;
+- allowing autonomy level to widen repository/effect scope beyond an explicit WorkEnvelope.
 
 ## Change rule
 

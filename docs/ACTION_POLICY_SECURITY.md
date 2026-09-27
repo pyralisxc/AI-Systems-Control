@@ -30,6 +30,29 @@ Approvals must remain inspectable, revocable, supersedable, and invalidatable wh
 
 Agents may recommend work or enrich issues without creating approval authority.
 
+## Bounded continuation
+
+Autonomous continuation is evaluated deterministically from durable ASC state.
+
+A continuation may proceed automatically only when all applicable boundaries agree:
+- an active WorkEnvelope covers the exact Project/work class/effect/repository boundary;
+- the WorkEnvelope continuation policy permits non-interactive continuation;
+- a current AutonomyGrant covers that work class at a sufficient level;
+- the requested repository boundary is within both envelope and grant ceilings;
+- mutable/integration work has an active matching WorkAuthorization;
+- no explicit owner gate has been reached;
+- current ControlState is running.
+
+Level 2 (Continue) may support read-only continuation. Mutation/integration requires Level 3 (Integrate) or higher.
+
+Even Level 5 cannot:
+- expand Preview authority to Main;
+- continue after an owner gate;
+- use a stale/needs-revalidation WorkAuthorization;
+- override paused/owner-stopped ControlState.
+
+Expired or needs-review grants return to the owner rather than silently falling back to an older grant.
+
 ## Capability rule
 
 Workers receive scoped capability references/leases, not durable raw credentials.

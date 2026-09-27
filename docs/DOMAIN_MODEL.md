@@ -111,6 +111,53 @@ Minimum fields:
 
 Material scope or controlling-context changes may move an authorization to `needs_revalidation`.
 
+### WorkEnvelope
+A versioned bounded continuation contract for one Project objective, optionally narrowed to one ConversationThread.
+
+A WorkEnvelope defines what continuation may attempt; it never creates authority beyond the underlying WorkAuthorization.
+
+Minimum fields:
+- `envelope_id` + version/state;
+- AccountDomain + Project + optional Thread;
+- objective/work reference + scope fingerprint;
+- allowed work classes;
+- allowed effect classes/capabilities;
+- repository ceiling: read_only | work_branch | preview | main;
+- continuation policy: interactive | continue_until_gate | autonomous_bounded;
+- owner-gate conditions;
+- optional budget/expiry;
+- WorkAuthorization reference when mutable/integration authority is included;
+- creating Principal/time.
+
+A newer envelope version supersedes the earlier active version for the same bounded objective.
+
+### AutonomyGrant
+A dated, scoped delegation over one Project work class.
+
+Autonomy is not a global trust score.
+
+Levels:
+- 0 Observe;
+- 1 Suggest;
+- 2 Continue;
+- 3 Integrate;
+- 4 Operate;
+- 5 Extended.
+
+Minimum fields:
+- grant ID;
+- AccountDomain + Project;
+- work class;
+- level;
+- repository ceiling;
+- granting Principal/time;
+- evidence-basis references;
+- last-proven/review-after timestamps when applicable;
+- invalidation conditions;
+- state: active | needs_review | revoked.
+
+Effective continuation authority is the intersection of the active WorkEnvelope, AutonomyGrant, WorkAuthorization where mutation is involved, and current ControlState. A high level never widens an envelope or overrides STOP.
+
 ### WorkerSession / WorkerRun
 An ephemeral reasoning/execution episode assigned to authorized work.
 
