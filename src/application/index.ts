@@ -4,4 +4,5 @@ export * from "./persistent-project-registry.js";
 export * from "./connection-registry.js";
 export * from "./project-connection-binding-registry.js";
 export * from "./delegation-service.js";
+export * from "./connection-authorization-broker.js";
 export * from "./owner-access.js";
