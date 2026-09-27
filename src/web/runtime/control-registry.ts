@@ -5,6 +5,7 @@ import {
   PostgresIdentityDirectoryStore
 } from "../../../dist/adapters/index.js";
 import {
+  ContinuationAuthorityService,
   PersistentConnectionRegistry,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
@@ -140,7 +141,8 @@ export async function controlRegistryServices() {
     projects: new PersistentProjectRegistry(store, identities),
     connections: new PersistentConnectionRegistry(store, identities),
     bindings: new PersistentProjectConnectionBindingRegistry(store),
-    authority: new WorkerAuthorityService(store, identities)
+    authority: new WorkerAuthorityService(store, identities),
+    continuation: new ContinuationAuthorityService(store, identities)
   };
 }
 

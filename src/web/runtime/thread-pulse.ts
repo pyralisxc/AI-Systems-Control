@@ -3,7 +3,8 @@ import {
   PostgresThreadStore
 } from "../../../dist/adapters/index.js";
 import {
-  BridgedThreadService
+  BridgedThreadService,
+  FounderRelayService
 } from "../../../dist/application/index.js";
 import type {
   ThreadSnapshot,
@@ -54,9 +55,16 @@ function threadStore(): ThreadStore {
 export async function bridgedThreadServices() {
   const control = await controlRegistryServices();
   const store = threadStore();
+  const bridge = new BridgedThreadService(store, control.projects);
   return {
     store,
-    bridge: new BridgedThreadService(store, control.projects)
+    control,
+    bridge,
+    relay: new FounderRelayService({
+      threadStore: store,
+      identities: control.identities,
+      continuation: control.continuation
+    })
   };
 }
 
@@ -64,6 +72,13 @@ function latestCheckpoint(snapshot: ThreadSnapshot) {
   return [...snapshot.checkpoints]
     .sort((left, right) =>
       right.publishedAt.localeCompare(left.publishedAt)
+    )[0];
+}
+
+function latestRelay(snapshot: ThreadSnapshot) {
+  return [...snapshot.relays]
+    .sort((left, right) =>
+      right.generatedAt.localeCompare(left.generatedAt)
     )[0];
 }
 
@@ -86,8 +101,10 @@ export async function loadPulseView(now?: string) {
   return {
     configured: true as const,
     accountDomainId: services.store.accountDomainId,
+    principalId: services.control.principalId,
     threads: snapshots.map((snapshot) => {
       const checkpoint = latestCheckpoint(snapshot);
+      const relay = latestRelay(snapshot);
       return {
         thread: snapshot.thread,
         pulse: pulseMap.get(snapshot.thread.threadId)!,
@@ -95,7 +112,15 @@ export async function loadPulseView(now?: string) {
         gate: checkpoint?.gate,
         blocker: checkpoint?.blocker,
         lastSteering: checkpoint?.lastSteering,
-        checkpointId: checkpoint?.checkpointId
+        checkpointId: checkpoint?.checkpointId,
+        relay,
+        canReviewRelay:
+          Boolean(
+            relay &&
+            relay.state === "suggested" &&
+            services.control.principalId &&
+            relay.representedPrincipalId === services.control.principalId
+          )
       };
     })
   };
