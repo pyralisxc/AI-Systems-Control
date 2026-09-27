@@ -53,6 +53,27 @@ Even Level 5 cannot:
 
 Expired or needs-review grants return to the owner rather than silently falling back to an older grant.
 
+## Founder Relay
+
+Founder Relay is an interaction/continuation mechanism, not a source of owner authority.
+
+A service Principal may generate a suggestion representing an active human owner/admin Principal, but:
+- the immutable proposal remains distinguishable from literal owner speech;
+- another human Principal cannot approve/edit a proposal represented as someone else;
+- approve/edit/reject feedback is stored with the actual feedback Principal;
+- approved or edited suggestions are owner-assisted records;
+- only a delivery accepted through a real send-capable transport after a fresh continuation-authority evaluation may become `auto_sent`.
+
+Proposal-time `allow` is never sufficient for auto-send. Delivery must re-evaluate current WorkEnvelope, AutonomyGrant, WorkAuthorization where applicable, and ControlState.
+
+If STOP, owner gate, grant review, authorization revalidation, expiry, or repository/effect ceiling changes after proposal, auto-send fails closed.
+
+If authority permits a Relay but the external Thread cannot be programmatically steered, ASC surfaces owner attention/manual delivery instead of pretending the external chat was changed.
+
+Relay delivery adapters must be idempotent by Relay ID so transport retries do not intentionally duplicate owner-channel messages.
+
+Founder Relay history belongs to tenant-scoped ThreadStore interaction history, not Project truth or the deterministic authority registry.
+
 ## Capability rule
 
 Workers receive scoped capability references/leases, not durable raw credentials.

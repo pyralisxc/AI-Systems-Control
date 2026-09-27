@@ -158,6 +158,46 @@ Minimum fields:
 
 Effective continuation authority is the intersection of the active WorkEnvelope, AutonomyGrant, WorkAuthorization where mutation is involved, and current ControlState. A high level never widens an envelope or overrides STOP.
 
+### ConversationThread
+A durable owner-facing conversation identity independent from any one model/runtime session.
+
+Minimum fields:
+- `thread_id`
+- AccountDomain + optional Project
+- mode: external | bridged | managed
+- lifecycle
+- runtime capability flags
+- optional external provider/thread/navigation reference
+- created/updated timestamps
+
+Thread checkpoints, activity, Relay records, and synopsis history are interaction/orchestration state. They are not canonical Project meaning.
+
+### FounderRelayRecord
+A provenance-preserving proposed or delivered owner-channel continuation attached to one ConversationThread.
+
+Minimum fields:
+- Relay ID, Thread, AccountDomain, Project;
+- represented human Principal;
+- generating service Principal;
+- proposal mode: suggest | auto_candidate;
+- immutable proposed text;
+- optional final text;
+- work class + requested effect/repository boundary/capability;
+- source/evidence refs;
+- proposal-time continuation-authority evaluation;
+- optional delivery-time continuation-authority evaluation;
+- state: suggested | owner_approved | edited | rejected | auto_sent;
+- owner feedback Principal/time;
+- delivery time/reference when actually delivered.
+
+`owner_approved` and `edited` are owner-assisted interaction records. They are not retroactively rewritten as literal owner-authored text.
+
+`auto_sent` is reserved for a Relay that:
+1. re-evaluated current continuation authority at delivery time and received `allow`; and
+2. was actually accepted by a send-capable idempotent transport.
+
+An external/bridged Thread with no send-capable transport can never be labeled auto-sent.
+
 ### WorkerSession / WorkerRun
 An ephemeral reasoning/execution episode assigned to authorized work.
 

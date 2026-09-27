@@ -29,6 +29,11 @@
 - Repository ceilings are explicit; high autonomy does not silently widen Preview to Main.
 - Owner STOP and explicit owner gates outrank all autonomy grants.
 - Autonomy can regress or require review without changing Project meaning.
+- Founder Relay proposals are interaction state, not owner-authored Project truth.
+- Owner approval/edit of a Relay produces owner-assisted provenance; it does not rewrite the original proposal as literal human authorship.
+- Founder Relay auto-send always performs a fresh continuation-authority evaluation at delivery time.
+- `auto_sent` requires confirmed delivery through an idempotent send-capable transport; policy permission alone is not delivery.
+- External/bridged Threads that ASC cannot send into surface manual owner handoff instead of fabricated steering.
 
 ## Superseded from earlier crystal
 
@@ -78,7 +83,10 @@ Deferred means not required for the first control spine, not rejected.
 - making enterprise mode a separate domain model from personal mode;
 - a global "trusted AI" autonomy flag;
 - model-confidence-based authorization;
-- allowing autonomy level to widen repository/effect scope beyond an explicit WorkEnvelope.
+- allowing autonomy level to widen repository/effect scope beyond an explicit WorkEnvelope;
+- presenting generated Relay text as if the represented human literally authored it;
+- marking a Relay auto-sent when no transport actually delivered it;
+- treating accepted/edited Relay calibration as canonical Project intent.
 
 ## Change rule
 

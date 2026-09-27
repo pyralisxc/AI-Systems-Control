@@ -58,6 +58,28 @@ A normal progression is Observe → Suggest → Continue → Integrate → Opera
 
 A Project or lane may be evidence-saturated without being creatively finished; saturation is a reason to stop the current search, not authorization to invent additional work.
 
+## Founder Relay
+
+Founder Relay should begin as an owner-review loop before it becomes automatic.
+
+Suggested Relay UX:
+- show the immutable proposed continuation;
+- show why ASC proposed it and the current authority result;
+- let the represented human Principal Approve, Edit, or Reject;
+- retain edits/rejections as calibration evidence;
+- label approved/edited drafts as owner-assisted;
+- label a Relay as auto-sent only after current authority permits it and a real transport confirms delivery.
+
+For an external ChatGPT/other consumer Thread that ASC cannot send into, an authorized Relay becomes a manual owner handoff. Pulse should surface Needs You rather than claiming the chat was steered.
+
+The owner should be able to understand:
+- who the Relay represents;
+- which service generated it;
+- which WorkEnvelope/AutonomyGrant/WorkAuthorization supported it;
+- whether it was merely suggested, owner-assisted, rejected, or actually auto-delivered.
+
+Relay calibration should learn from accepted/edited/rejected continuation behavior, not turn every conversation sentence into a durable personality or Project-intent model.
+
 ## Working
 
 Show active and recently completed workers with:
