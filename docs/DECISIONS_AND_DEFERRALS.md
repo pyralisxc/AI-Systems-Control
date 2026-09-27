@@ -39,6 +39,8 @@
 - Calibration readiness can propose an owner autonomy review but never creates or widens an AutonomyGrant automatically.
 - The first earned-autonomy action is an explicit represented-owner decision capped at Level 2 / read-only.
 - Earned Continue grants do not create WorkEnvelopes or WorkAuthorizations and therefore do not independently start or authorize work.
+- The first Thread Continue envelope is a separate explicit owner action and is limited to read-only/no-capability continuation for one exact Thread/work class.
+- Empty WorkEnvelope capability lists mean no capabilities, never wildcard access.
 
 ## Superseded from earlier crystal
 

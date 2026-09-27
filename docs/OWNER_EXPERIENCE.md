@@ -78,6 +78,24 @@ The owner should be able to understand:
 - which WorkEnvelope/AutonomyGrant/WorkAuthorization supported it;
 - whether it was merely suggested, owner-assisted, rejected, or actually auto-delivered.
 
+### First bounded Continue envelope
+
+After an explicit Level 2 (Continue) read-only grant exists, the represented owner may separately enable a WorkEnvelope for one exact Project-scoped Thread/work class.
+
+The first supported shape is intentionally narrow:
+- effect: read only;
+- repository boundary: read_only;
+- no capabilities/tools;
+- continuation policy: continue_until_gate;
+- no WorkAuthorization because no mutation/integration authority exists.
+
+The Thread ID/objective and scope fingerprint are derived server-side from durable Thread state, not browser input. Repeating the same owner action is idempotent.
+
+Pulse should show this state as:
+`Continue Level 2 · Thread bounded · read-only · no tools`
+
+A matching grant and envelope may allow conversational/read-only continuation, but any capability/tool use, mutation, work-branch/Preview/Main boundary, owner gate, grant review, or STOP returns control to the owner.
+
 Relay calibration should learn from accepted/edited/rejected continuation behavior, not turn every conversation sentence into a durable personality or Project-intent model.
 
 ### Relay calibration evidence
