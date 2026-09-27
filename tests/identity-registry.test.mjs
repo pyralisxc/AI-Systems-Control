@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
   IdentityConflictError,
   InMemoryIdentityRegistry,
+  PersistentIdentityRegistry,
   bootstrapPersonalIdentity
 } from "../dist/application/index.js";
 
@@ -109,4 +113,50 @@ test("one Principal has at most one Membership per AccountDomain", () => {
 
   assert.equal(first.membershipId, second.membershipId);
   assert.equal(registry.listMemberships("domain:a").length, 1);
+});
+
+
+test("persistent identity directory survives restart and enforces admin authority", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "asc-identity-"));
+  const path = join(directory, "identity.json");
+  try {
+    const identities = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(path)
+    );
+    await identities.bootstrapPersonal({
+      principalId: "principal:owner",
+      principalDisplayName: "Owner",
+      accountDomainId: "domain:personal",
+      accountDomainName: "Personal"
+    });
+
+    const restarted = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(path)
+    );
+    const membership = await restarted.assertPrincipalCanAdministerDomain(
+      "principal:owner",
+      "domain:personal"
+    );
+    assert.deepEqual(membership.roles, ["owner"]);
+
+    await restarted.registerPrincipal({
+      principalId: "principal:viewer",
+      kind: "human",
+      displayName: "Viewer"
+    });
+    await restarted.registerMembership({
+      principalId: "principal:viewer",
+      accountDomainId: "domain:personal",
+      roles: ["viewer"]
+    });
+    await assert.rejects(
+      () => restarted.assertPrincipalCanAdministerDomain(
+        "principal:viewer",
+        "domain:personal"
+      ),
+      /does not have owner\/admin authority/i
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

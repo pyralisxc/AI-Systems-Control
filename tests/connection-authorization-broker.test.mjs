@@ -10,10 +10,14 @@ import {
   DelegationService,
   InMemoryAuthorizationFlowStore,
   PersistentConnectionRegistry,
+  PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
   PersistentProjectRegistry
 } from "../dist/application/index.js";
-import { JsonFileControlRegistryStore } from "../dist/adapters/index.js";
+import {
+  JsonFileControlRegistryStore,
+  JsonFileIdentityDirectoryStore
+} from "../dist/adapters/index.js";
 
 class FakeAuthorizationProvider {
   provider = "fake-oauth";
@@ -68,9 +72,18 @@ async function setup() {
   const directory = await mkdtemp(join(tmpdir(), "asc-auth-broker-"));
   const path = join(directory, "registry.json");
   const store = new JsonFileControlRegistryStore(path, "business-a");
+  const identities = new PersistentIdentityRegistry(
+    new JsonFileIdentityDirectoryStore(join(directory, "identity.json"))
+  );
+  await identities.bootstrapPersonal({
+    principalId: "principal:owner-1",
+    principalDisplayName: "Owner One",
+    accountDomainId: "business-a",
+    accountDomainName: "Business A"
+  });
   const provider = new FakeAuthorizationProvider();
-  const connections = new PersistentConnectionRegistry(store);
-  const projects = new PersistentProjectRegistry(store);
+  const connections = new PersistentConnectionRegistry(store, identities);
+  const projects = new PersistentProjectRegistry(store, identities);
   const bindings = new PersistentProjectConnectionBindingRegistry(store);
   const delegations = new DelegationService(store);
   const flows = new InMemoryAuthorizationFlowStore();
@@ -102,7 +115,7 @@ test("authorization callback creates metadata-only Connections for two provider 
   try {
     for (const [index, account] of ["account-a", "account-b"].entries()) {
       const begun = await context.broker.begin({
-        principalId: "owner-1",
+        principalId: "principal:owner-1",
         accountDomainId: "business-a",
         provider: "fake-oauth",
         callbackUrl: "https://asc.invalid/callback",
@@ -140,7 +153,7 @@ test("authorization state is bound and single-use", async () => {
   const context = await setup();
   try {
     const begun = await context.broker.begin({
-      principalId: "owner-1",
+      principalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -158,7 +171,7 @@ test("authorization state is bound and single-use", async () => {
     );
 
     const second = await context.broker.begin({
-      principalId: "owner-1",
+      principalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -188,7 +201,7 @@ test("reconnect changes Connection generation and invalidates older delegations"
   const context = await setup();
   try {
     const begun = await context.broker.begin({
-      principalId: "owner-1",
+      principalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -217,7 +230,7 @@ test("reconnect changes Connection generation and invalidates older delegations"
     });
 
     const reauth = await context.broker.begin({
-      principalId: "owner-1",
+      principalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -250,7 +263,7 @@ test("provider revoke removes provider secret and revokes ASC Connection", async
   const context = await setup();
   try {
     const begun = await context.broker.begin({
-      principalId: "owner-1",
+      principalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -280,7 +293,7 @@ test("routine verification preserves generation when authority is unchanged", as
   const context = await setup();
   try {
     const begun = await context.broker.begin({
-      principalId: "owner-1",
+      principalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",

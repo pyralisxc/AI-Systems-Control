@@ -7,24 +7,39 @@ import test from "node:test";
 import {
   InMemoryConnectionRegistry,
   PersistentConnectionRegistry,
+  PersistentIdentityRegistry,
   PersistentProjectRegistry
 } from "../dist/application/index.js";
-import { JsonFileControlRegistryStore } from "../dist/adapters/index.js";
+import {
+  JsonFileControlRegistryStore,
+  JsonFileIdentityDirectoryStore
+} from "../dist/adapters/index.js";
 
 async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), "asc-registry-"));
   const path = join(directory, "control-registry.json");
+  const identityPath = join(directory, "identity-directory.json");
+  const identities = new PersistentIdentityRegistry(
+    new JsonFileIdentityDirectoryStore(identityPath)
+  );
+  await identities.bootstrapPersonal({
+    principalId: "principal:owner-1",
+    principalDisplayName: "Owner One",
+    accountDomainId: "business-a",
+    accountDomainName: "Business A"
+  });
   return {
     directory,
     path,
+    identities,
     store: new JsonFileControlRegistryStore(path, "business-a")
   };
 }
 
 test("durable Project aliases survive registry restart and resolve canonical repositories", async () => {
-  const { directory, path, store } = await fixture();
+  const { directory, path, store, identities } = await fixture();
   try {
-    const projects = new PersistentProjectRegistry(store);
+    const projects = new PersistentProjectRegistry(store, identities);
     await projects.resolveOrRegisterGithubProject({
       projectId: "asc",
       repository: "pyralisxc/AI-Systems-Control",
@@ -45,7 +60,8 @@ test("durable Project aliases survive registry restart and resolve canonical rep
     });
 
     const restarted = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path, "business-a")
+      new JsonFileControlRegistryStore(path, "business-a"),
+      identities
     );
     assert.equal((await restarted.getByAlias("asc"))?.projectId, "asc");
     assert.equal((await restarted.getByAlias("DEVOS"))?.projectId, "devos");
@@ -60,9 +76,9 @@ test("durable Project aliases survive registry restart and resolve canonical rep
 });
 
 test("repository rename preserves Project identity and historical reference across restart", async () => {
-  const { directory, path, store } = await fixture();
+  const { directory, path, store, identities } = await fixture();
   try {
-    const projects = new PersistentProjectRegistry(store);
+    const projects = new PersistentProjectRegistry(store, identities);
     await projects.resolveOrRegisterGithubProject({
       projectId: "project-1",
       repository: "owner/old-name",
@@ -71,7 +87,8 @@ test("repository rename preserves Project identity and historical reference acro
     await projects.reconcileGithubRepository("project-1", "owner/new-name");
 
     const restarted = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path, "business-a")
+      new JsonFileControlRegistryStore(path, "business-a"),
+      identities
     );
 
     assert.equal(
@@ -92,10 +109,12 @@ test("concurrent Project mutations retry optimistic revision conflicts without l
   const { directory, path } = await fixture();
   try {
     const first = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path, "business-a")
+      new JsonFileControlRegistryStore(path, "business-a"),
+      identities
     );
     const second = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path, "business-a")
+      new JsonFileControlRegistryStore(path, "business-a"),
+      identities
     );
 
     await Promise.all([
@@ -112,7 +131,8 @@ test("concurrent Project mutations retry optimistic revision conflicts without l
     ]);
 
     const restarted = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path, "business-a")
+      new JsonFileControlRegistryStore(path, "business-a"),
+      identities
     );
     assert.equal((await restarted.listProjects()).length, 2);
     assert.equal((await restarted.getByAlias("one"))?.projectId, "one");
@@ -123,9 +143,9 @@ test("concurrent Project mutations retry optimistic revision conflicts without l
 });
 
 test("Connection registry supports multiple provider accounts and explicit environment modes", async () => {
-  const { directory, path, store } = await fixture();
+  const { directory, path, store, identities } = await fixture();
   try {
-    const connections = new PersistentConnectionRegistry(store);
+    const connections = new PersistentConnectionRegistry(store, identities);
 
     const prod = await connections.register({
       authorizedByPrincipalId: "owner-1",
@@ -169,7 +189,8 @@ test("Connection registry supports multiple provider accounts and explicit envir
     assert.equal(prod.generation, 1);
 
     const restarted = new PersistentConnectionRegistry(
-      new JsonFileControlRegistryStore(path, "business-a")
+      new JsonFileControlRegistryStore(path, "business-a"),
+      identities
     );
     assert.equal((await restarted.listByProvider("business-a", "example-billing")).length, 2);
     assert.equal((await restarted.listByProvider("business-a", "deployment-provider")).length, 2);
@@ -192,7 +213,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
 });
 
 test("Connection metadata serializer rejects secret-bearing fields", async () => {
-  const { directory, path, store } = await fixture();
+  const { directory, path, store, identities } = await fixture();
   try {
     const valid = new InMemoryConnectionRegistry().register({
       authorizedByPrincipalId: "owner-1",

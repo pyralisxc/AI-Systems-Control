@@ -8,17 +8,30 @@ import {
   DelegationService,
   DelegationValidationError,
   PersistentConnectionRegistry,
+  PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
   PersistentProjectRegistry
 } from "../dist/application/index.js";
-import { JsonFileControlRegistryStore } from "../dist/adapters/index.js";
+import {
+  JsonFileControlRegistryStore,
+  JsonFileIdentityDirectoryStore
+} from "../dist/adapters/index.js";
 
 async function setup() {
   const directory = await mkdtemp(join(tmpdir(), "asc-binding-"));
   const path = join(directory, "registry.json");
   const store = new JsonFileControlRegistryStore(path, "business-a");
-  const projects = new PersistentProjectRegistry(store);
-  const connections = new PersistentConnectionRegistry(store);
+  const identities = new PersistentIdentityRegistry(
+    new JsonFileIdentityDirectoryStore(join(directory, "identity.json"))
+  );
+  await identities.bootstrapPersonal({
+    principalId: "principal:owner-1",
+    principalDisplayName: "Owner One",
+    accountDomainId: "business-a",
+    accountDomainName: "Business A"
+  });
+  const projects = new PersistentProjectRegistry(store, identities);
+  const connections = new PersistentConnectionRegistry(store, identities);
   const bindings = new PersistentProjectConnectionBindingRegistry(store);
   const delegations = new DelegationService(store);
 
