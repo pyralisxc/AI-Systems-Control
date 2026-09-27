@@ -121,7 +121,8 @@ The page is intentionally presence-only. It never renders database URLs, bearer 
 A hosted Preview MCP proof currently needs three external infrastructure decisions:
 
 1. **Durable PostgreSQL**
-   - Configure `ASC_CONTROL_REGISTRY_DATABASE_URL`.
+   - ASC first honors explicit `ASC_CONTROL_REGISTRY_DATABASE_URL`; otherwise it accepts standard `DATABASE_URL`.
+   - This lets provider-native Vercel/Postgres integrations work without copying the same connection string into an ASC-specific variable.
    - The same ASC storage contract works with Neon, Supabase Postgres, ordinary hosted PostgreSQL, or future owner-operated PostgreSQL.
 
 2. **Stable Preview MCP resource URL**

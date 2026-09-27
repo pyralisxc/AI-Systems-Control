@@ -5,6 +5,7 @@ import {
   bootstrapPrincipalId,
   bootstrapPrincipalName,
   controlRegistryConfigured,
+  controlRegistryDatabaseUrlSource,
   defaultAccountDomainId,
   defaultAccountDomainName,
   personalBootstrapEnabled
@@ -62,6 +63,7 @@ export function loadMcpSetupReadinessView() {
     readiness,
     configuration: Object.freeze({
       durableStorageConfigured: controlRegistryConfigured(),
+      durableStorageSource: controlRegistryDatabaseUrlSource(),
       resourceUrlConfigured: Boolean(urls),
       resourceUrlSource: urls?.source,
       oauthIssuerConfigured: present("ASC_OAUTH_ISSUER"),

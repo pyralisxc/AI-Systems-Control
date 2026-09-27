@@ -102,7 +102,13 @@ export default async function McpSetupPage() {
             <Check
               label="Durable control storage"
               configured={view.configuration.durableStorageConfigured}
-              detail="Standard PostgreSQL is required on Vercel so Principal, Membership, Connection, authority, and Thread state survive deployments."
+              detail={
+                view.configuration.durableStorageSource === "standard_database_url"
+                  ? "Connected through standard DATABASE_URL. ASC detected the provider-native Postgres connection automatically."
+                  : view.configuration.durableStorageSource === "asc_explicit"
+                    ? "Connected through the explicit ASC database override."
+                    : "Connect standard PostgreSQL. On Vercel, native Postgres integrations commonly provide DATABASE_URL automatically; ASC detects it without requiring a duplicate ASC-specific variable."
+              }
             />
             <Check
               label="Stable MCP resource URL"
@@ -217,7 +223,9 @@ export default async function McpSetupPage() {
                 <p>
                   Neon, Supabase Postgres, ordinary hosted PostgreSQL, or your
                   future self-hosted PostgreSQL all satisfy the same ASC store
-                  contract. Preview needs the resulting database URL.
+                  contract. Provider-native <code>DATABASE_URL</code> is detected
+                  automatically; <code>ASC_CONTROL_REGISTRY_DATABASE_URL</code> is
+                  only an advanced override.
                 </p>
               </div>
             </article>
