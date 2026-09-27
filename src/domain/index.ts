@@ -7,6 +7,7 @@ export * from "./capability.js";
 export * from "./project-connection-binding.js";
 export * from "./delegation.js";
 export * from "./worker-control.js";
+export * from "./work-envelope.js";
 export * from "./thread.js";
 export * from "./state.js";
 export * from "./freshness.js";

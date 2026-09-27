@@ -1,5 +1,6 @@
 import type {
   Connection,
+  ContinuationControlState,
   DelegationRecord,
   Project,
   ProjectConnectionBinding,
@@ -18,6 +19,7 @@ export interface RegistryMutationResult<T> {
   readonly projectConnectionBindings: readonly ProjectConnectionBinding[];
   readonly delegations: readonly DelegationRecord[];
   readonly workerControl?: WorkerControlState;
+  readonly continuationControl?: ContinuationControlState;
   readonly changed: boolean;
 }
 
@@ -40,6 +42,8 @@ export async function mutateControlRegistry<T>(
         projectConnectionBindings: mutation.projectConnectionBindings,
         delegations: mutation.delegations,
         workerControl: mutation.workerControl ?? snapshot.workerControl,
+        continuationControl:
+          mutation.continuationControl ?? snapshot.continuationControl,
         updatedAt: new Date().toISOString()
       });
       return mutation.result;
