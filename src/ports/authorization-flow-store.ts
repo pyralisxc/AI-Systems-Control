@@ -2,7 +2,7 @@ export type AuthorizationFlowState = "pending" | "consumed";
 
 export interface AuthorizationFlow {
   readonly flowId: string;
-  readonly ownerId: string;
+  readonly principalId: string;
   readonly accountDomainId: string;
   readonly provider: string;
   readonly stateHash: string;

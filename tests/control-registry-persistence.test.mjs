@@ -128,7 +128,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
     const connections = new PersistentConnectionRegistry(store);
 
     const prod = await connections.register({
-      ownerId: "owner-1",
+      authorizedByPrincipalId: "owner-1",
       accountDomainId: "business-a",
       provider: "example-billing",
       providerAccountId: "acct_main",
@@ -138,7 +138,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
       capabilities: ["billing.read", "billing.write"]
     });
     const testConnection = await connections.register({
-      ownerId: "owner-1",
+      authorizedByPrincipalId: "owner-1",
       accountDomainId: "business-a",
       provider: "example-billing",
       providerAccountId: "acct_main",
@@ -148,7 +148,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
       capabilities: ["billing.read"]
     });
     const teamOne = await connections.register({
-      ownerId: "owner-1",
+      authorizedByPrincipalId: "owner-1",
       accountDomainId: "business-a",
       provider: "deployment-provider",
       providerAccountId: "team_1",
@@ -156,7 +156,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
       authenticationStrategy: "oauth"
     });
     const teamTwo = await connections.register({
-      ownerId: "owner-1",
+      authorizedByPrincipalId: "owner-1",
       accountDomainId: "business-a",
       provider: "deployment-provider",
       providerAccountId: "team_2",
@@ -195,7 +195,7 @@ test("Connection metadata serializer rejects secret-bearing fields", async () =>
   const { directory, path, store } = await fixture();
   try {
     const valid = new InMemoryConnectionRegistry().register({
-      ownerId: "owner-1",
+      authorizedByPrincipalId: "owner-1",
       accountDomainId: "business-a",
       provider: "example",
       providerAccountId: "account-1",

@@ -5,7 +5,7 @@ import type {
 
 export interface BeginConnectionAuthorizationInput {
   readonly flowId: string;
-  readonly ownerId: string;
+  readonly principalId: string;
   readonly accountDomainId: string;
   readonly state: string;
   readonly callbackUrl: string;
@@ -18,7 +18,7 @@ export interface BeginConnectionAuthorizationResult {
 
 export interface CompleteConnectionAuthorizationInput {
   readonly flowId: string;
-  readonly ownerId: string;
+  readonly principalId: string;
   readonly accountDomainId: string;
   readonly callback: Readonly<Record<string, string>>;
   readonly providerFlowReference?: string;
@@ -34,20 +34,23 @@ export interface AuthorizedConnectionMetadata {
 }
 
 export interface VerifyConnectionAuthorizationInput {
-  readonly ownerId: string;
+  readonly principalId: string;
   readonly accountDomainId: string;
   readonly providerAccountId: string;
   readonly environment?: string;
 }
 
 export interface VerifyConnectionAuthorizationResult {
-  readonly status: Extract<ConnectionStatus, "active" | "reconnect_required" | "unavailable">;
+  readonly status: Extract<
+    ConnectionStatus,
+    "active" | "reconnect_required" | "unavailable"
+  >;
   readonly capabilities: readonly string[];
   readonly verifiedAt: string;
 }
 
 export interface RevokeConnectionAuthorizationInput {
-  readonly ownerId: string;
+  readonly principalId: string;
   readonly accountDomainId: string;
   readonly providerAccountId: string;
   readonly environment?: string;

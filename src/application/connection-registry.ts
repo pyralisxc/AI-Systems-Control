@@ -10,7 +10,7 @@ import { mutateControlRegistry } from "./control-registry-mutation.js";
 
 export interface RegisterConnectionInput {
   readonly connectionId?: string;
-  readonly ownerId: string;
+  readonly authorizedByPrincipalId: string;
   readonly accountDomainId: string;
   readonly provider: string;
   readonly providerAccountId: string;
@@ -146,10 +146,10 @@ export class InMemoryConnectionRegistry {
     const provider = normalizedProvider(input.provider);
     const providerAccountId = input.providerAccountId.trim();
     const accountDomainId = input.accountDomainId.trim();
-    const ownerId = input.ownerId.trim();
+    const authorizedByPrincipalId = input.authorizedByPrincipalId.trim();
     if (!providerAccountId) throw new Error("Provider account identity cannot be empty.");
     if (!accountDomainId) throw new Error("Account domain cannot be empty.");
-    if (!ownerId) throw new Error("Owner identity cannot be empty.");
+    if (!authorizedByPrincipalId) throw new Error("Authorizing Principal cannot be empty.");
 
     const environment = normalizedEnvironment(input.environment);
     const key = connectionIdentityKey({
@@ -168,9 +168,9 @@ export class InMemoryConnectionRegistry {
       }
 
       const existing = this.#connections.get(existingId)!;
-      if (existing.ownerId !== ownerId) {
+      if (existing.authorizedByPrincipalId !== authorizedByPrincipalId) {
         throw new ConnectionIdentityConflictError(
-          "Connection " + existingId + " is authorized by owner " + existing.ownerId + ", not " + ownerId + "."
+          "Connection " + existingId + " is authorized by Principal " + existing.authorizedByPrincipalId + ", not " + authorizedByPrincipalId + "."
         );
       }
 
@@ -196,7 +196,7 @@ export class InMemoryConnectionRegistry {
     const createdAt = input.createdAt ?? nowIso();
     const connection = freezeConnection({
       connectionId: input.connectionId ?? generatedConnectionId(key, provider),
-      ownerId,
+      authorizedByPrincipalId,
       accountDomainId,
       provider,
       providerAccountId,

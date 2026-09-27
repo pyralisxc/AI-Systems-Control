@@ -9,7 +9,7 @@ import type {
 import { PersistentConnectionRegistry } from "./connection-registry.js";
 
 export interface BeginConnectionFlowInput {
-  readonly ownerId: string;
+  readonly principalId: string;
   readonly accountDomainId: string;
   readonly provider: string;
   readonly callbackUrl: string;
@@ -60,7 +60,7 @@ function normalizeProvider(provider: string): string {
 
 function identityInput(connection: Connection) {
   return {
-    ownerId: connection.ownerId,
+    principalId: connection.principalId,
     accountDomainId: connection.accountDomainId,
     providerAccountId: connection.providerAccountId,
     ...(connection.environment ? { environment: connection.environment } : {})
@@ -144,10 +144,10 @@ export class ConnectionAuthorizationBroker {
   }
 
   async begin(input: BeginConnectionFlowInput): Promise<BegunConnectionFlow> {
-    const ownerId = input.ownerId.trim();
+    const principalId = input.principalId.trim();
     const accountDomainId = input.accountDomainId.trim();
     const callbackUrl = input.callbackUrl.trim();
-    if (!ownerId) throw new ConnectionAuthorizationError("Owner is required.");
+    if (!principalId) throw new ConnectionAuthorizationError("Principal is required.");
     if (!accountDomainId) throw new ConnectionAuthorizationError("AccountDomain is required.");
     if (accountDomainId !== this.#connections.accountDomainId) {
       throw new ConnectionAuthorizationError(
@@ -174,7 +174,7 @@ export class ConnectionAuthorizationBroker {
 
     const begun = await adapter.beginAuthorization({
       flowId,
-      ownerId,
+      principalId,
       accountDomainId,
       state,
       callbackUrl
@@ -182,7 +182,7 @@ export class ConnectionAuthorizationBroker {
 
     const flow: AuthorizationFlow = Object.freeze({
       flowId,
-      ownerId,
+      principalId,
       accountDomainId,
       provider,
       stateHash: hashState(state),
@@ -215,7 +215,7 @@ export class ConnectionAuthorizationBroker {
     const adapter = this.#provider(flow.provider);
     const metadata = await adapter.completeAuthorization({
       flowId: flow.flowId,
-      ownerId: flow.ownerId,
+      principalId: flow.principalId,
       accountDomainId: flow.accountDomainId,
       callback: input.callback,
       ...(flow.providerFlowReference
@@ -224,7 +224,7 @@ export class ConnectionAuthorizationBroker {
     });
 
     return this.#connections.register({
-      ownerId: flow.ownerId,
+      principalId: flow.principalId,
       accountDomainId: flow.accountDomainId,
       provider: flow.provider,
       providerAccountId: metadata.providerAccountId,

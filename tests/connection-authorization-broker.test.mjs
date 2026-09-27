@@ -102,7 +102,7 @@ test("authorization callback creates metadata-only Connections for two provider 
   try {
     for (const [index, account] of ["account-a", "account-b"].entries()) {
       const begun = await context.broker.begin({
-        ownerId: "owner-1",
+        principalId: "owner-1",
         accountDomainId: "business-a",
         provider: "fake-oauth",
         callbackUrl: "https://asc.invalid/callback",
@@ -140,7 +140,7 @@ test("authorization state is bound and single-use", async () => {
   const context = await setup();
   try {
     const begun = await context.broker.begin({
-      ownerId: "owner-1",
+      principalId: "owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -158,7 +158,7 @@ test("authorization state is bound and single-use", async () => {
     );
 
     const second = await context.broker.begin({
-      ownerId: "owner-1",
+      principalId: "owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -188,7 +188,7 @@ test("reconnect changes Connection generation and invalidates older delegations"
   const context = await setup();
   try {
     const begun = await context.broker.begin({
-      ownerId: "owner-1",
+      principalId: "owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -217,7 +217,7 @@ test("reconnect changes Connection generation and invalidates older delegations"
     });
 
     const reauth = await context.broker.begin({
-      ownerId: "owner-1",
+      principalId: "owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -250,7 +250,7 @@ test("provider revoke removes provider secret and revokes ASC Connection", async
   const context = await setup();
   try {
     const begun = await context.broker.begin({
-      ownerId: "owner-1",
+      principalId: "owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",
@@ -280,7 +280,7 @@ test("routine verification preserves generation when authority is unchanged", as
   const context = await setup();
   try {
     const begun = await context.broker.begin({
-      ownerId: "owner-1",
+      principalId: "owner-1",
       accountDomainId: "business-a",
       provider: "fake-oauth",
       callbackUrl: "https://asc.invalid/callback",

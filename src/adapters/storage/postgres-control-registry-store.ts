@@ -78,13 +78,24 @@ function assertTenantOwnership(
 }
 
 function normalizeConnections(connections: readonly Record<string, unknown>[]) {
-  return connections.map((connection) => ({
-    ...connection,
-    generation:
-      typeof connection.generation === "number" && Number.isInteger(connection.generation)
-        ? connection.generation
-        : 1
-  }));
+  return connections.map((connection) => {
+    const legacyOwnerId =
+      typeof connection.ownerId === "string"
+        ? connection.ownerId
+        : undefined;
+    const { ownerId: _legacyOwnerId, ...rest } = connection;
+    return {
+      ...rest,
+      authorizedByPrincipalId:
+        typeof connection.authorizedByPrincipalId === "string"
+          ? connection.authorizedByPrincipalId
+          : legacyOwnerId ?? "principal:legacy-owner",
+      generation:
+        typeof connection.generation === "number" && Number.isInteger(connection.generation)
+          ? connection.generation
+          : 1
+    };
+  });
 }
 
 function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnapshot {

@@ -152,7 +152,7 @@ test("Postgres store rejects secret-like registry metadata before SQL write", as
       projects: [],
       connections: [{
         connectionId: "connection:fake:1",
-        ownerId: "owner-1",
+        authorizedByPrincipalId: "owner-1",
         accountDomainId: "business-a",
         provider: "fake",
         providerAccountId: "account-a",

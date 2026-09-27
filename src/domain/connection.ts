@@ -2,7 +2,7 @@ import type {
   AccountDomainId,
   ConnectionId,
   IsoTimestamp,
-  OwnerId
+  PrincipalId
 } from "./shared.js";
 
 export const CONNECTION_STATUSES = [
@@ -23,7 +23,7 @@ export type AuthenticationStrategy = (typeof AUTHENTICATION_STRATEGIES)[number];
 
 export interface Connection {
   readonly connectionId: ConnectionId;
-  readonly ownerId: OwnerId;
+  readonly authorizedByPrincipalId: PrincipalId;
   readonly accountDomainId: AccountDomainId;
   readonly provider: string;
   readonly providerAccountId: string;
