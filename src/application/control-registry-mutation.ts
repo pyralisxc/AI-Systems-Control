@@ -1,6 +1,8 @@
 import type {
   Connection,
-  Project
+  DelegationRecord,
+  Project,
+  ProjectConnectionBinding
 } from "../domain/index.js";
 import {
   RegistryRevisionConflictError,
@@ -12,6 +14,8 @@ export interface RegistryMutationResult<T> {
   readonly result: T;
   readonly projects: readonly Project[];
   readonly connections: readonly Connection[];
+  readonly projectConnectionBindings: readonly ProjectConnectionBinding[];
+  readonly delegations: readonly DelegationRecord[];
   readonly changed: boolean;
 }
 
@@ -31,6 +35,8 @@ export async function mutateControlRegistry<T>(
         expectedRevision: snapshot.revision,
         projects: mutation.projects,
         connections: mutation.connections,
+        projectConnectionBindings: mutation.projectConnectionBindings,
+        delegations: mutation.delegations,
         updatedAt: new Date().toISOString()
       });
       return mutation.result;

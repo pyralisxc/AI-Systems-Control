@@ -32,6 +32,7 @@ export interface Connection {
   readonly environment?: string;
   readonly authenticationStrategy: AuthenticationStrategy;
   readonly status: ConnectionStatus;
+  readonly generation: number;
   readonly capabilities: readonly string[];
   readonly createdAt: IsoTimestamp;
   readonly updatedAt: IsoTimestamp;
