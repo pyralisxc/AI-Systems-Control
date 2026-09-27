@@ -161,3 +161,96 @@ test("persistent identity directory survives restart and enforces admin authorit
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+
+test("federated issuer plus subject resolves one stable Principal across restart", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "asc-identity-auth-"));
+  const path = join(directory, "identity.json");
+  try {
+    const identities = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(path)
+    );
+    await identities.bootstrapPersonal({
+      principalId: "principal:owner",
+      principalDisplayName: "Owner",
+      accountDomainId: "domain:personal",
+      accountDomainName: "Personal"
+    });
+    const binding = await identities.registerAuthenticationIdentity({
+      principalId: "principal:owner",
+      issuer: "https://login.example.test/",
+      subject: "user-123",
+      label: "Example IdP"
+    });
+
+    assert.equal(binding.issuer, "https://login.example.test");
+    assert.equal(binding.subject, "user-123");
+
+    const restarted = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(path)
+    );
+    const resolved = await restarted.resolveAuthenticationIdentity(
+      "https://login.example.test",
+      "user-123"
+    );
+    assert.equal(resolved?.principalId, "principal:owner");
+    assert.equal(resolved?.bindingId, binding.bindingId);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("same federated identity cannot be rebound to another Principal", () => {
+  const registry = new InMemoryIdentityRegistry();
+  registry.registerPrincipal({
+    principalId: "principal:one",
+    kind: "human",
+    displayName: "One"
+  });
+  registry.registerPrincipal({
+    principalId: "principal:two",
+    kind: "human",
+    displayName: "Two"
+  });
+
+  registry.registerAuthenticationIdentity({
+    principalId: "principal:one",
+    issuer: "https://issuer.example.test",
+    subject: "subject-a"
+  });
+
+  assert.throws(
+    () => registry.registerAuthenticationIdentity({
+      principalId: "principal:two",
+      issuer: "https://issuer.example.test",
+      subject: "subject-a"
+    }),
+    /already bound to Principal principal:one/i
+  );
+});
+
+test("authentication issuer must be HTTPS and subject must be non-empty", () => {
+  const registry = new InMemoryIdentityRegistry();
+  registry.registerPrincipal({
+    principalId: "principal:one",
+    kind: "human",
+    displayName: "One"
+  });
+
+  assert.throws(
+    () => registry.registerAuthenticationIdentity({
+      principalId: "principal:one",
+      issuer: "http://issuer.example.test",
+      subject: "subject-a"
+    }),
+    /must use HTTPS/i
+  );
+  assert.throws(
+    () => registry.registerAuthenticationIdentity({
+      principalId: "principal:one",
+      issuer: "https://issuer.example.test",
+      subject: " "
+    }),
+    /subject cannot be empty/i
+  );
+});
