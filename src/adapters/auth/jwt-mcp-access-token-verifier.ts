@@ -28,7 +28,8 @@ function secureUrl(value: string, label: string): string {
   if (url.protocol !== "https:") {
     throw new Error(label + " must use HTTPS.");
   }
-  return url.toString().replace(//$/u, "");
+  const serialized = url.toString();
+  return serialized.endsWith("/") ? serialized.slice(0, -1) : serialized;
 }
 
 function stringClaim(

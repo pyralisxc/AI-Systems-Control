@@ -74,7 +74,8 @@ function normalizedIssuer(value: string): string {
   if (url.protocol !== "https:") {
     throw new Error("Authentication issuer must use HTTPS.");
   }
-  return url.toString().replace(//$/u, "");
+  const serialized = url.toString();
+  return serialized.endsWith("/") ? serialized.slice(0, -1) : serialized;
 }
 
 function normalizedRoles(roles: readonly string[]): readonly string[] {
