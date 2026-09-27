@@ -441,3 +441,47 @@ test("explicit owner gate wins even when read continuation would otherwise be al
     await rm(context.directory, { recursive: true, force: true });
   }
 });
+
+
+test("new WorkEnvelope version supersedes prior active envelope for the same objective", async () => {
+  const context = await setup();
+  try {
+    const first = await context.continuation.createEnvelope({
+      projectId: "cardforge",
+      objectiveRef: "explore:studio",
+      scopeFingerprint: "sha256:explore-studio",
+      workClasses: ["refinement"],
+      allowedEffects: ["read"],
+      repositoryBoundary: "read_only",
+      continuationPolicy: "interactive",
+      createdByPrincipalId: "principal:owner",
+      createdAt: "2026-09-27T19:20:00.000Z"
+    });
+    const second = await context.continuation.createEnvelope({
+      projectId: "cardforge",
+      objectiveRef: "explore:studio",
+      scopeFingerprint: "sha256:explore-studio",
+      workClasses: ["refinement"],
+      allowedEffects: ["read"],
+      repositoryBoundary: "read_only",
+      continuationPolicy: "continue_until_gate",
+      createdByPrincipalId: "principal:owner",
+      createdAt: "2026-09-27T19:21:00.000Z"
+    });
+
+    const snapshot = await context.store.load();
+    const persistedFirst = snapshot.continuationControl.workEnvelopes.find(
+      (envelope) => envelope.envelopeId === first.envelopeId
+    );
+    const persistedSecond = snapshot.continuationControl.workEnvelopes.find(
+      (envelope) => envelope.envelopeId === second.envelopeId
+    );
+
+    assert.equal(first.version, 1);
+    assert.equal(second.version, 2);
+    assert.equal(persistedFirst?.state, "superseded");
+    assert.equal(persistedSecond?.state, "active");
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});
