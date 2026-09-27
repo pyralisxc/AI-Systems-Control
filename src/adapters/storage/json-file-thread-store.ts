@@ -10,6 +10,7 @@ import { dirname } from "node:path";
 
 import type {
   ConversationThread,
+  FounderRelayRecord,
   ThreadActivityEvent,
   ThreadCheckpoint
 } from "../../domain/index.js";
@@ -20,7 +21,7 @@ import {
   type ThreadStore
 } from "../../ports/index.js";
 
-const THREAD_FILE_SCHEMA_VERSION = 1 as const;
+const THREAD_FILE_SCHEMA_VERSION = 2 as const;
 
 interface ThreadFile {
   readonly schemaVersion: typeof THREAD_FILE_SCHEMA_VERSION;
@@ -44,7 +45,8 @@ function assertTenant(
   accountDomainId: string,
   thread: ConversationThread,
   checkpoints: readonly ThreadCheckpoint[],
-  activities: readonly ThreadActivityEvent[]
+  activities: readonly ThreadActivityEvent[],
+  relays: readonly FounderRelayRecord[]
 ): void {
   if (thread.accountDomainId !== accountDomainId) {
     throw new Error(
@@ -75,7 +77,8 @@ function freezeSnapshot(snapshot: ThreadSnapshot): ThreadSnapshot {
     snapshot.thread.accountDomainId,
     snapshot.thread,
     snapshot.checkpoints,
-    snapshot.activities
+    snapshot.activities,
+    snapshot.relays
   );
   return Object.freeze({
     revision: snapshot.revision,
@@ -102,13 +105,35 @@ function freezeSnapshot(snapshot: ThreadSnapshot): ThreadSnapshot {
     ),
     activities: Object.freeze(
       snapshot.activities.map((activity) => Object.freeze({ ...activity }))
+    ),
+    relays: Object.freeze(
+      snapshot.relays.map((relay) => Object.freeze({
+        ...relay,
+        sourceReferences: Object.freeze([...relay.sourceReferences]),
+        evidenceReferences: Object.freeze([...relay.evidenceReferences]),
+        proposalAuthority: Object.freeze({
+          ...relay.proposalAuthority,
+          basis: Object.freeze({ ...relay.proposalAuthority.basis })
+        }),
+        ...(relay.deliveryAuthority
+          ? {
+              deliveryAuthority: Object.freeze({
+                ...relay.deliveryAuthority,
+                basis: Object.freeze({ ...relay.deliveryAuthority.basis })
+              })
+            }
+          : {})
+      }))
     )
   });
 }
 
 function parseFile(raw: string, accountDomainId: string): ThreadFile {
   const parsed = JSON.parse(raw) as Record<string, unknown>;
-  if (parsed.schemaVersion !== THREAD_FILE_SCHEMA_VERSION) {
+  if (
+    parsed.schemaVersion !== 1 &&
+    parsed.schemaVersion !== THREAD_FILE_SCHEMA_VERSION
+  ) {
     throw new Error(
       "Unsupported ThreadStore schema version: " +
       String(parsed.schemaVersion)
@@ -124,17 +149,28 @@ function parseFile(raw: string, accountDomainId: string): ThreadFile {
     throw new Error("ThreadStore file must contain snapshots.");
   }
 
-  const snapshots = (parsed.snapshots as ThreadSnapshot[]).map((snapshot) => {
+  const snapshots = (parsed.snapshots as Array<
+    Omit<ThreadSnapshot, "relays"> & {
+      readonly relays?: readonly FounderRelayRecord[];
+    }
+  >).map((snapshot) => {
+    const normalized: ThreadSnapshot = {
+      ...snapshot,
+      relays: Array.isArray(snapshot.relays)
+        ? snapshot.relays
+        : Object.freeze([])
+    };
     assertTenant(
       accountDomainId,
-      snapshot.thread,
-      snapshot.checkpoints,
-      snapshot.activities
+      normalized.thread,
+      normalized.checkpoints,
+      normalized.activities,
+      normalized.relays
     );
-    if (!Number.isInteger(snapshot.revision) || snapshot.revision < 1) {
+    if (!Number.isInteger(normalized.revision) || normalized.revision < 1) {
       throw new Error("Thread revision must be a positive integer.");
     }
-    return freezeSnapshot(snapshot);
+    return freezeSnapshot(normalized);
   });
 
   return Object.freeze({
@@ -229,7 +265,7 @@ export class JsonFileThreadStore implements ThreadStore {
   }
 
   async create(thread: ConversationThread): Promise<ThreadSnapshot> {
-    assertTenant(this.accountDomainId, thread, [], []);
+    assertTenant(this.accountDomainId, thread, [], [], []);
 
     return this.#withLock(async () => {
       const file = await this.#readUnlocked();
@@ -243,7 +279,8 @@ export class JsonFileThreadStore implements ThreadStore {
         revision: 1,
         thread,
         checkpoints: [],
-        activities: []
+        activities: [],
+        relays: []
       });
       await this.#write(Object.freeze({
         ...file,
@@ -276,14 +313,16 @@ export class JsonFileThreadStore implements ThreadStore {
         this.accountDomainId,
         input.thread,
         input.checkpoints,
-        input.activities
+        input.activities,
+        input.relays
       );
 
       const next = freezeSnapshot({
         revision: current.revision + 1,
         thread: input.thread,
         checkpoints: input.checkpoints,
-        activities: input.activities
+        activities: input.activities,
+        relays: input.relays
       });
       const snapshots = [...file.snapshots];
       snapshots[index] = next;
