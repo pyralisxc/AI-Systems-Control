@@ -51,6 +51,10 @@ export function controlRegistryConfigured(): boolean {
   return Boolean(controlRegistryDatabaseUrl() || controlRegistryPath());
 }
 
+export function personalBootstrapEnabled(): boolean {
+  return process.env.ASC_PERSONAL_BOOTSTRAP_ENABLED?.trim().toLowerCase() !== "false";
+}
+
 function identityDirectoryStore(): IdentityDirectoryStore {
   const databaseUrl = controlRegistryDatabaseUrl();
   if (databaseUrl) {
@@ -103,6 +107,14 @@ function controlRegistryStore(): ControlRegistryStore {
 async function ensurePersonalBootstrap(
   identities: PersistentIdentityRegistry
 ): Promise<void> {
+  if (!personalBootstrapEnabled()) return;
+
+  const domains = await identities.listAccountDomains();
+  const existing = domains.find(
+    (domain) => domain.accountDomainId === defaultAccountDomainId()
+  );
+  if (existing) return;
+
   await identities.bootstrapPersonal({
     principalId: bootstrapPrincipalId(),
     principalDisplayName: bootstrapPrincipalName(),
