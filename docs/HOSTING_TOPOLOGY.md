@@ -45,6 +45,18 @@ Separate deployments are preferred when systems have independent:
 
 Do not merge services merely to make them feel like one cockpit.
 
+## ASC durable control state
+
+ASC control state is behind the provider-neutral `ControlRegistryStore` contract.
+
+Current adapters:
+- JSON-file storage for a persistent local/self-hosted server volume;
+- PostgreSQL storage for hosted/serverless or self-hosted Postgres.
+
+The Postgres adapter uses standard PostgreSQL semantics rather than a vendor-specific API, so deployment may use a compatible managed provider or a future owner-operated database without changing ASC domain contracts.
+
+Ephemeral function filesystem storage is not an acceptable authority store.
+
 ## Authentication and connections
 
 Human owner authentication belongs at ASC's control boundary when using ASC.
