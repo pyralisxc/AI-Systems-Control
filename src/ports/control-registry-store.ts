@@ -1,14 +1,16 @@
 import type {
+  AccountDomainId,
   Connection,
   DelegationRecord,
   Project,
   ProjectConnectionBinding
 } from "../domain/index.js";
 
-export const CONTROL_REGISTRY_SCHEMA_VERSION = 2 as const;
+export const CONTROL_REGISTRY_SCHEMA_VERSION = 3 as const;
 
 export interface ControlRegistrySnapshot {
   readonly schemaVersion: typeof CONTROL_REGISTRY_SCHEMA_VERSION;
+  readonly accountDomainId: AccountDomainId;
   readonly revision: number;
   readonly projects: readonly Project[];
   readonly connections: readonly Connection[];
@@ -27,6 +29,7 @@ export interface SaveControlRegistryInput {
 }
 
 export interface ControlRegistryStore {
+  readonly accountDomainId: AccountDomainId;
   load(): Promise<ControlRegistrySnapshot>;
   save(input: SaveControlRegistryInput): Promise<ControlRegistrySnapshot>;
 }
@@ -40,9 +43,12 @@ export class RegistryRevisionConflictError extends Error {
   }
 }
 
-export function emptyControlRegistrySnapshot(): ControlRegistrySnapshot {
+export function emptyControlRegistrySnapshot(
+  accountDomainId: AccountDomainId
+): ControlRegistrySnapshot {
   return Object.freeze({
     schemaVersion: CONTROL_REGISTRY_SCHEMA_VERSION,
+    accountDomainId,
     revision: 0,
     projects: Object.freeze([]),
     connections: Object.freeze([]),

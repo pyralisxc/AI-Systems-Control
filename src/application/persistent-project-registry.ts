@@ -13,6 +13,21 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function assertStoreDomain(
+  store: ControlRegistryStore,
+  accountDomainId: string | undefined
+): void {
+  if (
+    accountDomainId !== undefined &&
+    accountDomainId.trim() !== store.accountDomainId
+  ) {
+    throw new Error(
+      "Project AccountDomain " + accountDomainId +
+      " does not match registry " + store.accountDomainId + "."
+    );
+  }
+}
+
 export class PersistentProjectRegistry {
   readonly #store: ControlRegistryStore;
 
@@ -40,11 +55,19 @@ export class PersistentProjectRegistry {
     return new InMemoryProjectRegistry(snapshot.projects).getByGithubRepository(repository);
   }
 
-  async resolveOrRegisterGithubProject(input: ResolveGithubProjectInput): Promise<Project> {
+  async resolveOrRegisterGithubProject(
+    input: ResolveGithubProjectInput
+  ): Promise<Project> {
+    assertStoreDomain(this.#store, input.accountDomainId);
+    const scopedInput: ResolveGithubProjectInput = {
+      ...input,
+      accountDomainId: this.#store.accountDomainId
+    };
+
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryProjectRegistry(snapshot.projects);
       const before = stableJson(registry.listProjects());
-      const result = registry.resolveOrRegisterGithubProject(input);
+      const result = registry.resolveOrRegisterGithubProject(scopedInput);
       const projects = registry.listProjects();
       return {
         result,
@@ -57,11 +80,18 @@ export class PersistentProjectRegistry {
     });
   }
 
-  async setAccountDomain(projectId: string, accountDomainId: string): Promise<Project> {
+  async setAccountDomain(
+    projectId: string,
+    accountDomainId: string
+  ): Promise<Project> {
+    assertStoreDomain(this.#store, accountDomainId);
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryProjectRegistry(snapshot.projects);
       const before = stableJson(registry.listProjects());
-      const result = registry.setAccountDomain(projectId, accountDomainId);
+      const result = registry.setAccountDomain(
+        projectId,
+        this.#store.accountDomainId
+      );
       const projects = registry.listProjects();
       return {
         result,
@@ -98,7 +128,10 @@ export class PersistentProjectRegistry {
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryProjectRegistry(snapshot.projects);
       const before = stableJson(registry.listProjects());
-      const result = registry.reconcileGithubRepository(projectId, nextRepository);
+      const result = registry.reconcileGithubRepository(
+        projectId,
+        nextRepository
+      );
       const projects = registry.listProjects();
       return {
         result,

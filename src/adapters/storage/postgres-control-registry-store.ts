@@ -9,7 +9,6 @@ import {
   type SaveControlRegistryInput
 } from "../../ports/index.js";
 
-const REGISTRY_KEY = "primary";
 const SECRET_FIELD_PATTERN =
   /(^|_)(secret|token|password|cookie|api[_-]?key|access[_-]?key|refresh[_-]?token|credential)(_|$)/iu;
 
@@ -25,10 +24,22 @@ export interface PostgresQueryClient {
   ): Promise<PostgresQueryResult>;
 }
 
+function requiredDomain(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) throw new Error("Control registry AccountDomain cannot be empty.");
+  return normalized;
+}
+
+function registryKey(accountDomainId: string): string {
+  return "domain:" + accountDomainId;
+}
+
 function assertNoSecretLikeFields(value: unknown, path = "registry"): void {
   if (!value || typeof value !== "object") return;
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => assertNoSecretLikeFields(entry, path + "[" + index + "]"));
+    value.forEach((entry, index) =>
+      assertNoSecretLikeFields(entry, path + "[" + index + "]")
+    );
     return;
   }
 
@@ -40,6 +51,29 @@ function assertNoSecretLikeFields(value: unknown, path = "registry"): void {
       );
     }
     assertNoSecretLikeFields(nested, path + "." + key);
+  }
+}
+
+function assertTenantOwnership(
+  accountDomainId: string,
+  projects: readonly ControlRegistrySnapshot["projects"][number][],
+  connections: readonly ControlRegistrySnapshot["connections"][number][]
+): void {
+  for (const project of projects) {
+    if (project.accountDomainId !== accountDomainId) {
+      throw new Error(
+        "Project " + project.projectId + " belongs to " +
+        String(project.accountDomainId) + ", not registry " + accountDomainId + "."
+      );
+    }
+  }
+  for (const connection of connections) {
+    if (connection.accountDomainId !== accountDomainId) {
+      throw new Error(
+        "Connection " + connection.connectionId + " belongs to " +
+        connection.accountDomainId + ", not registry " + accountDomainId + "."
+      );
+    }
   }
 }
 
@@ -64,6 +98,7 @@ function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnaps
 }
 
 function decodePayload(
+  accountDomainId: string,
   revision: number,
   payloadInput: unknown,
   updatedAtInput: unknown
@@ -74,15 +109,31 @@ function decodePayload(
       : payloadInput as Record<string, unknown>;
 
   const version = payload.schemaVersion;
-  if (version !== 1 && version !== CONTROL_REGISTRY_SCHEMA_VERSION) {
+  if (
+    version !== 1 &&
+    version !== 2 &&
+    version !== CONTROL_REGISTRY_SCHEMA_VERSION
+  ) {
     throw new Error("Unsupported control registry schema version: " + String(version));
   }
   if (!Array.isArray(payload.projects) || !Array.isArray(payload.connections)) {
     throw new Error("Control registry payload must contain projects and connections arrays.");
   }
 
+  const storedDomain =
+    typeof payload.accountDomainId === "string"
+      ? payload.accountDomainId
+      : accountDomainId;
+  if (storedDomain !== accountDomainId) {
+    throw new Error(
+      "Control registry payload belongs to AccountDomain " + storedDomain +
+      ", not " + accountDomainId + "."
+    );
+  }
+
   const snapshot: ControlRegistrySnapshot = {
     schemaVersion: CONTROL_REGISTRY_SCHEMA_VERSION,
+    accountDomainId,
     revision,
     projects: payload.projects as ControlRegistrySnapshot["projects"],
     connections: normalizeConnections(
@@ -101,6 +152,11 @@ function decodePayload(
         : {})
   };
 
+  assertTenantOwnership(
+    accountDomainId,
+    snapshot.projects,
+    snapshot.connections
+  );
   assertNoSecretLikeFields(snapshot.connections, "registry.connections");
   assertNoSecretLikeFields(
     snapshot.projectConnectionBindings,
@@ -110,7 +166,15 @@ function decodePayload(
   return freezeSnapshot(snapshot);
 }
 
-function encodePayload(input: SaveControlRegistryInput): string {
+function encodePayload(
+  accountDomainId: string,
+  input: SaveControlRegistryInput
+): string {
+  assertTenantOwnership(
+    accountDomainId,
+    input.projects,
+    input.connections
+  );
   assertNoSecretLikeFields(input.connections, "registry.connections");
   assertNoSecretLikeFields(
     input.projectConnectionBindings,
@@ -120,6 +184,7 @@ function encodePayload(input: SaveControlRegistryInput): string {
 
   return JSON.stringify({
     schemaVersion: CONTROL_REGISTRY_SCHEMA_VERSION,
+    accountDomainId,
     projects: input.projects,
     connections: input.connections,
     projectConnectionBindings: input.projectConnectionBindings,
@@ -129,16 +194,27 @@ function encodePayload(input: SaveControlRegistryInput): string {
 }
 
 export class PostgresControlRegistryStore implements ControlRegistryStore {
+  readonly accountDomainId: string;
+  readonly #registryKey: string;
   readonly #client: PostgresQueryClient;
   readonly #close?: () => Promise<void>;
   #ready?: Promise<void>;
 
-  constructor(client: PostgresQueryClient, close?: () => Promise<void>) {
+  constructor(
+    client: PostgresQueryClient,
+    accountDomainId: string,
+    close?: () => Promise<void>
+  ) {
+    this.accountDomainId = requiredDomain(accountDomainId);
+    this.#registryKey = registryKey(this.accountDomainId);
     this.#client = client;
     this.#close = close;
   }
 
-  static fromConnectionString(connectionString: string): PostgresControlRegistryStore {
+  static fromConnectionString(
+    connectionString: string,
+    accountDomainId: string
+  ): PostgresControlRegistryStore {
     const pool = new Pool({
       connectionString,
       max: 2,
@@ -149,13 +225,17 @@ export class PostgresControlRegistryStore implements ControlRegistryStore {
     return new PostgresControlRegistryStore(
       {
         query: async (text, values) => {
-          const result = await pool.query(text, values ? [...values] : undefined);
+          const result = await pool.query(
+            text,
+            values ? [...values] : undefined
+          );
           return {
             rowCount: result.rowCount,
             rows: result.rows as readonly Record<string, unknown>[]
           };
         }
       },
+      accountDomainId,
       () => pool.end()
     );
   }
@@ -178,7 +258,7 @@ export class PostgresControlRegistryStore implements ControlRegistryStore {
   async #currentRevision(): Promise<number> {
     const result = await this.#client.query(
       "SELECT revision FROM asc_control_registry WHERE registry_key = $1",
-      [REGISTRY_KEY]
+      [this.#registryKey]
     );
     if (result.rows.length === 0) return 0;
     return Number(result.rows[0]!.revision);
@@ -188,12 +268,15 @@ export class PostgresControlRegistryStore implements ControlRegistryStore {
     await this.#ensureTable();
     const result = await this.#client.query(
       "SELECT revision, payload, updated_at FROM asc_control_registry WHERE registry_key = $1",
-      [REGISTRY_KEY]
+      [this.#registryKey]
     );
 
-    if (result.rows.length === 0) return emptyControlRegistrySnapshot();
+    if (result.rows.length === 0) {
+      return emptyControlRegistrySnapshot(this.accountDomainId);
+    }
     const row = result.rows[0]!;
     return decodePayload(
+      this.accountDomainId,
       Number(row.revision),
       row.payload,
       row.updated_at
@@ -202,7 +285,7 @@ export class PostgresControlRegistryStore implements ControlRegistryStore {
 
   async save(input: SaveControlRegistryInput): Promise<ControlRegistrySnapshot> {
     await this.#ensureTable();
-    const payload = encodePayload(input);
+    const payload = encodePayload(this.accountDomainId, input);
     const updatedAt = input.updatedAt ?? new Date().toISOString();
 
     let result: PostgresQueryResult;
@@ -215,7 +298,7 @@ export class PostgresControlRegistryStore implements ControlRegistryStore {
           "ON CONFLICT (registry_key) DO NOTHING",
           "RETURNING revision, payload, updated_at"
         ].join(" "),
-        [REGISTRY_KEY, payload, updatedAt]
+        [this.#registryKey, payload, updatedAt]
       );
     } else {
       result = await this.#client.query(
@@ -225,7 +308,12 @@ export class PostgresControlRegistryStore implements ControlRegistryStore {
           "WHERE registry_key = $1 AND revision = $4",
           "RETURNING revision, payload, updated_at"
         ].join(" "),
-        [REGISTRY_KEY, payload, updatedAt, input.expectedRevision]
+        [
+          this.#registryKey,
+          payload,
+          updatedAt,
+          input.expectedRevision
+        ]
       );
     }
 
@@ -237,7 +325,12 @@ export class PostgresControlRegistryStore implements ControlRegistryStore {
     }
 
     const row = result.rows[0]!;
-    return decodePayload(Number(row.revision), row.payload, row.updated_at);
+    return decodePayload(
+      this.accountDomainId,
+      Number(row.revision),
+      row.payload,
+      row.updated_at
+    );
   }
 
   async close(): Promise<void> {
