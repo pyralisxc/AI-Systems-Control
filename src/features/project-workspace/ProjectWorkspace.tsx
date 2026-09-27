@@ -5,9 +5,22 @@ import type {
   OwnerRealityItem
 } from "../../../dist/slice-a/index.js";
 
+interface ProjectControlView {
+  readonly configured: boolean;
+  readonly registered: boolean;
+  readonly principalAvailable: boolean;
+  readonly accountDomainId: string;
+  readonly projectId?: string;
+  readonly mode?: string;
+  readonly generation?: number;
+  readonly changedAt?: string;
+  readonly reason?: string;
+}
+
 interface ProjectWorkspaceProps {
   readonly view: OwnerProjectRealityView;
   readonly repository: string;
+  readonly control: ProjectControlView;
 }
 
 function displayValue(value: unknown): string {
@@ -26,7 +39,12 @@ function freshnessLabel(item: OwnerRealityItem): string {
 function availabilityTone(
   state: string
 ): "positive" | "warning" | "critical" | "neutral" {
-  if (state === "available" || state === "aligned" || state === "fresh") {
+  if (
+    state === "available" ||
+    state === "aligned" ||
+    state === "fresh" ||
+    state === "running"
+  ) {
     return "positive";
   }
   if (
@@ -34,11 +52,16 @@ function availabilityTone(
     state === "aging" ||
     state === "permission_blocked" ||
     state === "ambiguous" ||
-    state === "stale"
+    state === "stale" ||
+    state === "paused"
   ) {
     return "warning";
   }
-  if (state === "unavailable" || state === "divergent") {
+  if (
+    state === "unavailable" ||
+    state === "divergent" ||
+    state === "owner_stopped"
+  ) {
     return "critical";
   }
   return "neutral";
@@ -137,7 +160,8 @@ function EmptyState({ children }: { readonly children: string }) {
 
 export function ProjectWorkspace({
   view,
-  repository
+  repository,
+  control
 }: ProjectWorkspaceProps) {
   const availableCapabilities = view.capabilities.filter((item) =>
     item.bindings.some((binding) => binding.availabilityState === "available")
@@ -173,12 +197,16 @@ export function ProjectWorkspace({
             <span>04</span>
             Capabilities
           </a>
-          <a className="nav-item" href="/connections">
+          <a className="nav-item" href="#control">
             <span>05</span>
+            Control
+          </a>
+          <a className="nav-item" href="/connections">
+            <span>06</span>
             Connections
           </a>
           <span className="nav-item nav-item--future">
-            <span>06</span>
+            <span>07</span>
             Actions
             <small>future slice</small>
           </span>
@@ -254,6 +282,89 @@ export function ProjectWorkspace({
             <strong>{view.problems.length}</strong>
             <small>uncertainty stays visible</small>
           </article>
+        </section>
+
+
+        <section className="content-section" id="control">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Deterministic control</span>
+              <h2>Project authority</h2>
+              <p>
+                ASC control state fences future mutable execution. It does not
+                undo effects that already completed in an external system.
+              </p>
+            </div>
+            {control.registered && control.mode ? (
+              <Pill value={control.mode} />
+            ) : null}
+          </div>
+
+          {!control.configured ? (
+            <div className="control-panel control-panel--unavailable">
+              <div>
+                <strong>Control registry unavailable</strong>
+                <p>{control.reason ?? "Durable ASC control state is not configured."}</p>
+              </div>
+            </div>
+          ) : !control.registered ? (
+            <div className="control-panel control-panel--unavailable">
+              <div>
+                <strong>Not registered for control</strong>
+                <p>
+                  {control.reason ??
+                    "This repository is visible through the legacy reality view but is not a durable ASC Project yet."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="control-panel">
+              <div className="control-panel__state">
+                <span className="eyebrow">Control generation</span>
+                <strong>{control.generation ?? 0}</strong>
+                <code>{control.projectId}</code>
+                <small>{control.accountDomainId}</small>
+              </div>
+
+              <div className="control-panel__copy">
+                <strong>
+                  {control.mode === "owner_stopped"
+                    ? "Mutable execution is fenced."
+                    : "Project execution authority is running."}
+                </strong>
+                <p>
+                  {control.mode === "owner_stopped"
+                    ? "New or continuing work that depends on an older control generation must fail closed. Runtime cancellation is separate, and completed external effects remain completed."
+                    : "STOP increments the Project control generation so previously issued leases become stale. It is an authorization boundary, not a promise to reverse completed provider effects."}
+                </p>
+                {control.changedAt ? (
+                  <small>
+                    Last control change: {new Date(control.changedAt).toLocaleString()}
+                  </small>
+                ) : null}
+              </div>
+
+              <div className="control-panel__action">
+                {!control.principalAvailable ? (
+                  <span className="control-principal-warning">
+                    Principal context required. Personal bootstrap is disabled.
+                  </span>
+                ) : control.mode !== "owner_stopped" && control.projectId ? (
+                  <form method="post" action="/api/control/project-stop">
+                    <input type="hidden" name="projectId" value={control.projectId} />
+                    <input type="hidden" name="repository" value={repository} />
+                    <button className="control-stop-button" type="submit">
+                      Stop project
+                    </button>
+                  </form>
+                ) : (
+                  <span className="control-stopped-label">
+                    Stopped · no automatic resume
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
         {view.problems.length > 0 ? (
@@ -362,8 +473,8 @@ export function ProjectWorkspace({
         </section>
 
         <footer className="workspace-footer">
-          <span>Slice A · read-only project reality</span>
-          <span>Mutations remain unreachable from this surface.</span>
+          <span>Project reality remains read-only.</span>
+          <span>ASC control mutations are limited to explicit fenced authority actions.</span>
           <form method="post" action="/api/auth/logout">
             <button className="logout-button" type="submit">Sign out</button>
           </form>
