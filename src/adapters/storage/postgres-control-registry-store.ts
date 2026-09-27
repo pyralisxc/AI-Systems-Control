@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 
+import { emptyWorkerControlState, type WorkerControlState } from "../../domain/index.js";
 import {
   CONTROL_REGISTRY_SCHEMA_VERSION,
   RegistryRevisionConflictError,
@@ -111,13 +112,50 @@ function normalizeConnections(connections: readonly Record<string, unknown>[]) {
   });
 }
 
+function normalizeWorkerControl(value: unknown, accountDomainId: string): WorkerControlState {
+  const source =
+    value && typeof value === "object"
+      ? value as Record<string, unknown>
+      : emptyWorkerControlState();
+  const arrays = {
+    approvals: Array.isArray(source.approvals) ? source.approvals : [],
+    authorizations: Array.isArray(source.authorizations) ? source.authorizations : [],
+    workerRuns: Array.isArray(source.workerRuns) ? source.workerRuns : [],
+    leases: Array.isArray(source.leases) ? source.leases : [],
+    projectControls: Array.isArray(source.projectControls) ? source.projectControls : [],
+    events: Array.isArray(source.events) ? source.events : []
+  };
+  for (const [kind, records] of Object.entries(arrays)) {
+    for (const record of records as readonly Record<string, unknown>[]) {
+      if (
+        typeof record.accountDomainId === "string" &&
+        record.accountDomainId !== accountDomainId
+      ) {
+        throw new Error(
+          "Worker-control " + kind + " record belongs to " +
+          record.accountDomainId + ", not registry " + accountDomainId + "."
+        );
+      }
+    }
+  }
+  return Object.freeze({
+    approvals: Object.freeze([...arrays.approvals]) as WorkerControlState["approvals"],
+    authorizations: Object.freeze([...arrays.authorizations]) as WorkerControlState["authorizations"],
+    workerRuns: Object.freeze([...arrays.workerRuns]) as WorkerControlState["workerRuns"],
+    leases: Object.freeze([...arrays.leases]) as WorkerControlState["leases"],
+    projectControls: Object.freeze([...arrays.projectControls]) as WorkerControlState["projectControls"],
+    events: Object.freeze([...arrays.events]) as WorkerControlState["events"]
+  });
+}
+
 function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnapshot {
   return Object.freeze({
     ...snapshot,
     projects: Object.freeze([...snapshot.projects]),
     connections: Object.freeze([...snapshot.connections]),
     projectConnectionBindings: Object.freeze([...snapshot.projectConnectionBindings]),
-    delegations: Object.freeze([...snapshot.delegations])
+    delegations: Object.freeze([...snapshot.delegations]),
+    workerControl: normalizeWorkerControl(snapshot.workerControl, snapshot.accountDomainId)
   });
 }
 
@@ -172,6 +210,7 @@ function decodePayload(
     delegations: Array.isArray(payload.delegations)
       ? payload.delegations as ControlRegistrySnapshot["delegations"]
       : Object.freeze([]),
+    workerControl: normalizeWorkerControl(payload.workerControl, accountDomainId),
     ...(typeof updatedAtInput === "string"
       ? { updatedAt: updatedAtInput }
       : typeof payload.updatedAt === "string"
@@ -208,6 +247,7 @@ function encodePayload(
     "registry.projectConnectionBindings"
   );
   assertNoSecretLikeFields(input.delegations, "registry.delegations");
+  const workerControl = normalizeWorkerControl(input.workerControl, accountDomainId);
 
   return JSON.stringify({
     schemaVersion: CONTROL_REGISTRY_SCHEMA_VERSION,
@@ -216,6 +256,7 @@ function encodePayload(
     connections: input.connections,
     projectConnectionBindings: input.projectConnectionBindings,
     delegations: input.delegations,
+    workerControl,
     ...(input.updatedAt ? { updatedAt: input.updatedAt } : {})
   });
 }
