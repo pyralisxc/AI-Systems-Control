@@ -205,8 +205,12 @@ export function ProjectWorkspace({
             <span>06</span>
             Connections
           </a>
-          <span className="nav-item nav-item--future">
+          <a className="nav-item" href="/pulse">
             <span>07</span>
+            Pulse
+          </a>
+          <span className="nav-item nav-item--future">
+            <span>08</span>
             Actions
             <small>future slice</small>
           </span>
