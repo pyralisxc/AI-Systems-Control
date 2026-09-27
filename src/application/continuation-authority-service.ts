@@ -175,8 +175,8 @@ function latestEnvelope(
       const rightThread = right.threadId === input.threadId ? 1 : 0;
       return (
         rightThread - leftThread ||
-        right.version - left.version ||
-        right.createdAt.localeCompare(left.createdAt)
+        right.createdAt.localeCompare(left.createdAt) ||
+        right.version - left.version
       );
     })[0];
 }
@@ -229,23 +229,18 @@ export class ContinuationAuthorityService {
       );
     }
 
-    const membership = await this.#identities.getMembership(
-      principalId,
-      this.#store.accountDomainId
-    );
-    if (!membership || membership.status !== "active") {
+    let membership;
+    try {
+      membership = await this.#identities.assertPrincipalCanAdministerDomain(
+        principalId,
+        this.#store.accountDomainId
+      );
+    } catch {
       throw humanAdminError(
-        "Principal lacks active Membership in this AccountDomain."
+        "Principal lacks active owner/admin authority in this AccountDomain."
       );
     }
-    if (
-      !membership.roles.includes("owner") &&
-      !membership.roles.includes("admin")
-    ) {
-      throw humanAdminError(
-        "Principal lacks owner/admin continuation authority."
-      );
-    }
+    void membership;
   }
 
   async createEnvelope(
@@ -361,10 +356,20 @@ export class ContinuationAuthorityService {
         state: "active"
       });
 
+      const previousEnvelopes =
+        snapshot.continuationControl.workEnvelopes.map((candidate) =>
+          candidate.projectId === projectId &&
+          candidate.objectiveRef === objectiveRef &&
+          candidate.threadId === input.threadId &&
+          candidate.state === "active"
+            ? Object.freeze({ ...candidate, state: "superseded" as const })
+            : candidate
+        );
+
       const continuationControl = Object.freeze({
         ...snapshot.continuationControl,
         workEnvelopes: Object.freeze([
-          ...snapshot.continuationControl.workEnvelopes,
+          ...previousEnvelopes,
           envelope
         ])
       });
