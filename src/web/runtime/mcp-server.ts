@@ -236,11 +236,11 @@ export async function buildAscMcpServer(
         destructiveHint: false,
         openWorldHint: false
       },
-      securitySchemes: [
-        { type: "oauth2", scopes: [ASC_MCP_SCOPE_BASE] }
-      ],
       _meta: {
-        "openai/profile": true
+        "openai/profile": true,
+        securitySchemes: [
+          { type: "oauth2", scopes: [ASC_MCP_SCOPE_BASE] }
+        ]
       }
     },
     async () => {
@@ -284,8 +284,10 @@ export async function buildAscMcpServer(
         destructiveHint: false,
         openWorldHint: false
       },
-      securitySchemes: readSecurity(),
-      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_READ)
+      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_READ),
+      _meta: {
+        securitySchemes: readSecurity()
+      }
     },
     async () =>
       toolResult(
@@ -312,8 +314,10 @@ export async function buildAscMcpServer(
         destructiveHint: false,
         openWorldHint: false
       },
-      securitySchemes: readSecurity(),
-      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_READ)
+      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_READ),
+      _meta: {
+        securitySchemes: readSecurity()
+      }
     },
     async (args) =>
       toolResult(
@@ -336,8 +340,10 @@ export async function buildAscMcpServer(
         destructiveHint: false,
         openWorldHint: false
       },
-      securitySchemes: writeSecurity(),
-      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_WRITE)
+      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_WRITE),
+      _meta: {
+        securitySchemes: writeSecurity()
+      }
     },
     async (args) =>
       toolResult(
@@ -360,8 +366,10 @@ export async function buildAscMcpServer(
         destructiveHint: false,
         openWorldHint: false
       },
-      securitySchemes: writeSecurity(),
-      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_WRITE)
+      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_WRITE),
+      _meta: {
+        securitySchemes: writeSecurity()
+      }
     },
     async (args) =>
       toolResult(
@@ -384,8 +392,10 @@ export async function buildAscMcpServer(
         destructiveHint: false,
         openWorldHint: false
       },
-      securitySchemes: writeSecurity(),
-      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_WRITE)
+      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_WRITE),
+      _meta: {
+        securitySchemes: writeSecurity()
+      }
     },
     async (args) =>
       toolResult(
@@ -408,8 +418,10 @@ export async function buildAscMcpServer(
         destructiveHint: false,
         openWorldHint: false
       },
-      securitySchemes: writeSecurity(),
-      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_WRITE)
+      scopeChallenge: requireScopes(ASC_MCP_SCOPE_THREAD_WRITE),
+      _meta: {
+        securitySchemes: writeSecurity()
+      }
     },
     async (args) =>
       toolResult(
@@ -460,8 +472,8 @@ export async function serveAscMcp(
   request: Request
 ): Promise<Response> {
   const rejected =
-    hostHeaderValidationResponse(request, mcpAllowedHostnames()) ??
-    originValidationResponse(request, mcpAllowedOriginHostnames());
+    hostHeaderValidationResponse(request, [...mcpAllowedHostnames()]) ??
+    originValidationResponse(request, [...mcpAllowedOriginHostnames()]);
   if (rejected) return rejected;
 
   const gate = await bearerGate();

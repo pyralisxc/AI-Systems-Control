@@ -268,7 +268,7 @@ export async function loadProjectControlView(repository: string) {
     projectId: project.projectId,
     mode: control.mode,
     generation: control.generation,
-    changedAt: control.changedAt,
-    reason: control.reason
+    ...(control.changedAt ? { changedAt: control.changedAt } : {}),
+    ...(control.reason ? { reason: control.reason } : {})
   };
 }

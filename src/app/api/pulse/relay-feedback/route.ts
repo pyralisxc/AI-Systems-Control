@@ -56,6 +56,13 @@ export async function POST(request: Request) {
     );
   }
 
+  if (action === "edit" && !editedText?.trim()) {
+    return NextResponse.json(
+      { error: "edited_text_required" },
+      { status: 400 }
+    );
+  }
+
   const services = await bridgedThreadServices();
   const principalId = services.control.principalId;
   if (!principalId) {
@@ -71,7 +78,9 @@ export async function POST(request: Request) {
       relayId,
       principalId,
       action,
-      ...(action === "edit" ? { editedText } : {})
+      ...(action === "edit"
+        ? { editedText: editedText!.trim() }
+        : {})
     });
   } catch (error) {
     if (error instanceof FounderRelayError) {
