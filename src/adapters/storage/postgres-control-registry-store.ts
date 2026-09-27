@@ -77,6 +77,19 @@ function assertTenantOwnership(
   }
 }
 
+function normalizeProjects(
+  projects: readonly Record<string, unknown>[],
+  accountDomainId: string
+) {
+  return projects.map((project) => ({
+    ...project,
+    accountDomainId:
+      typeof project.accountDomainId === "string"
+        ? project.accountDomainId
+        : accountDomainId
+  }));
+}
+
 function normalizeConnections(connections: readonly Record<string, unknown>[]) {
   return connections.map((connection) => {
     const legacyOwnerId =
@@ -146,7 +159,10 @@ function decodePayload(
     schemaVersion: CONTROL_REGISTRY_SCHEMA_VERSION,
     accountDomainId,
     revision,
-    projects: payload.projects as ControlRegistrySnapshot["projects"],
+    projects: normalizeProjects(
+      payload.projects as readonly Record<string, unknown>[],
+      accountDomainId
+    ) as unknown as ControlRegistrySnapshot["projects"],
     connections: normalizeConnections(
       payload.connections as readonly Record<string, unknown>[]
     ) as unknown as ControlRegistrySnapshot["connections"],

@@ -318,3 +318,36 @@ test("routine verification preserves generation when authority is unchanged", as
     await rm(context.directory, { recursive: true, force: true });
   }
 });
+
+
+test("viewer Membership cannot begin provider authorization", async () => {
+  const context = await setup();
+  try {
+    const identities = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(join(context.directory, "identity.json"))
+    );
+    await identities.registerPrincipal({
+      principalId: "principal:viewer",
+      kind: "human",
+      displayName: "Viewer"
+    });
+    await identities.registerMembership({
+      principalId: "principal:viewer",
+      accountDomainId: "business-a",
+      roles: ["viewer"]
+    });
+
+    await assert.rejects(
+      () => context.broker.begin({
+        principalId: "principal:viewer",
+        accountDomainId: "business-a",
+        provider: "fake-oauth",
+        callbackUrl: "https://asc.invalid/callback",
+        now: "2026-09-27T06:10:00.000Z"
+      }),
+      /does not have owner\/admin authority/i
+    );
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});

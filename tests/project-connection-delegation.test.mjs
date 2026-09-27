@@ -49,7 +49,7 @@ test("Project/environment/capability resolves one Connection without implicit fa
   const context = await setup();
   try {
     const prod = await context.connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "example-billing",
       providerAccountId: "prod-account",
@@ -58,7 +58,7 @@ test("Project/environment/capability resolves one Connection without implicit fa
       capabilities: ["billing.read", "billing.write"]
     });
     const preview = await context.connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "example-billing",
       providerAccountId: "preview-account",
@@ -115,7 +115,7 @@ test("equally specific active bindings remain explicit ambiguity", async () => {
   const context = await setup();
   try {
     const first = await context.connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "deployment-provider",
       providerAccountId: "team-a",
@@ -123,7 +123,7 @@ test("equally specific active bindings remain explicit ambiguity", async () => {
       capabilities: ["deployment.read"]
     });
     const second = await context.connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "deployment-provider",
       providerAccountId: "team-b",
@@ -158,7 +158,7 @@ test("opaque delegations are scoped, single-use, audience-bound, and approval-aw
   const context = await setup();
   try {
     const connection = await context.connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "fake-provider",
       providerAccountId: "account-a",
@@ -275,7 +275,7 @@ test("expired and old-generation delegations fail closed", async () => {
   const context = await setup();
   try {
     const connection = await context.connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "source-provider",
       providerAccountId: "account-a",
@@ -341,7 +341,7 @@ test("cross-domain Connection creation fails before binding", async () => {
   try {
     await assert.rejects(
       () => context.connections.register({
-        authorizedByPrincipalId: "owner-1",
+        authorizedByPrincipalId: "principal:owner-1",
         accountDomainId: "personal",
         provider: "source-provider",
         providerAccountId: "personal-account",
@@ -359,7 +359,7 @@ test("delegation capability cannot be widened after issuance", async () => {
   const context = await setup();
   try {
     const connection = await context.connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "source-provider",
       providerAccountId: "account-a",

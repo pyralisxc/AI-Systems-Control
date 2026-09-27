@@ -106,7 +106,7 @@ test("repository rename preserves Project identity and historical reference acro
 });
 
 test("concurrent Project mutations retry optimistic revision conflicts without losing records", async () => {
-  const { directory, path } = await fixture();
+  const { directory, path, identities } = await fixture();
   try {
     const first = new PersistentProjectRegistry(
       new JsonFileControlRegistryStore(path, "business-a"),
@@ -148,7 +148,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
     const connections = new PersistentConnectionRegistry(store, identities);
 
     const prod = await connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "example-billing",
       providerAccountId: "acct_main",
@@ -158,7 +158,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
       capabilities: ["billing.read", "billing.write"]
     });
     const testConnection = await connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "example-billing",
       providerAccountId: "acct_main",
@@ -168,7 +168,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
       capabilities: ["billing.read"]
     });
     const teamOne = await connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "deployment-provider",
       providerAccountId: "team_1",
@@ -176,7 +176,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
       authenticationStrategy: "oauth"
     });
     const teamTwo = await connections.register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "deployment-provider",
       providerAccountId: "team_2",
@@ -216,7 +216,7 @@ test("Connection metadata serializer rejects secret-bearing fields", async () =>
   const { directory, path, store, identities } = await fixture();
   try {
     const valid = new InMemoryConnectionRegistry().register({
-      authorizedByPrincipalId: "owner-1",
+      authorizedByPrincipalId: "principal:owner-1",
       accountDomainId: "business-a",
       provider: "example",
       providerAccountId: "account-1",

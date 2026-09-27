@@ -10,6 +10,7 @@ import {
   PersistentIdentityRegistry,
   bootstrapPersonalIdentity
 } from "../dist/application/index.js";
+import { JsonFileIdentityDirectoryStore } from "../dist/adapters/index.js";
 
 test("personal mode is one human Principal with one owner Membership", () => {
   const bootstrap = bootstrapPersonalIdentity({

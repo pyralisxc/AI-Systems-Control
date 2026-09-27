@@ -84,6 +84,19 @@ function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnaps
   });
 }
 
+function normalizeProjects(
+  projects: readonly Record<string, unknown>[],
+  accountDomainId: string
+) {
+  return projects.map((project) => ({
+    ...project,
+    accountDomainId:
+      typeof project.accountDomainId === "string"
+        ? project.accountDomainId
+        : accountDomainId
+  }));
+}
+
 function normalizeConnections(connections: readonly Record<string, unknown>[]) {
   return connections.map((connection) => {
     const legacyOwnerId =
@@ -143,7 +156,10 @@ function parseSnapshot(
     schemaVersion: CONTROL_REGISTRY_SCHEMA_VERSION,
     accountDomainId: expectedAccountDomainId,
     revision: Number(parsed.revision),
-    projects: parsed.projects as ControlRegistrySnapshot["projects"],
+    projects: normalizeProjects(
+      parsed.projects as readonly Record<string, unknown>[],
+      expectedAccountDomainId
+    ) as unknown as ControlRegistrySnapshot["projects"],
     connections: connections as unknown as ControlRegistrySnapshot["connections"],
     projectConnectionBindings: Array.isArray(parsed.projectConnectionBindings)
       ? parsed.projectConnectionBindings as ControlRegistrySnapshot["projectConnectionBindings"]
