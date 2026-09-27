@@ -213,3 +213,28 @@ test("v3 tenant registry upgrades with empty worker-control state", async () => 
   assert.deepEqual(loaded.workerControl.projectControls, []);
   assert.deepEqual(loaded.workerControl.events, []);
 });
+
+
+test("v4 worker-control registry upgrades with empty continuation-control state", async () => {
+  const client = new FakePostgresClient();
+  client.rows.set("domain:business-a", {
+    revision: 9,
+    payload: {
+      schemaVersion: 4,
+      accountDomainId: "business-a",
+      projects: [],
+      connections: [],
+      projectConnectionBindings: [],
+      delegations: [],
+      workerControl: emptyWorkerControl()
+    },
+    updated_at: "2026-09-27T19:10:00.000Z"
+  });
+
+  const store = new PostgresControlRegistryStore(client, "business-a");
+  const loaded = await store.load();
+
+  assert.equal(loaded.revision, 9);
+  assert.deepEqual(loaded.continuationControl.workEnvelopes, []);
+  assert.deepEqual(loaded.continuationControl.autonomyGrants, []);
+});
