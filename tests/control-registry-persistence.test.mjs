@@ -127,61 +127,64 @@ test("Connection registry supports multiple provider accounts and explicit envir
   try {
     const connections = new PersistentConnectionRegistry(store);
 
-    const stripeProd = await connections.register({
+    const prod = await connections.register({
       ownerId: "owner-1",
       accountDomainId: "business-a",
-      provider: "stripe",
+      provider: "example-billing",
       providerAccountId: "acct_main",
-      providerDisplayName: "CardForge Stripe",
+      providerDisplayName: "Business Billing",
       environment: "live",
       authenticationStrategy: "oauth",
       capabilities: ["billing.read", "billing.write"]
     });
-    const stripeTest = await connections.register({
+    const testConnection = await connections.register({
       ownerId: "owner-1",
       accountDomainId: "business-a",
-      provider: "stripe",
+      provider: "example-billing",
       providerAccountId: "acct_main",
-      providerDisplayName: "CardForge Stripe",
+      providerDisplayName: "Business Billing",
       environment: "test",
       authenticationStrategy: "oauth",
       capabilities: ["billing.read"]
     });
-    const vercelOne = await connections.register({
+    const teamOne = await connections.register({
       ownerId: "owner-1",
       accountDomainId: "business-a",
-      provider: "vercel",
+      provider: "deployment-provider",
       providerAccountId: "team_1",
       providerDisplayName: "Primary Team",
       authenticationStrategy: "oauth"
     });
-    const vercelTwo = await connections.register({
+    const teamTwo = await connections.register({
       ownerId: "owner-1",
       accountDomainId: "business-a",
-      provider: "vercel",
+      provider: "deployment-provider",
       providerAccountId: "team_2",
       providerDisplayName: "Secondary Team",
       authenticationStrategy: "oauth"
     });
 
-    assert.notEqual(stripeProd.connectionId, stripeTest.connectionId);
-    assert.notEqual(vercelOne.connectionId, vercelTwo.connectionId);
+    assert.notEqual(prod.connectionId, testConnection.connectionId);
+    assert.notEqual(teamOne.connectionId, teamTwo.connectionId);
+    assert.equal(prod.generation, 1);
 
     const restarted = new PersistentConnectionRegistry(
       new JsonFileControlRegistryStore(path)
     );
-    assert.equal((await restarted.listByProvider("business-a", "stripe")).length, 2);
-    assert.equal((await restarted.listByProvider("business-a", "vercel")).length, 2);
+    assert.equal((await restarted.listByProvider("business-a", "example-billing")).length, 2);
+    assert.equal((await restarted.listByProvider("business-a", "deployment-provider")).length, 2);
 
-    const revoked = await restarted.setStatus(vercelOne.connectionId, "revoked");
+    const revoked = await restarted.setStatus(teamOne.connectionId, "revoked");
     assert.equal(revoked.status, "revoked");
-    assert.equal((await restarted.get(vercelTwo.connectionId))?.status, "active");
+    assert.equal(revoked.generation, 2);
+    assert.equal((await restarted.get(teamTwo.connectionId))?.status, "active");
 
-    const reconnected = await restarted.reconnect(vercelOne.connectionId, {
+    const reconnected = await restarted.reconnect(teamOne.connectionId, {
       capabilities: ["deployment.read"],
       verifiedAt: "2026-09-27T04:00:00.000Z"
     });
     assert.equal(reconnected.status, "active");
+    assert.equal(reconnected.generation, 3);
     assert.deepEqual(reconnected.capabilities, ["deployment.read"]);
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -203,7 +206,9 @@ test("Connection metadata serializer rejects secret-bearing fields", async () =>
       () => store.save({
         expectedRevision: 0,
         projects: [],
-        connections: [{ ...valid, accessToken: "never-persist-me" }]
+        connections: [{ ...valid, accessToken: "never-persist-me" }],
+        projectConnectionBindings: [],
+        delegations: []
       }),
       /Secret-like field/
     );
@@ -211,7 +216,9 @@ test("Connection metadata serializer rejects secret-bearing fields", async () =>
     await store.save({
       expectedRevision: 0,
       projects: [],
-      connections: [valid]
+      connections: [valid],
+      projectConnectionBindings: [],
+      delegations: []
     });
 
     const raw = await readFile(path, "utf8");
