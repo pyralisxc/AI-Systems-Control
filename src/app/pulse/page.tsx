@@ -36,6 +36,19 @@ function relayStateLabel(state: string): string {
   return state.replaceAll("_", " ");
 }
 
+function percentage(value: number | null): string {
+  return value === null ? "—" : Math.round(value * 100) + "%";
+}
+
+function calibrationTone(
+  readiness: string
+): "positive" | "warning" | "critical" | "neutral" {
+  if (readiness === "review_candidate") return "positive";
+  if (readiness === "collecting") return "warning";
+  if (readiness === "not_ready") return "critical";
+  return "neutral";
+}
+
 export default async function PulsePage() {
   if (!(await isOwnerAuthenticated())) {
     redirect("/login?returnTo=%2Fpulse");
@@ -216,6 +229,72 @@ export default async function PulsePage() {
                             </code>
                           ) : null}
                         </div>
+
+
+                        {item.calibration ? (
+                          <div className="relay-calibration">
+                            <div className="relay-calibration__heading">
+                              <div>
+                                <span className="eyebrow">
+                                  Interaction calibration
+                                </span>
+                                <strong>
+                                  {item.calibration.respondedCount}/
+                                  {item.calibration.policy.minimumResponses} explicit
+                                  owner responses
+                                </strong>
+                              </div>
+                              <span
+                                className="status-pill"
+                                data-tone={calibrationTone(
+                                  item.calibration.readiness
+                                )}
+                              >
+                                <span className="status-dot" aria-hidden="true" />
+                                {item.calibration.readiness.replaceAll("_", " ")}
+                              </span>
+                            </div>
+
+                            <div className="relay-calibration__metrics">
+                              <div>
+                                <span>Accepted</span>
+                                <strong>
+                                  {percentage(item.calibration.acceptanceRate)}
+                                </strong>
+                              </div>
+                              <div>
+                                <span>Edited</span>
+                                <strong>
+                                  {percentage(item.calibration.editRate)}
+                                </strong>
+                              </div>
+                              <div>
+                                <span>Rejected</span>
+                                <strong>
+                                  {percentage(item.calibration.rejectionRate)}
+                                </strong>
+                              </div>
+                              <div>
+                                <span>Edit magnitude</span>
+                                <strong>
+                                  {percentage(
+                                    item.calibration.meanNormalizedEditRatio
+                                  )}
+                                </strong>
+                              </div>
+                            </div>
+
+                            <p className="relay-note">
+                              {item.calibration.readinessReasons[0]}
+                              {item.calibration.readiness === "review_candidate"
+                                ? " This is evidence for an owner autonomy review; ASC has not changed any grant."
+                                : ""}
+                            </p>
+                            <code className="relay-calibration__ref">
+                              {item.calibration.evidenceReference}
+                            </code>
+                          </div>
+                        ) : null}
 
                         {item.relay.state === "suggested" && item.canReviewRelay ? (
                           <div className="relay-review">

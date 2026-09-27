@@ -6,7 +6,8 @@ import {
 } from "../../../dist/adapters/index.js";
 import {
   BridgedThreadService,
-  FounderRelayService
+  FounderRelayService,
+  RelayCalibrationService
 } from "../../../dist/application/index.js";
 import type {
   ThreadSnapshot,
@@ -83,7 +84,8 @@ export async function bridgedThreadServicesForDomain(
       threadStore: store,
       identities: control.identities,
       continuation: control.continuation
-    })
+    }),
+    calibration: new RelayCalibrationService(store)
   };
 }
 
@@ -115,6 +117,40 @@ function latestRelay(snapshot: ThreadSnapshot) {
     )[0];
 }
 
+function numericEnv(
+  name: string,
+  fallback: number
+): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    throw new Error(name + " must be numeric.");
+  }
+  return value;
+}
+
+function calibrationPolicy() {
+  return {
+    minimumResponses: numericEnv(
+      "ASC_RELAY_CALIBRATION_MIN_RESPONSES",
+      20
+    ),
+    minimumAcceptanceRate: numericEnv(
+      "ASC_RELAY_CALIBRATION_MIN_ACCEPTANCE_RATE",
+      0.9
+    ),
+    maximumRejectionRate: numericEnv(
+      "ASC_RELAY_CALIBRATION_MAX_REJECTION_RATE",
+      0.05
+    ),
+    maximumMeanEditRatio: numericEnv(
+      "ASC_RELAY_CALIBRATION_MAX_MEAN_EDIT_RATIO",
+      0.25
+    )
+  };
+}
+
 export async function loadPulseView(now?: string) {
   if (!controlRegistryConfigured()) {
     return {
@@ -135,26 +171,38 @@ export async function loadPulseView(now?: string) {
     configured: true as const,
     accountDomainId: services.store.accountDomainId,
     principalId: services.control.principalId,
-    threads: snapshots.map((snapshot) => {
-      const checkpoint = latestCheckpoint(snapshot);
-      const relay = latestRelay(snapshot);
-      return {
-        thread: snapshot.thread,
-        pulse: pulseMap.get(snapshot.thread.threadId)!,
-        synopsis: checkpoint?.synopsis,
-        gate: checkpoint?.gate,
-        blocker: checkpoint?.blocker,
-        lastSteering: checkpoint?.lastSteering,
-        checkpointId: checkpoint?.checkpointId,
-        relay,
-        canReviewRelay:
-          Boolean(
-            relay &&
-            relay.state === "suggested" &&
-            services.control.principalId &&
-            relay.representedPrincipalId === services.control.principalId
-          )
-      };
-    })
+    threads: await Promise.all(
+      snapshots.map(async (snapshot) => {
+        const checkpoint = latestCheckpoint(snapshot);
+        const relay = latestRelay(snapshot);
+        const calibration = relay
+          ? await services.calibration.project({
+              representedPrincipalId: relay.representedPrincipalId,
+              projectId: relay.projectId,
+              workClass: relay.workClass,
+              policy: calibrationPolicy()
+            })
+          : undefined;
+
+        return {
+          thread: snapshot.thread,
+          pulse: pulseMap.get(snapshot.thread.threadId)!,
+          synopsis: checkpoint?.synopsis,
+          gate: checkpoint?.gate,
+          blocker: checkpoint?.blocker,
+          lastSteering: checkpoint?.lastSteering,
+          checkpointId: checkpoint?.checkpointId,
+          relay,
+          calibration,
+          canReviewRelay:
+            Boolean(
+              relay &&
+              relay.state === "suggested" &&
+              services.control.principalId &&
+              relay.representedPrincipalId === services.control.principalId
+            )
+        };
+      })
+    )
   };
 }
