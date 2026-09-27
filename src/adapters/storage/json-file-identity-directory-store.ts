@@ -30,13 +30,19 @@ function freezeSnapshot(
     ...snapshot,
     principals: Object.freeze([...snapshot.principals]),
     accountDomains: Object.freeze([...snapshot.accountDomains]),
-    memberships: Object.freeze([...snapshot.memberships])
+    memberships: Object.freeze([...snapshot.memberships]),
+    authenticationBindings: Object.freeze([
+      ...snapshot.authenticationBindings
+    ])
   });
 }
 
 function parseSnapshot(raw: string): IdentityDirectorySnapshot {
   const parsed = JSON.parse(raw) as Record<string, unknown>;
-  if (parsed.schemaVersion !== IDENTITY_DIRECTORY_SCHEMA_VERSION) {
+  if (
+    parsed.schemaVersion !== 1 &&
+    parsed.schemaVersion !== IDENTITY_DIRECTORY_SCHEMA_VERSION
+  ) {
     throw new Error(
       "Unsupported identity directory schema version: " +
       String(parsed.schemaVersion)
@@ -62,6 +68,9 @@ function parseSnapshot(raw: string): IdentityDirectorySnapshot {
     accountDomains:
       parsed.accountDomains as IdentityDirectorySnapshot["accountDomains"],
     memberships: parsed.memberships as IdentityDirectorySnapshot["memberships"],
+    authenticationBindings: Array.isArray(parsed.authenticationBindings)
+      ? parsed.authenticationBindings as IdentityDirectorySnapshot["authenticationBindings"]
+      : Object.freeze([]),
     ...(typeof parsed.updatedAt === "string"
       ? { updatedAt: parsed.updatedAt }
       : {})
@@ -132,6 +141,9 @@ implements IdentityDirectoryStore {
         principals: Object.freeze([...input.principals]),
         accountDomains: Object.freeze([...input.accountDomains]),
         memberships: Object.freeze([...input.memberships]),
+        authenticationBindings: Object.freeze([
+          ...input.authenticationBindings
+        ]),
         ...(input.updatedAt ? { updatedAt: input.updatedAt } : {})
       };
 

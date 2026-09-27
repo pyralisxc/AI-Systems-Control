@@ -22,7 +22,10 @@ function freezeSnapshot(
     ...snapshot,
     principals: Object.freeze([...snapshot.principals]),
     accountDomains: Object.freeze([...snapshot.accountDomains]),
-    memberships: Object.freeze([...snapshot.memberships])
+    memberships: Object.freeze([...snapshot.memberships]),
+    authenticationBindings: Object.freeze([
+      ...snapshot.authenticationBindings
+    ])
   });
 }
 
@@ -36,7 +39,10 @@ function decode(
       ? JSON.parse(payloadInput) as Record<string, unknown>
       : payloadInput as Record<string, unknown>;
 
-  if (payload.schemaVersion !== IDENTITY_DIRECTORY_SCHEMA_VERSION) {
+  if (
+    payload.schemaVersion !== 1 &&
+    payload.schemaVersion !== IDENTITY_DIRECTORY_SCHEMA_VERSION
+  ) {
     throw new Error(
       "Unsupported identity directory schema version: " +
       String(payload.schemaVersion)
@@ -57,6 +63,9 @@ function decode(
     accountDomains:
       payload.accountDomains as IdentityDirectorySnapshot["accountDomains"],
     memberships: payload.memberships as IdentityDirectorySnapshot["memberships"],
+    authenticationBindings: Array.isArray(payload.authenticationBindings)
+      ? payload.authenticationBindings as IdentityDirectorySnapshot["authenticationBindings"]
+      : Object.freeze([]),
     ...(typeof updatedAtInput === "string"
       ? { updatedAt: updatedAtInput }
       : typeof payload.updatedAt === "string"
@@ -71,6 +80,7 @@ function encode(input: SaveIdentityDirectoryInput): string {
     principals: input.principals,
     accountDomains: input.accountDomains,
     memberships: input.memberships,
+    authenticationBindings: input.authenticationBindings,
     ...(input.updatedAt ? { updatedAt: input.updatedAt } : {})
   });
 }

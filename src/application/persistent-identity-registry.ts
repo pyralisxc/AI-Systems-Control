@@ -2,11 +2,13 @@ import {
   IdentityConflictError,
   InMemoryIdentityRegistry,
   type RegisterAccountDomainInput,
+  type RegisterAuthenticationIdentityInput,
   type RegisterMembershipInput,
   type RegisterPrincipalInput
 } from "./identity-registry.js";
 import type {
   AccountDomain,
+  AuthenticationIdentityBinding,
   Membership,
   Principal
 } from "../domain/index.js";
@@ -25,6 +27,7 @@ interface IdentityMutationResult<T> {
   readonly principals: readonly Principal[];
   readonly accountDomains: readonly AccountDomain[];
   readonly memberships: readonly Membership[];
+  readonly authenticationBindings: readonly AuthenticationIdentityBinding[];
   readonly changed: boolean;
 }
 
@@ -44,6 +47,7 @@ async function mutateIdentityDirectory<T>(
         principals: mutation.principals,
         accountDomains: mutation.accountDomains,
         memberships: mutation.memberships,
+        authenticationBindings: mutation.authenticationBindings,
         updatedAt: new Date().toISOString()
       });
       return mutation.result;
@@ -63,7 +67,8 @@ function registryFrom(snapshot: IdentityDirectorySnapshot) {
   return new InMemoryIdentityRegistry({
     principals: snapshot.principals,
     accountDomains: snapshot.accountDomains,
-    memberships: snapshot.memberships
+    memberships: snapshot.memberships,
+    authenticationBindings: snapshot.authenticationBindings
   });
 }
 
@@ -75,18 +80,26 @@ function mutationResult<T>(
   const principals = registry.listPrincipals();
   const accountDomains = registry.listAccountDomains();
   const memberships = registry.listMemberships();
+  const authenticationBindings = registry.listAuthenticationBindings();
   const before = stableJson({
     principals: snapshot.principals,
     accountDomains: snapshot.accountDomains,
-    memberships: snapshot.memberships
+    memberships: snapshot.memberships,
+    authenticationBindings: snapshot.authenticationBindings
   });
-  const after = stableJson({ principals, accountDomains, memberships });
+  const after = stableJson({
+    principals,
+    accountDomains,
+    memberships,
+    authenticationBindings
+  });
 
   return {
     result,
     principals,
     accountDomains,
     memberships,
+    authenticationBindings,
     changed: before !== after
   };
 }
@@ -116,6 +129,21 @@ export class PersistentIdentityRegistry {
     );
   }
 
+  async listAuthenticationBindings(): Promise<
+    readonly AuthenticationIdentityBinding[]
+  > {
+    return registryFrom(await this.#store.load())
+      .listAuthenticationBindings();
+  }
+
+  async resolveAuthenticationIdentity(
+    issuer: string,
+    subject: string
+  ): Promise<AuthenticationIdentityBinding | undefined> {
+    return registryFrom(await this.#store.load())
+      .resolveAuthenticationIdentity(issuer, subject);
+  }
+
   async listAccountDomains(): Promise<readonly AccountDomain[]> {
     return registryFrom(await this.#store.load()).listAccountDomains();
   }
@@ -143,6 +171,16 @@ export class PersistentIdentityRegistry {
     return mutateIdentityDirectory(this.#store, (snapshot) => {
       const registry = registryFrom(snapshot);
       const result = registry.registerAccountDomain(input);
+      return mutationResult(snapshot, registry, result);
+    });
+  }
+
+  async registerAuthenticationIdentity(
+    input: RegisterAuthenticationIdentityInput
+  ): Promise<AuthenticationIdentityBinding> {
+    return mutateIdentityDirectory(this.#store, (snapshot) => {
+      const registry = registryFrom(snapshot);
+      const result = registry.registerAuthenticationIdentity(input);
       return mutationResult(snapshot, registry, result);
     });
   }
