@@ -312,3 +312,29 @@ test("expired or over-broad lease use fails closed", async () => {
     await rm(context.directory, { recursive: true, force: true });
   }
 });
+
+
+test("repeated owner STOP monotonically increments Project control generation", async () => {
+  const context = await setup();
+  try {
+    const first = await context.authority.stopProject({
+      projectId: "cardforge",
+      changedByPrincipalId: "principal:owner",
+      reason: "first stop",
+      changedAt: "2026-09-27T18:40:00.000Z"
+    });
+    const second = await context.authority.stopProject({
+      projectId: "cardforge",
+      changedByPrincipalId: "principal:owner",
+      reason: "repeat stop",
+      changedAt: "2026-09-27T18:40:10.000Z"
+    });
+
+    assert.equal(first.mode, "owner_stopped");
+    assert.equal(second.mode, "owner_stopped");
+    assert.equal(second.generation, first.generation + 1);
+    assert.equal(second.reason, "repeat stop");
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});
