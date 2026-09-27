@@ -75,6 +75,11 @@ function freezeConnection(connection: Connection): Connection {
   });
 }
 
+function withoutRevokedAt(connection: Connection): Connection {
+  const { revokedAt: _revokedAt, ...rest } = connection;
+  return rest;
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -163,10 +168,15 @@ export class InMemoryConnectionRegistry {
       }
 
       const existing = this.#connections.get(existingId)!;
+      if (existing.ownerId !== ownerId) {
+        throw new ConnectionIdentityConflictError(
+          `Connection ${existingId} is authorized by owner ${existing.ownerId}, not ${ownerId}.`
+        );
+      }
+
       const updatedAt = input.verifiedAt ?? nowIso();
       return this.#replace({
-        ...existing,
-        ownerId,
+        ...withoutRevokedAt(existing),
         provider,
         providerAccountId,
         ...(input.providerDisplayName !== undefined
@@ -178,8 +188,7 @@ export class InMemoryConnectionRegistry {
         status: "active",
         capabilities: normalizedCapabilities(input.capabilities ?? existing.capabilities),
         updatedAt,
-        lastVerifiedAt: input.verifiedAt ?? updatedAt,
-        revokedAt: undefined
+        lastVerifiedAt: input.verifiedAt ?? updatedAt
       });
     }
 
@@ -215,11 +224,19 @@ export class InMemoryConnectionRegistry {
     const connection = this.#connections.get(connectionId);
     if (!connection) throw new Error(`Unknown connection: ${connectionId}`);
 
+    if (status === "revoked") {
+      return this.#replace({
+        ...connection,
+        status,
+        updatedAt: at,
+        revokedAt: at
+      });
+    }
+
     return this.#replace({
-      ...connection,
+      ...withoutRevokedAt(connection),
       status,
-      updatedAt: at,
-      ...(status === "revoked" ? { revokedAt: at } : { revokedAt: undefined })
+      updatedAt: at
     });
   }
 
@@ -235,12 +252,11 @@ export class InMemoryConnectionRegistry {
 
     const verifiedAt = options.verifiedAt ?? nowIso();
     return this.#replace({
-      ...connection,
+      ...withoutRevokedAt(connection),
       status: "active",
       capabilities: normalizedCapabilities(options.capabilities ?? connection.capabilities),
       updatedAt: verifiedAt,
-      lastVerifiedAt: verifiedAt,
-      revokedAt: undefined
+      lastVerifiedAt: verifiedAt
     });
   }
 }
