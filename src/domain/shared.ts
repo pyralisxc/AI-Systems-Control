@@ -6,8 +6,11 @@ export type JsonValue =
   | { readonly [key: string]: JsonValue }
   | readonly JsonValue[];
 
+export type OwnerId = string;
+export type AccountDomainId = string;
 export type ProjectId = string;
 export type WorkspaceId = string;
+export type ConnectionId = string;
 export type CapabilityId = string;
 export type CapabilityBindingId = string;
 export type ActionId = string;

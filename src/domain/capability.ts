@@ -1,6 +1,7 @@
 import type {
   CapabilityBindingId,
   CapabilityId,
+  ConnectionId,
   JsonValue,
   ProjectId,
   WorkspaceId
@@ -51,6 +52,7 @@ export interface CapabilityBinding {
   readonly capabilityId: CapabilityId;
   readonly projectId: ProjectId;
   readonly workspaceId?: WorkspaceId;
+  readonly connectionId?: ConnectionId;
   readonly host: string;
   readonly provider: string;
   readonly adapter: string;

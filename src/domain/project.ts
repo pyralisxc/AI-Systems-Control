@@ -12,7 +12,10 @@ export interface ProjectReference {
 export interface Project {
   readonly projectId: ProjectId;
   readonly name: string;
+  readonly aliases?: readonly string[];
   readonly references: readonly ProjectReference[];
   readonly createdAt: IsoTimestamp;
+  readonly updatedAt?: IsoTimestamp;
+  readonly lastReconciledAt?: IsoTimestamp;
   readonly status: ProjectStatus;
 }
