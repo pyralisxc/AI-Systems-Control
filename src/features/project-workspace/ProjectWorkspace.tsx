@@ -173,8 +173,12 @@ export function ProjectWorkspace({
             <span>04</span>
             Capabilities
           </a>
-          <span className="nav-item nav-item--future">
+          <a className="nav-item" href="/connections">
             <span>05</span>
+            Connections
+          </a>
+          <span className="nav-item nav-item--future">
+            <span>06</span>
             Actions
             <small>future slice</small>
           </span>
