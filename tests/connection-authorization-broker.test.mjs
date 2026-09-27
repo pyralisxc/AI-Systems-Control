@@ -274,3 +274,34 @@ test("provider revoke removes provider secret and revokes ASC Connection", async
     await rm(context.directory, { recursive: true, force: true });
   }
 });
+
+
+test("routine verification preserves generation when authority is unchanged", async () => {
+  const context = await setup();
+  try {
+    const begun = await context.broker.begin({
+      ownerId: "owner-1",
+      accountDomainId: "business-a",
+      provider: "fake-oauth",
+      callbackUrl: "https://asc.invalid/callback",
+      now: "2026-09-27T05:00:00.000Z"
+    });
+    const connection = await context.broker.complete({
+      flowId: begun.flowId,
+      state: begun.state,
+      callback: { account: "account-a", secret: "secret-a" },
+      now: "2026-09-27T05:00:10.000Z"
+    });
+
+    const verified = await context.broker.verify(
+      connection.connectionId,
+      "2026-09-27T06:00:00.000Z"
+    );
+
+    assert.equal(verified.status, "active");
+    assert.equal(verified.generation, connection.generation);
+    assert.equal(verified.lastVerifiedAt, "2026-09-27T06:00:00.000Z");
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});

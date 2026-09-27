@@ -240,18 +240,11 @@ export class ConnectionAuthorizationBroker {
     const adapter = this.#provider(connection.provider);
     const verified = await adapter.verifyAuthorization(identityInput(connection));
 
-    if (verified.status === "active") {
-      return this.#connections.reconnect(connection.connectionId, {
-        capabilities: verified.capabilities,
-        verifiedAt: verified.verifiedAt || now
-      });
-    }
-
-    return this.#connections.setStatus(
-      connection.connectionId,
-      verified.status,
-      verified.verifiedAt || now
-    );
+    return this.#connections.verify(connection.connectionId, {
+      status: verified.status,
+      capabilities: verified.capabilities,
+      verifiedAt: verified.verifiedAt || now
+    });
   }
 
   async revoke(connectionId: string, now = new Date().toISOString()): Promise<Connection> {

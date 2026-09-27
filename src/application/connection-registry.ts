@@ -225,6 +225,7 @@ export class InMemoryConnectionRegistry {
   ): Connection {
     const connection = this.#connections.get(connectionId);
     if (!connection) throw new Error("Unknown connection: " + connectionId);
+    if (connection.status === status) return connection;
 
     if (status === "revoked") {
       return this.#replace({
@@ -241,6 +242,37 @@ export class InMemoryConnectionRegistry {
       status,
       generation: connection.generation + 1,
       updatedAt: at
+    });
+  }
+
+  verify(
+    connectionId: string,
+    options: {
+      readonly status: Exclude<ConnectionStatus, "revoked">;
+      readonly capabilities?: readonly string[];
+      readonly verifiedAt?: string;
+    }
+  ): Connection {
+    const connection = this.#connections.get(connectionId);
+    if (!connection) throw new Error("Unknown connection: " + connectionId);
+
+    const verifiedAt = options.verifiedAt ?? nowIso();
+    const capabilities = normalizedCapabilities(
+      options.capabilities ?? connection.capabilities
+    );
+    const authorityChanged =
+      connection.status !== options.status ||
+      JSON.stringify(connection.capabilities) !== JSON.stringify(capabilities);
+
+    return this.#replace({
+      ...withoutRevokedAt(connection),
+      status: options.status,
+      generation: authorityChanged
+        ? connection.generation + 1
+        : connection.generation,
+      capabilities,
+      updatedAt: verifiedAt,
+      lastVerifiedAt: verifiedAt
     });
   }
 
@@ -324,6 +356,30 @@ export class PersistentConnectionRegistry {
       const registry = new InMemoryConnectionRegistry(snapshot.connections);
       const before = stableJson(registry.listConnections());
       const result = registry.setStatus(connectionId, status, at);
+      const connections = registry.listConnections();
+      return {
+        result,
+        projects: snapshot.projects,
+        connections,
+        projectConnectionBindings: snapshot.projectConnectionBindings,
+        delegations: snapshot.delegations,
+        changed: before !== stableJson(connections)
+      };
+    });
+  }
+
+  async verify(
+    connectionId: string,
+    options: {
+      readonly status: Exclude<ConnectionStatus, "revoked">;
+      readonly capabilities?: readonly string[];
+      readonly verifiedAt?: string;
+    }
+  ): Promise<Connection> {
+    return mutateControlRegistry(this.#store, (snapshot) => {
+      const registry = new InMemoryConnectionRegistry(snapshot.connections);
+      const before = stableJson(registry.listConnections());
+      const result = registry.verify(connectionId, options);
       const connections = registry.listConnections();
       return {
         result,
