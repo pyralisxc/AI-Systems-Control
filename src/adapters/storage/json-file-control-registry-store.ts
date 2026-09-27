@@ -8,6 +8,7 @@ import {
 } from "node:fs/promises";
 import { dirname } from "node:path";
 
+import { emptyWorkerControlState, type WorkerControlState } from "../../domain/index.js";
 import {
   CONTROL_REGISTRY_SCHEMA_VERSION,
   RegistryRevisionConflictError,
@@ -74,13 +75,50 @@ function assertTenantOwnership(
   }
 }
 
+function normalizeWorkerControl(value: unknown, accountDomainId: string): WorkerControlState {
+  const source =
+    value && typeof value === "object"
+      ? value as Record<string, unknown>
+      : emptyWorkerControlState();
+  const arrays = {
+    approvals: Array.isArray(source.approvals) ? source.approvals : [],
+    authorizations: Array.isArray(source.authorizations) ? source.authorizations : [],
+    workerRuns: Array.isArray(source.workerRuns) ? source.workerRuns : [],
+    leases: Array.isArray(source.leases) ? source.leases : [],
+    projectControls: Array.isArray(source.projectControls) ? source.projectControls : [],
+    events: Array.isArray(source.events) ? source.events : []
+  };
+  for (const [kind, records] of Object.entries(arrays)) {
+    for (const record of records as readonly Record<string, unknown>[]) {
+      if (
+        typeof record.accountDomainId === "string" &&
+        record.accountDomainId !== accountDomainId
+      ) {
+        throw new Error(
+          "Worker-control " + kind + " record belongs to " +
+          record.accountDomainId + ", not registry " + accountDomainId + "."
+        );
+      }
+    }
+  }
+  return Object.freeze({
+    approvals: Object.freeze([...arrays.approvals]) as WorkerControlState["approvals"],
+    authorizations: Object.freeze([...arrays.authorizations]) as WorkerControlState["authorizations"],
+    workerRuns: Object.freeze([...arrays.workerRuns]) as WorkerControlState["workerRuns"],
+    leases: Object.freeze([...arrays.leases]) as WorkerControlState["leases"],
+    projectControls: Object.freeze([...arrays.projectControls]) as WorkerControlState["projectControls"],
+    events: Object.freeze([...arrays.events]) as WorkerControlState["events"]
+  });
+}
+
 function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnapshot {
   return Object.freeze({
     ...snapshot,
     projects: Object.freeze([...snapshot.projects]),
     connections: Object.freeze([...snapshot.connections]),
     projectConnectionBindings: Object.freeze([...snapshot.projectConnectionBindings]),
-    delegations: Object.freeze([...snapshot.delegations])
+    delegations: Object.freeze([...snapshot.delegations]),
+    workerControl: normalizeWorkerControl(snapshot.workerControl, snapshot.accountDomainId)
   });
 }
 
@@ -167,6 +205,7 @@ function parseSnapshot(
     delegations: Array.isArray(parsed.delegations)
       ? parsed.delegations as ControlRegistrySnapshot["delegations"]
       : Object.freeze([]),
+    workerControl: normalizeWorkerControl(parsed.workerControl, expectedAccountDomainId),
     ...(typeof parsed.updatedAt === "string" ? { updatedAt: parsed.updatedAt } : {})
   };
 
@@ -250,6 +289,7 @@ export class JsonFileControlRegistryStore implements ControlRegistryStore {
       "registry.projectConnectionBindings"
     );
     assertNoSecretLikeFields(input.delegations, "registry.delegations");
+    normalizeWorkerControl(input.workerControl, this.accountDomainId);
 
     return this.#withLock(async () => {
       const current = await this.#readUnlocked();
@@ -268,6 +308,7 @@ export class JsonFileControlRegistryStore implements ControlRegistryStore {
         connections: Object.freeze([...input.connections]),
         projectConnectionBindings: Object.freeze([...input.projectConnectionBindings]),
         delegations: Object.freeze([...input.delegations]),
+        workerControl: normalizeWorkerControl(input.workerControl, this.accountDomainId),
         ...(input.updatedAt ? { updatedAt: input.updatedAt } : {})
       };
 
