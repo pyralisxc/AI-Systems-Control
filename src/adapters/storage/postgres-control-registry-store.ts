@@ -334,7 +334,7 @@ export class PostgresControlRegistryStore implements ControlRegistryStore {
   readonly accountDomainId: string;
   readonly #registryKey: string;
   readonly #client: PostgresQueryClient;
-  readonly #close?: () => Promise<void>;
+  readonly #close: (() => Promise<void>) | undefined;
   #ready?: Promise<void>;
 
   constructor(

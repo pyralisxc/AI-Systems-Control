@@ -105,7 +105,7 @@ export class FounderRelayService {
   readonly #store: ThreadStore;
   readonly #identities: PersistentIdentityRegistry;
   readonly #continuation: ContinuationAuthorityService;
-  readonly #delivery?: FounderRelayDeliveryPort;
+  readonly #delivery: FounderRelayDeliveryPort | undefined;
 
   constructor(input: {
     readonly threadStore: ThreadStore;

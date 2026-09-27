@@ -171,7 +171,7 @@ function decode(
 export class PostgresThreadStore implements ThreadStore {
   readonly accountDomainId: string;
   readonly #client: PostgresQueryClient;
-  readonly #close?: () => Promise<void>;
+  readonly #close: (() => Promise<void>) | undefined;
   #ready?: Promise<void>;
 
   constructor(

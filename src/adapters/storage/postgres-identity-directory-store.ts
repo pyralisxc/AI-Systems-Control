@@ -88,7 +88,7 @@ function encode(input: SaveIdentityDirectoryInput): string {
 export class PostgresIdentityDirectoryStore
 implements IdentityDirectoryStore {
   readonly #client: PostgresQueryClient;
-  readonly #close?: () => Promise<void>;
+  readonly #close: (() => Promise<void>) | undefined;
   #ready?: Promise<void>;
 
   constructor(client: PostgresQueryClient, close?: () => Promise<void>) {

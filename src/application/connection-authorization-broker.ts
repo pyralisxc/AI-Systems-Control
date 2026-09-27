@@ -60,7 +60,7 @@ function normalizeProvider(provider: string): string {
 
 function identityInput(connection: Connection) {
   return {
-    principalId: connection.principalId,
+    principalId: connection.authorizedByPrincipalId,
     accountDomainId: connection.accountDomainId,
     providerAccountId: connection.providerAccountId,
     ...(connection.environment ? { environment: connection.environment } : {})
@@ -225,7 +225,7 @@ export class ConnectionAuthorizationBroker {
     });
 
     return this.#connections.register({
-      principalId: flow.principalId,
+      authorizedByPrincipalId: flow.principalId,
       accountDomainId: flow.accountDomainId,
       provider: flow.provider,
       providerAccountId: metadata.providerAccountId,
