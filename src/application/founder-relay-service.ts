@@ -461,11 +461,49 @@ export class FounderRelayService {
       !this.#delivery ||
       !this.#delivery.canDeliver(snapshot.thread)
     ) {
+      let persisted: FounderRelayRecord | undefined;
+      await this.#mutate(input.threadId, (current) => {
+        const currentRelay = current.relays.find(
+          (candidate) => candidate.relayId === relay.relayId
+        );
+        if (!currentRelay || currentRelay.state !== "suggested") {
+          throw new FounderRelayError(
+            "Founder Relay state changed before transport limitation was recorded."
+          );
+        }
+        persisted = Object.freeze({
+          ...currentRelay,
+          deliveryAuthority: evaluation
+        });
+        return {
+          thread: Object.freeze({
+            ...current.thread,
+            lifecycle: "waiting_owner",
+            updatedAt: now
+          }),
+          checkpoints: current.checkpoints,
+          activities: [
+            ...current.activities,
+            activity({
+              threadId: current.thread.threadId,
+              accountDomainId: this.#store.accountDomainId,
+              occurredAt: now,
+              kind: "owner_gate",
+              source: "founder-relay",
+              summary:
+                "Founder Relay is authorized, but this Thread transport requires manual owner delivery.",
+              principalId: currentRelay.generatedByPrincipalId
+            })
+          ],
+          relays: replaceRelay(current.relays, persisted)
+        };
+      });
+
       return Object.freeze({
         sent: false,
         reason:
           "Current Thread transport cannot deliver Founder Relay automatically.",
-        relay
+        relay: persisted!
       });
     }
 
