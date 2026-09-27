@@ -13,3 +13,4 @@ export * from "./owner-access.js";
 export * from "./in-memory-thread-store.js";
 export * from "./bridged-thread-service.js";
 export * from "./asc-bridge-tools.js";
+export * from "./continuation-authority-service.js";
