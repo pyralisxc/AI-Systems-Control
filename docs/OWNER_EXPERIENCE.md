@@ -80,6 +80,27 @@ The owner should be able to understand:
 
 Relay calibration should learn from accepted/edited/rejected continuation behavior, not turn every conversation sentence into a durable personality or Project-intent model.
 
+### Relay calibration evidence
+
+ASC may derive deterministic interaction-calibration evidence per represented Principal + AccountDomain + Project + work class.
+
+Useful owner-facing measures include:
+- explicit response count;
+- unchanged approvals;
+- edits;
+- rejections;
+- actual auto-send outcomes;
+- acceptance/edit/rejection rates;
+- bounded deterministic edit magnitude;
+- latest evidence time;
+- stable evidence fingerprint/reference.
+
+A pending Relay may count as a proposal, but it must not alter the calibration evidence fingerprint until the owner responds or a real auto-send outcome exists.
+
+Thresholds may surface an **autonomy review candidate** such as "47/49 accepted; review Continue authority?" The owner still decides. Calibration must never create or widen an AutonomyGrant automatically.
+
+One Principal's calibration never trains another Principal's owner-channel behavior.
+
 ## Working
 
 Show active and recently completed workers with:

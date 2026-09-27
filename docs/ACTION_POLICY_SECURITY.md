@@ -95,6 +95,15 @@ Relay delivery adapters must be idempotent by Relay ID so transport retries do n
 
 Founder Relay history belongs to tenant-scoped ThreadStore interaction history, not Project truth or the deterministic authority registry.
 
+Derived Relay calibration is a read projection over explicit Relay outcomes. It is not executable authority.
+
+- pending suggestions do not count as settled calibration evidence;
+- owner-approved/edited/rejected records and actual auto-send outcomes may contribute;
+- calibration is scoped by represented Principal + AccountDomain + Project + work class;
+- review-readiness thresholds are policy inputs;
+- satisfying a threshold may surface owner attention but cannot mutate AutonomyGrant;
+- changing calibration policy does not rewrite underlying Relay history.
+
 ## Capability rule
 
 Workers receive scoped capability references/leases, not durable raw credentials.

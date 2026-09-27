@@ -34,6 +34,9 @@
 - Founder Relay auto-send always performs a fresh continuation-authority evaluation at delivery time.
 - `auto_sent` requires confirmed delivery through an idempotent send-capable transport; policy permission alone is not delivery.
 - External/bridged Threads that ASC cannot send into surface manual owner handoff instead of fabricated steering.
+- Relay calibration is derived from explicit feedback/outcomes rather than arbitrary chat text.
+- Pending Relay suggestions may affect proposal counts but do not affect settled calibration evidence fingerprints.
+- Calibration readiness can propose an owner autonomy review but never creates or widens an AutonomyGrant automatically.
 
 ## Superseded from earlier crystal
 
