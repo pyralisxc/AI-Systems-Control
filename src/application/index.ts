@@ -18,3 +18,4 @@ export * from "./founder-relay-service.js";
 export * from "./mcp-request-identity-resolver.js";
 export * from "./relay-calibration-service.js";
 export * from "./owner-autonomy-review-service.js";
+export * from "./thread-continue-review-service.js";

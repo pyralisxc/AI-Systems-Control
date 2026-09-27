@@ -475,6 +475,26 @@ export class ContinuationAuthorityService {
     });
   }
 
+  async getLatestWorkEnvelope(
+    projectIdInput: string,
+    workClassInput: string,
+    threadId?: string
+  ): Promise<WorkEnvelope | undefined> {
+    const projectId = required(projectIdInput, "Project");
+    const workClass = required(workClassInput, "Work class");
+    const snapshot = await this.#store.load();
+    return latestEnvelope(
+      snapshot.continuationControl.workEnvelopes,
+      {
+        projectId,
+        ...(threadId ? { threadId } : {}),
+        workClass,
+        requestedEffect: "read",
+        requestedRepositoryBoundary: "read_only"
+      }
+    );
+  }
+
   async getLatestAutonomyGrant(
     projectIdInput: string,
     workClassInput: string
@@ -652,7 +672,6 @@ export class ContinuationAuthorityService {
     }
     if (
       input.capabilityId &&
-      envelope.allowedCapabilities.length > 0 &&
       !envelope.allowedCapabilities.includes(input.capabilityId)
     ) {
       return this.#result(

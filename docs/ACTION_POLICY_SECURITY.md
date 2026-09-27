@@ -72,6 +72,8 @@ Even Level 5 cannot:
 - use a stale/needs-revalidation WorkAuthorization;
 - override paused/owner-stopped ControlState.
 
+WorkEnvelope capability semantics are deny-by-default: an empty `allowedCapabilities` list means **no external/tool capabilities**, not wildcard access. A requested capability must be explicitly present in the envelope.
+
 Expired or needs-review grants return to the owner rather than silently falling back to an older grant.
 
 ## Founder Relay
