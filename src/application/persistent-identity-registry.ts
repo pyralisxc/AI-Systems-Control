@@ -102,6 +102,20 @@ export class PersistentIdentityRegistry {
     return registryFrom(await this.#store.load()).listPrincipals();
   }
 
+  async getPrincipal(principalId: string): Promise<Principal | undefined> {
+    return registryFrom(await this.#store.load()).getPrincipal(principalId);
+  }
+
+  async getMembership(
+    principalId: string,
+    accountDomainId: string
+  ): Promise<Membership | undefined> {
+    return registryFrom(await this.#store.load()).getMembership(
+      principalId,
+      accountDomainId
+    );
+  }
+
   async listAccountDomains(): Promise<readonly AccountDomain[]> {
     return registryFrom(await this.#store.load()).listAccountDomains();
   }
