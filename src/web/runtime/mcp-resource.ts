@@ -1,3 +1,8 @@
+import {
+  deriveMcpResourceUrl,
+  type McpResourceUrlSource
+} from "../../../dist/application/index.js";
+
 export const ASC_MCP_SCOPE_BASE = "asc.mcp";
 export const ASC_MCP_SCOPE_THREAD_READ = "asc.thread.read";
 export const ASC_MCP_SCOPE_THREAD_WRITE = "asc.thread.write";
@@ -39,11 +44,30 @@ function absoluteUrl(
   return serialized.endsWith("/") ? serialized.slice(0, -1) : serialized;
 }
 
+function resolvedMcpResource():
+  | {
+      readonly resourceUrl: string;
+      readonly source: McpResourceUrlSource;
+    }
+  | undefined {
+  return deriveMcpResourceUrl({
+    explicitResourceUrl: process.env.ASC_MCP_RESOURCE_URL,
+    vercelBranchUrl: process.env.VERCEL_BRANCH_URL
+  });
+}
+
 export function mcpResourceUrl(): string {
-  return absoluteUrl(
-    process.env.ASC_MCP_RESOURCE_URL,
-    "ASC_MCP_RESOURCE_URL"
-  );
+  const resolved = resolvedMcpResource();
+  if (!resolved) {
+    throw new Error(
+      "ASC MCP resource URL is not configured and VERCEL_BRANCH_URL is unavailable."
+    );
+  }
+  return resolved.resourceUrl;
+}
+
+export function mcpResourceUrlSource(): McpResourceUrlSource | undefined {
+  return resolvedMcpResource()?.source;
 }
 
 export function mcpOAuthIssuer(): string {
@@ -111,7 +135,7 @@ export function protectedResourceMetadata(): AscProtectedResourceMetadata {
 
 export function mcpOAuthConfigured(): boolean {
   return Boolean(
-    process.env.ASC_MCP_RESOURCE_URL?.trim() &&
+    resolvedMcpResource() &&
     process.env.ASC_OAUTH_ISSUER?.trim() &&
     process.env.ASC_OAUTH_JWKS_URL?.trim()
   );

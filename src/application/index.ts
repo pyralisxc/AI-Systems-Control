@@ -20,3 +20,4 @@ export * from "./relay-calibration-service.js";
 export * from "./owner-autonomy-review-service.js";
 export * from "./thread-continue-review-service.js";
 export * from "./mcp-setup-readiness.js";
+export * from "./mcp-resource-url.js";
