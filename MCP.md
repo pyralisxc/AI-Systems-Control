@@ -108,3 +108,56 @@ Do not create a separate static-token authorization model merely for the bridge.
 - Reasoning method routes to Development OS.
 - Exact provider/code/deployment execution routes to Conductor.
 - ASC bridge tools publish orchestration context; they do not make chat text canonical Project truth.
+
+
+## Guided first-time setup
+
+ASC exposes an owner-authenticated readiness page at `/setup/mcp`.
+
+The page is intentionally presence-only. It never renders database URLs, bearer tokens, authorization codes, client secrets, signing credentials, or other secret values.
+
+### Minimum external inputs
+
+A hosted Preview MCP proof currently needs three external infrastructure decisions:
+
+1. **Durable PostgreSQL**
+   - Configure `ASC_CONTROL_REGISTRY_DATABASE_URL`.
+   - The same ASC storage contract works with Neon, Supabase Postgres, ordinary hosted PostgreSQL, or future owner-operated PostgreSQL.
+
+2. **Stable Preview MCP resource URL**
+   - Configure `ASC_MCP_RESOURCE_URL`.
+   - Use a stable Vercel Branch Domain/custom domain for `preview`, not a deployment-specific URL that changes every build.
+   - The current resource shape is expected to end in `/mcp`.
+
+3. **External OAuth/OIDC authorization server**
+   - Configure `ASC_OAUTH_ISSUER` and `ASC_OAUTH_JWKS_URL`.
+   - Bind the intended personal Principal using `ASC_BOOTSTRAP_AUTH_ISSUER` + `ASC_BOOTSTRAP_AUTH_SUBJECT` for the first proof.
+   - Auth0 is a practical first documented provider because it offers MCP-oriented OAuth/CIMD support, but ASC remains provider-neutral.
+
+### Safe built-in defaults
+
+The following do not need environment variables for the personal proof unless the owner wants to override them:
+
+- AccountDomain ID: `domain:personal`
+- AccountDomain name: `Personal`
+- Principal ID: `principal:owner`
+- Principal name: `Owner`
+- AccountDomain token claim: `asc_account_domain_id`
+- scope claim: `scope`
+- scopes:
+  - `asc.mcp`
+  - `asc.thread.read`
+  - `asc.thread.write`
+
+### First proof order
+
+1. Give `preview` a stable HTTPS branch/custom domain.
+2. Provision durable PostgreSQL.
+3. Configure the external IdP for the exact MCP resource/audience.
+4. Add the ASC scopes and AccountDomain claim.
+5. Bind issuer + stable subject to the bootstrap Principal.
+6. Confirm `/setup/mcp` reports `ready_for_mcp_test`.
+7. Run MCP Inspector.
+8. Connect the same resource from ChatGPT Developer Mode.
+
+Do not promote the OAuth/MCP integration to Main merely because configuration exists; complete the Preview proof first.
