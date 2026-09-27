@@ -100,10 +100,25 @@ export class DelegationService {
     }
 
     return mutateControlRegistry(this.#store, (snapshot) => {
+      const projectRecord = snapshot.projects.find(
+        (candidate) => candidate.projectId === input.projectId
+      );
+      if (!projectRecord) {
+        throw new DelegationValidationError("Unknown project: " + input.projectId);
+      }
+      if (!projectRecord.accountDomainId) {
+        throw new DelegationValidationError(
+          "Project " + input.projectId + " has no AccountDomain assignment."
+        );
+      }
+
+      const connections = snapshot.connections.filter(
+        (connection) => connection.accountDomainId === projectRecord.accountDomainId
+      );
       const resolver = new InMemoryProjectConnectionBindingRegistry(
         snapshot.projectConnectionBindings
       );
-      const resolution = resolver.resolve(input, snapshot.connections);
+      const resolution = resolver.resolve(input, connections);
       if (resolution.status !== "available" || !resolution.binding || !resolution.connection) {
         throw new DelegationValidationError(
           resolution.reason ?? "Connection resolution failed with " + resolution.status + "."

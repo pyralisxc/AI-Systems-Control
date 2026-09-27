@@ -271,11 +271,26 @@ export class PersistentProjectConnectionBindingRegistry {
 
   async register(input: RegisterProjectConnectionBindingInput): Promise<ProjectConnectionBinding> {
     return mutateControlRegistry(this.#store, (snapshot) => {
-      if (!snapshot.projects.some((project) => project.projectId === input.projectId)) {
-        throw new Error("Unknown project: " + input.projectId);
+      const projectRecord = snapshot.projects.find(
+        (candidate) => candidate.projectId === input.projectId
+      );
+      if (!projectRecord) throw new Error("Unknown project: " + input.projectId);
+      if (!projectRecord.accountDomainId) {
+        throw new Error(
+          "Project " + input.projectId + " must be assigned to an AccountDomain before binding a Connection."
+        );
       }
-      if (!snapshot.connections.some((connection) => connection.connectionId === input.connectionId)) {
-        throw new Error("Unknown connection: " + input.connectionId);
+
+      const connection = snapshot.connections.find(
+        (candidate) => candidate.connectionId === input.connectionId
+      );
+      if (!connection) throw new Error("Unknown connection: " + input.connectionId);
+      if (connection.accountDomainId !== projectRecord.accountDomainId) {
+        throw new ProjectConnectionBindingConflictError(
+          "Project " + input.projectId + " belongs to account domain " +
+          projectRecord.accountDomainId + ", but Connection " + input.connectionId +
+          " belongs to " + connection.accountDomainId + "."
+        );
       }
 
       const registry = new InMemoryProjectConnectionBindingRegistry(snapshot.projectConnectionBindings);
@@ -316,7 +331,28 @@ export class PersistentProjectConnectionBindingRegistry {
 
   async resolve(request: ResolveProjectConnectionInput): Promise<ProjectConnectionResolution> {
     const snapshot = await this.#store.load();
+    const projectRecord = snapshot.projects.find(
+      (candidate) => candidate.projectId === request.projectId
+    );
+    if (!projectRecord) {
+      return Object.freeze({
+        status: "unavailable",
+        reason: "Unknown project: " + request.projectId,
+        candidateBindingIds: Object.freeze([])
+      });
+    }
+    if (!projectRecord.accountDomainId) {
+      return Object.freeze({
+        status: "unavailable",
+        reason: "Project " + request.projectId + " has no AccountDomain assignment.",
+        candidateBindingIds: Object.freeze([])
+      });
+    }
+
+    const connections = snapshot.connections.filter(
+      (connection) => connection.accountDomainId === projectRecord.accountDomainId
+    );
     return new InMemoryProjectConnectionBindingRegistry(snapshot.projectConnectionBindings)
-      .resolve(request, snapshot.connections);
+      .resolve(request, connections);
   }
 }

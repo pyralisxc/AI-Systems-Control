@@ -24,6 +24,7 @@ async function setup() {
 
   await projects.resolveOrRegisterGithubProject({
     projectId: "cardforge",
+    accountDomainId: "business-a",
     repository: "owner/cardforge",
     aliases: ["CardForge"]
   });
@@ -315,6 +316,73 @@ test("expired and old-generation delegations fail closed", async () => {
         now: "2026-09-27T04:01:10.000Z"
       }),
       /older Connection generation/i
+    );
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});
+
+
+test("cross-domain Connections cannot be bound to a Project", async () => {
+  const context = await setup();
+  try {
+    const personal = await context.connections.register({
+      ownerId: "owner-1",
+      accountDomainId: "personal",
+      provider: "source-provider",
+      providerAccountId: "personal-account",
+      authenticationStrategy: "oauth",
+      capabilities: ["source.read"]
+    });
+
+    await assert.rejects(
+      () => context.bindings.register({
+        projectId: "cardforge",
+        connectionId: personal.connectionId,
+        capabilityScope: { kind: "exact", value: "source.read" }
+      }),
+      /belongs to account domain/i
+    );
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});
+
+test("delegation capability cannot be widened after issuance", async () => {
+  const context = await setup();
+  try {
+    const connection = await context.connections.register({
+      ownerId: "owner-1",
+      accountDomainId: "business-a",
+      provider: "source-provider",
+      providerAccountId: "account-a",
+      authenticationStrategy: "oauth",
+      capabilities: ["source.read", "source.history"]
+    });
+    await context.bindings.register({
+      projectId: "cardforge",
+      connectionId: connection.connectionId,
+      capabilityScope: { kind: "prefix", value: "source." }
+    });
+
+    const issued = await context.delegations.issue({
+      projectId: "cardforge",
+      capabilityId: "source.read",
+      effectClass: "read",
+      audience: "development-intelligence",
+      issuedAt: "2026-09-27T05:00:00.000Z",
+      expiresInSeconds: 60
+    });
+
+    await assert.rejects(
+      () => context.delegations.consume(issued.handle, {
+        audience: "development-intelligence",
+        projectId: "cardforge",
+        capabilityId: "source.history",
+        effectClass: "read",
+        now: "2026-09-27T05:00:10.000Z"
+      }),
+      /capability does not match/i
     );
   } finally {
     await rm(context.directory, { recursive: true, force: true });
