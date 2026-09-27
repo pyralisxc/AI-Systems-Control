@@ -310,6 +310,42 @@ export default async function PulsePage() {
                               </div>
                             ) : null}
 
+                            {item.hasReadOnlyThreadEnvelope ? (
+                              <div className="relay-thread-envelope">
+                                <span>Thread continuation</span>
+                                <strong>
+                                  Continue Level 2 · Thread bounded · read-only · no tools
+                                </strong>
+                                <small>
+                                  A deterministic WorkEnvelope now covers this exact
+                                  Thread/work class. Owner gates, grant review, and STOP
+                                  still return control to you.
+                                </small>
+                              </div>
+                            ) : item.canEnableThreadContinue ? (
+                              <form
+                                className="relay-autonomy-review"
+                                method="post"
+                                action="/api/pulse/enable-thread-continue"
+                              >
+                                <input
+                                  type="hidden"
+                                  name="threadId"
+                                  value={item.thread.threadId}
+                                />
+                                <button
+                                  className="relay-action relay-action--approve"
+                                  type="submit"
+                                >
+                                  Enable read-only Continue for this Thread
+                                </button>
+                                <small>
+                                  Exact Thread/work class only · no capabilities · no
+                                  mutation · no work-branch/Preview/Main authority.
+                                </small>
+                              </form>
+                            ) : null}
+
                             {item.canGrantContinue && item.relay ? (
                               <form
                                 className="relay-autonomy-review"

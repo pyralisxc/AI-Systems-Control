@@ -1582,3 +1582,27 @@ pre {
 .relay-autonomy-review small {
   max-width: 560px;
 }
+
+
+.relay-thread-envelope {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid rgba(118, 225, 168, 0.2);
+  border-radius: 8px;
+  background: rgba(8, 20, 14, 0.4);
+}
+
+.relay-thread-envelope span,
+.relay-thread-envelope small {
+  color: var(--subtle);
+  font-family: var(--mono);
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+.relay-thread-envelope strong {
+  color: var(--positive);
+  font-size: 9px;
+}

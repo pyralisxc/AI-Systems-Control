@@ -8,7 +8,8 @@ import {
   BridgedThreadService,
   FounderRelayService,
   OwnerAutonomyReviewService,
-  RelayCalibrationService
+  RelayCalibrationService,
+  ThreadContinueReviewService
 } from "../../../dist/application/index.js";
 import type {
   ThreadSnapshot,
@@ -90,6 +91,11 @@ export async function bridgedThreadServicesForDomain(
     autonomyReview: new OwnerAutonomyReviewService({
       calibration: new RelayCalibrationService(store),
       continuation: control.continuation
+    }),
+    threadContinue: new ThreadContinueReviewService({
+      threadStore: store,
+      continuation: control.continuation,
+      workers: control.authority
     })
   };
 }
@@ -194,6 +200,39 @@ export async function loadPulseView(now?: string) {
               relay.workClass
             )
           : undefined;
+        const currentWorkEnvelope = relay
+          ? await services.control.continuation.getLatestWorkEnvelope(
+              relay.projectId,
+              relay.workClass,
+              snapshot.thread.threadId
+            )
+          : undefined;
+        const hasReadOnlyThreadEnvelope =
+          Boolean(
+            relay &&
+            currentWorkEnvelope &&
+            currentWorkEnvelope.state === "active" &&
+            currentWorkEnvelope.threadId === snapshot.thread.threadId &&
+            currentWorkEnvelope.objectiveRef === snapshot.thread.threadId &&
+            currentWorkEnvelope.workClasses.length === 1 &&
+            currentWorkEnvelope.workClasses[0] === relay.workClass &&
+            currentWorkEnvelope.allowedEffects.length === 1 &&
+            currentWorkEnvelope.allowedEffects[0] === "read" &&
+            currentWorkEnvelope.repositoryBoundary === "read_only" &&
+            currentWorkEnvelope.allowedCapabilities.length === 0 &&
+            currentWorkEnvelope.continuationPolicy === "continue_until_gate" &&
+            currentWorkEnvelope.authorizationId === undefined
+          );
+        const canEnableThreadContinue =
+          Boolean(
+            relay &&
+            services.control.principalId &&
+            relay.representedPrincipalId === services.control.principalId &&
+            currentAutonomyGrant &&
+            currentAutonomyGrant.state === "active" &&
+            currentAutonomyGrant.level >= 2 &&
+            !hasReadOnlyThreadEnvelope
+          );
         const canGrantContinue =
           Boolean(
             relay &&
@@ -218,6 +257,9 @@ export async function loadPulseView(now?: string) {
           relay,
           calibration,
           currentAutonomyGrant,
+          currentWorkEnvelope,
+          hasReadOnlyThreadEnvelope,
+          canEnableThreadContinue,
           canGrantContinue,
           canReviewRelay:
             Boolean(
