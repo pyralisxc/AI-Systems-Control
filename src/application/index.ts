@@ -10,3 +10,5 @@ export * from "./persistent-identity-registry.js";
 export * from "./worker-authority-service.js";
 export * from "./pulse-evaluator.js";
 export * from "./owner-access.js";
+export * from "./in-memory-thread-store.js";
+export * from "./bridged-thread-service.js";

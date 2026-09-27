@@ -77,6 +77,8 @@ export interface ThreadCheckpoint {
   readonly blocker?: string;
   readonly workReferences: readonly string[];
   readonly evidenceReferences: readonly string[];
+  readonly publishedByPrincipalId?: PrincipalId;
+  readonly supersedesCheckpointId?: string;
   readonly lastSteering?: SteeringReference;
 }
 
@@ -105,6 +107,7 @@ export interface ThreadActivityEvent {
   readonly signature?: string;
   readonly summary?: string;
   readonly evidenceReference?: string;
+  readonly publishedByPrincipalId?: PrincipalId;
 }
 
 export const PULSE_STATUSES = [

@@ -4,3 +4,4 @@ export * from "./control-registry-store.js";
 export * from "./connection-authorization-provider.js";
 export * from "./authorization-flow-store.js";
 export * from "./identity-directory-store.js";
+export * from "./thread-store.js";
