@@ -59,6 +59,18 @@ function stringArray(value: unknown, label: string): readonly string[] {
   );
 }
 
+const PUBLISHABLE_ACTIVITY_KINDS = new Set<ThreadActivityKind>([
+  "meaningful_progress",
+  "tool_success",
+  "tool_failure",
+  "heartbeat",
+  "waiting",
+  "owner_gate",
+  "blocked",
+  "completed",
+  "stopped"
+]);
+
 function steering(value: unknown): SteeringReference | undefined {
   if (value === undefined) return undefined;
   const input = record(value);
@@ -371,7 +383,11 @@ export class AscBridgeToolService {
 
     if (name === "thread.publish_activity") {
       await this.#assertWriter(caller);
-      const kind = stringValue(args.kind, "kind") as ThreadActivityKind;
+      const kindValue = stringValue(args.kind, "kind")!;
+      if (!PUBLISHABLE_ACTIVITY_KINDS.has(kindValue as ThreadActivityKind)) {
+        throw new Error("Unsupported activity kind.");
+      }
+      const kind = kindValue as ThreadActivityKind;
       return this.#bridge.recordActivity({
         threadId: stringValue(args.threadId, "threadId")!,
         kind,
