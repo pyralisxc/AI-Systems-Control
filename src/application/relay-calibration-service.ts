@@ -317,16 +317,20 @@ export class RelayCalibrationService {
           left.relayId.localeCompare(right.relayId)
       );
 
-    const approved = relays.filter(
+    const evidenceRelays = relays.filter(
+      (relay) => relay.state !== "suggested"
+    );
+
+    const approved = evidenceRelays.filter(
       (relay) => relay.state === "owner_approved"
     );
-    const edited = relays.filter(
+    const edited = evidenceRelays.filter(
       (relay) => relay.state === "edited"
     );
-    const rejected = relays.filter(
+    const rejected = evidenceRelays.filter(
       (relay) => relay.state === "rejected"
     );
-    const autoSent = relays.filter(
+    const autoSent = evidenceRelays.filter(
       (relay) => relay.state === "auto_sent"
     );
     const pending = relays.filter(
@@ -367,7 +371,7 @@ export class RelayCalibrationService {
       policy
     });
 
-    const canonicalEvidence = relays.map(stableEvidence);
+    const canonicalEvidence = evidenceRelays.map(stableEvidence);
     const digest = createHash("sha256")
       .update(
         JSON.stringify({
@@ -381,8 +385,10 @@ export class RelayCalibrationService {
       .digest("hex");
 
     const lastEvidenceAt =
-      relays.length > 0
-        ? evidenceTimestamp(relays[relays.length - 1]!)
+      evidenceRelays.length > 0
+        ? evidenceTimestamp(
+            evidenceRelays[evidenceRelays.length - 1]!
+          )
         : undefined;
 
     const evidenceFingerprint =
@@ -410,7 +416,7 @@ export class RelayCalibrationService {
       readinessReasons: readiness.reasons,
       ...(lastEvidenceAt ? { lastEvidenceAt } : {}),
       evidenceRelayIds: Object.freeze(
-        relays.map((relay) => relay.relayId)
+        evidenceRelays.map((relay) => relay.relayId)
       ),
       evidenceFingerprint,
       evidenceReference,

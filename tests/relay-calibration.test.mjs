@@ -291,3 +291,41 @@ test("poor explicit feedback is not ready for autonomy review", async () => {
   assert.equal(projection.readiness, "not_ready");
   assert.ok(projection.readinessReasons.length >= 2);
 });
+
+
+test("pending suggestions affect proposal counts but not calibration evidence fingerprint", async () => {
+  const finalized = await storeWith([
+    relay("relay:1", {
+      state: "owner_approved",
+      finalText: "Continue after tests pass.",
+      feedbackAt: "2026-09-27T20:01:00.000Z"
+    })
+  ]);
+  const withPending = await storeWith([
+    relay("relay:1", {
+      state: "owner_approved",
+      finalText: "Continue after tests pass.",
+      feedbackAt: "2026-09-27T20:01:00.000Z"
+    }),
+    relay("relay:pending", {
+      state: "suggested",
+      generatedAt: "2026-09-27T20:05:00.000Z"
+    })
+  ]);
+
+  const query = {
+    representedPrincipalId: "principal:owner",
+    projectId: "cardforge",
+    workClass: "routine_bug"
+  };
+
+  const first = await new RelayCalibrationService(finalized).project(query);
+  const second = await new RelayCalibrationService(withPending).project(query);
+
+  assert.equal(first.proposedCount, 1);
+  assert.equal(second.proposedCount, 2);
+  assert.equal(second.pendingSuggestionCount, 1);
+  assert.deepEqual(second.evidenceRelayIds, ["relay:1"]);
+  assert.equal(first.evidenceFingerprint, second.evidenceFingerprint);
+  assert.equal(first.evidenceReference, second.evidenceReference);
+});
