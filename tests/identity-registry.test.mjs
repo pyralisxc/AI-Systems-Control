@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -253,4 +253,72 @@ test("authentication issuer must be HTTPS and subject must be non-empty", () => 
     }),
     /subject cannot be empty/i
   );
+});
+
+
+test("Identity Directory v1 upgrades with no federated bindings", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "asc-identity-v1-"));
+  const path = join(directory, "identity.json");
+  try {
+    await writeFile(
+      path,
+      JSON.stringify({
+        schemaVersion: 1,
+        revision: 4,
+        principals: [{
+          principalId: "principal:legacy",
+          kind: "human",
+          displayName: "Legacy",
+          status: "active",
+          createdAt: "2026-09-27T18:00:00.000Z",
+          updatedAt: "2026-09-27T18:00:00.000Z"
+        }],
+        accountDomains: [{
+          accountDomainId: "domain:legacy",
+          kind: "personal",
+          name: "Legacy",
+          status: "active",
+          createdAt: "2026-09-27T18:00:00.000Z",
+          updatedAt: "2026-09-27T18:00:00.000Z"
+        }],
+        memberships: [{
+          membershipId: "membership:legacy",
+          principalId: "principal:legacy",
+          accountDomainId: "domain:legacy",
+          roles: ["owner"],
+          status: "active",
+          createdAt: "2026-09-27T18:00:00.000Z",
+          updatedAt: "2026-09-27T18:00:00.000Z"
+        }]
+      }),
+      "utf8"
+    );
+
+    const identities = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(path)
+    );
+
+    assert.equal((await identities.listPrincipals()).length, 1);
+    assert.equal((await identities.listAccountDomains()).length, 1);
+    assert.deepEqual(await identities.listAuthenticationBindings(), []);
+
+    await identities.registerAuthenticationIdentity({
+      principalId: "principal:legacy",
+      issuer: "https://auth.example.test",
+      subject: "legacy-subject"
+    });
+
+    const restarted = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(path)
+    );
+    assert.equal(
+      (await restarted.resolveAuthenticationIdentity(
+        "https://auth.example.test",
+        "legacy-subject"
+      ))?.principalId,
+      "principal:legacy"
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
