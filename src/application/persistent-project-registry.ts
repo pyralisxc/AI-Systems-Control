@@ -57,6 +57,23 @@ export class PersistentProjectRegistry {
     });
   }
 
+  async setAccountDomain(projectId: string, accountDomainId: string): Promise<Project> {
+    return mutateControlRegistry(this.#store, (snapshot) => {
+      const registry = new InMemoryProjectRegistry(snapshot.projects);
+      const before = stableJson(registry.listProjects());
+      const result = registry.setAccountDomain(projectId, accountDomainId);
+      const projects = registry.listProjects();
+      return {
+        result,
+        projects,
+        connections: snapshot.connections,
+        projectConnectionBindings: snapshot.projectConnectionBindings,
+        delegations: snapshot.delegations,
+        changed: before !== stableJson(projects)
+      };
+    });
+  }
+
   async registerAlias(projectId: string, alias: string): Promise<Project> {
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryProjectRegistry(snapshot.projects);

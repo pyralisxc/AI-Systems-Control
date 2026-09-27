@@ -4,6 +4,7 @@ export interface ResolveGithubProjectInput {
   readonly repository: string;
   readonly name?: string;
   readonly aliases?: readonly string[];
+  readonly accountDomainId?: string;
   readonly projectId?: string;
   readonly createdAt?: string;
 }
@@ -34,14 +35,20 @@ export function normalizeGithubRepository(repository: string): string {
 
   const segments = stripped.split("/").filter(Boolean);
   if (segments.length !== 2) {
-    throw new Error(`GitHub repository identity must be owner/repository: ${repository}`);
+    throw new Error("GitHub repository identity must be owner/repository: " + repository);
   }
-  return `${segments[0]!.toLowerCase()}/${segments[1]!.toLowerCase()}`;
+  return segments[0]!.toLowerCase() + "/" + segments[1]!.toLowerCase();
 }
 
 export function normalizeProjectAlias(alias: string): string {
   const normalized = alias.trim().replace(/\s+/gu, " ").toLowerCase();
   if (!normalized) throw new Error("Project alias cannot be empty.");
+  return normalized;
+}
+
+function normalizeAccountDomainId(accountDomainId: string): string {
+  const normalized = accountDomainId.trim();
+  if (!normalized) throw new Error("Account domain cannot be empty.");
   return normalized;
 }
 
@@ -77,7 +84,7 @@ export class InMemoryProjectRegistry {
     const existing = index.get(key);
     if (existing && existing !== projectId) {
       throw new ProjectIdentityConflictError(
-        `${description} ${key} belongs to both ${existing} and ${projectId}.`
+        description + " " + key + " belongs to both " + existing + " and " + projectId + "."
       );
     }
     index.set(key, projectId);
@@ -86,7 +93,7 @@ export class InMemoryProjectRegistry {
   #indexProject(project: Project): void {
     const existingProject = this.#projects.get(project.projectId);
     if (existingProject && existingProject !== project) {
-      throw new ProjectIdentityConflictError(`Duplicate project ID: ${project.projectId}`);
+      throw new ProjectIdentityConflictError("Duplicate project ID: " + project.projectId);
     }
 
     this.#projects.set(project.projectId, project);
@@ -164,24 +171,34 @@ export class InMemoryProjectRegistry {
     if (existingId) {
       if (input.projectId && input.projectId !== existingId) {
         throw new ProjectIdentityConflictError(
-          `Repository ${repository} already belongs to project ${existingId}, not ${input.projectId}.`
+          "Repository " + repository + " already belongs to project " + existingId +
+          ", not " + input.projectId + "."
         );
       }
-      return this.#projects.get(existingId)!;
+      const existing = this.#projects.get(existingId)!;
+      if (input.accountDomainId) {
+        return this.setAccountDomain(existing.projectId, input.accountDomainId);
+      }
+      return existing;
     }
 
-    const projectId = input.projectId ?? `github:${repository}`;
+    const projectId = input.projectId ?? "github:" + repository;
     const existingProject = this.#projects.get(projectId);
     if (existingProject) {
       const existingRepository = canonicalGithubReference(existingProject)?.value ?? "unknown";
       throw new ProjectIdentityConflictError(
-        `Project ${projectId} already exists with canonical repository ${existingRepository}.`
+        "Project " + projectId + " already exists with canonical repository " +
+        existingRepository + "."
       );
     }
 
     const now = input.createdAt ?? new Date().toISOString();
+    const accountDomainId = input.accountDomainId
+      ? normalizeAccountDomainId(input.accountDomainId)
+      : undefined;
     const project = freezeProject({
       projectId,
+      ...(accountDomainId ? { accountDomainId } : {}),
       name: input.name ?? repository,
       ...(input.aliases && input.aliases.length > 0
         ? { aliases: Object.freeze([...new Set(input.aliases.map((alias) => alias.trim()))]) }
@@ -201,15 +218,35 @@ export class InMemoryProjectRegistry {
     return project;
   }
 
+  setAccountDomain(projectId: string, accountDomainIdInput: string): Project {
+    const project = this.#projects.get(projectId);
+    if (!project) throw new Error("Unknown project: " + projectId);
+    const accountDomainId = normalizeAccountDomainId(accountDomainIdInput);
+
+    if (project.accountDomainId === accountDomainId) return project;
+    if (project.accountDomainId && project.accountDomainId !== accountDomainId) {
+      throw new ProjectIdentityConflictError(
+        "Project " + projectId + " is already assigned to account domain " +
+        project.accountDomainId + "; explicit migration is required."
+      );
+    }
+
+    return this.#replaceProject({
+      ...project,
+      accountDomainId,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
   registerAlias(projectId: string, alias: string): Project {
     const project = this.#projects.get(projectId);
-    if (!project) throw new Error(`Unknown project: ${projectId}`);
+    if (!project) throw new Error("Unknown project: " + projectId);
 
     const normalized = normalizeProjectAlias(alias);
     const existingOwner = this.#aliases.get(normalized);
     if (existingOwner && existingOwner !== projectId) {
       throw new ProjectIdentityConflictError(
-        `Project alias ${alias} already belongs to project ${existingOwner}.`
+        "Project alias " + alias + " already belongs to project " + existingOwner + "."
       );
     }
 
@@ -227,7 +264,7 @@ export class InMemoryProjectRegistry {
 
   reconcileGithubRepository(projectId: string, nextRepository: string): GithubRepositoryReconciliation {
     const project = this.#projects.get(projectId);
-    if (!project) throw new Error(`Unknown project: ${projectId}`);
+    if (!project) throw new Error("Unknown project: " + projectId);
 
     const repository = normalizeGithubRepository(nextRepository);
     const existingOwner = this.#githubReferences.get(repository);
@@ -275,7 +312,7 @@ export class InMemoryProjectRegistry {
 
   markUnavailable(projectId: string): Project {
     const project = this.#projects.get(projectId);
-    if (!project) throw new Error(`Unknown project: ${projectId}`);
+    if (!project) throw new Error("Unknown project: " + projectId);
     const now = new Date().toISOString();
     return this.#replaceProject({
       ...project,
