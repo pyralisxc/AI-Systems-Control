@@ -35,7 +35,8 @@ function absoluteUrl(
     );
   }
 
-  return url.toString().replace(//$/u, "");
+  const serialized = url.toString();
+  return serialized.endsWith("/") ? serialized.slice(0, -1) : serialized;
 }
 
 export function mcpResourceUrl(): string {
@@ -80,7 +81,9 @@ export function mcpResourceMetadataUrl(): string {
   const path =
     resource.pathname === "/"
       ? ""
-      : resource.pathname.replace(//$/u, "");
+      : resource.pathname.endsWith("/")
+        ? resource.pathname.slice(0, -1)
+        : resource.pathname;
   return new URL(
     "/.well-known/oauth-protected-resource" + path,
     resource.origin
