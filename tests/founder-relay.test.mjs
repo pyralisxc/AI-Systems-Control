@@ -442,7 +442,15 @@ test("bridged external Thread cannot be mislabeled auto-sent without send-capabl
     assert.equal(result.sent, false);
     assert.match(result.reason, /cannot deliver/i);
     assert.equal(result.relay.state, "suggested");
+    assert.equal(result.relay.deliveryAuthority?.decision, "allow");
     assert.equal(context.delivery.deliveries.size, 0);
+
+    const pulse = await context.bridge.getPulse(
+      thread.threadId,
+      "2026-09-27T19:33:10.000Z"
+    );
+    assert.equal(pulse.status, "needs_you");
+    assert.match(pulse.reason, /owner/i);
   } finally {
     await rm(context.directory, { recursive: true, force: true });
   }

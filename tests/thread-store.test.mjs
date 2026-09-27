@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -198,4 +198,54 @@ test("Postgres ThreadStore uses per-thread optimistic revision", async () => {
     }),
     ThreadRevisionConflictError
   );
+});
+
+
+test("JSON ThreadStore upgrades v1 snapshots with an empty Relay history", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "asc-thread-v1-"));
+  const path = join(directory, "threads.json");
+  try {
+    await writeFile(
+      path,
+      JSON.stringify({
+        schemaVersion: 1,
+        accountDomainId: "business-a",
+        snapshots: [{
+          revision: 3,
+          thread: thread("thread:legacy"),
+          checkpoints: [],
+          activities: []
+        }]
+      }),
+      "utf8"
+    );
+
+    const store = new JsonFileThreadStore(path, "business-a");
+    const loaded = await store.load("thread:legacy");
+
+    assert.equal(loaded?.revision, 3);
+    assert.deepEqual(loaded?.relays, []);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("Postgres ThreadStore upgrades v1 payloads with an empty Relay history", async () => {
+  const client = new FakePostgresClient();
+  client.rows.set("business-a\u0000thread:legacy", {
+    revision: 4,
+    payload: {
+      schemaVersion: 1,
+      thread: thread("thread:legacy"),
+      checkpoints: [],
+      activities: []
+    },
+    updated_at: "2026-09-27T19:20:00.000Z"
+  });
+
+  const store = new PostgresThreadStore(client, "business-a");
+  const loaded = await store.load("thread:legacy");
+
+  assert.equal(loaded?.revision, 4);
+  assert.deepEqual(loaded?.relays, []);
 });
