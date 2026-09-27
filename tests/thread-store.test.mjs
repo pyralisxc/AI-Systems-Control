@@ -60,7 +60,8 @@ test("JSON ThreadStore survives restart with checkpoint/activity history", async
         occurredAt: "2026-09-27T19:01:00.000Z",
         kind: "checkpoint",
         source: "asc-bridge"
-      }]
+      }],
+      relays: []
     });
 
     const restarted = new JsonFileThreadStore(path, "business-a");
@@ -179,7 +180,8 @@ test("Postgres ThreadStore uses per-thread optimistic revision", async () => {
       updatedAt: "2026-09-27T19:01:00.000Z"
     },
     checkpoints: [],
-    activities: []
+    activities: [],
+    relays: []
   });
 
   await assert.rejects(
@@ -191,7 +193,8 @@ test("Postgres ThreadStore uses per-thread optimistic revision", async () => {
         updatedAt: "2026-09-27T19:02:00.000Z"
       },
       checkpoints: [],
-      activities: []
+      activities: [],
+      relays: []
     }),
     ThreadRevisionConflictError
   );
