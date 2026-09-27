@@ -35,6 +35,18 @@ export function defaultAccountDomainId(): string {
   return process.env.ASC_DEFAULT_ACCOUNT_DOMAIN_ID?.trim() || "domain:personal";
 }
 
+export function defaultAccountDomainName(): string {
+  return process.env.ASC_DEFAULT_ACCOUNT_DOMAIN_NAME?.trim() || "Personal";
+}
+
+export function bootstrapPrincipalId(): string {
+  return process.env.ASC_BOOTSTRAP_PRINCIPAL_ID?.trim() || "principal:owner";
+}
+
+export function bootstrapPrincipalName(): string {
+  return process.env.ASC_BOOTSTRAP_PRINCIPAL_NAME?.trim() || "Owner";
+}
+
 export function controlRegistryConfigured(): boolean {
   return Boolean(controlRegistryDatabaseUrl() || controlRegistryPath());
 }
@@ -88,12 +100,26 @@ function controlRegistryStore(): ControlRegistryStore {
   );
 }
 
-export function controlRegistryServices() {
+async function ensurePersonalBootstrap(
+  identities: PersistentIdentityRegistry
+): Promise<void> {
+  await identities.bootstrapPersonal({
+    principalId: bootstrapPrincipalId(),
+    principalDisplayName: bootstrapPrincipalName(),
+    accountDomainId: defaultAccountDomainId(),
+    accountDomainName: defaultAccountDomainName()
+  });
+}
+
+export async function controlRegistryServices() {
   const store = controlRegistryStore();
   const identities = new PersistentIdentityRegistry(identityDirectoryStore());
+  await ensurePersonalBootstrap(identities);
+
   return {
     store,
     identities,
+    principalId: bootstrapPrincipalId(),
     projects: new PersistentProjectRegistry(store, identities),
     connections: new PersistentConnectionRegistry(store, identities),
     bindings: new PersistentProjectConnectionBindingRegistry(store)
@@ -111,7 +137,7 @@ export async function loadConnectionsControlView() {
     };
   }
 
-  const services = controlRegistryServices();
+  const services = await controlRegistryServices();
   const [projects, connections, bindings] = await Promise.all([
     services.projects.listProjects(),
     services.connections.listConnections(),

@@ -29,7 +29,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "connection_id_required" }, { status: 400 });
   }
 
-  const services = controlRegistryServices();
+  const services = await controlRegistryServices();
+  await services.connections.assertPrincipalCanAdminister(
+    services.principalId
+  );
   await services.connections.setStatus(connectionId, "revoked");
 
   return NextResponse.redirect(new URL("/connections", request.url), 303);
