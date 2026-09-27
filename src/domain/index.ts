@@ -6,6 +6,7 @@ export * from "./workspace.js";
 export * from "./capability.js";
 export * from "./project-connection-binding.js";
 export * from "./delegation.js";
+export * from "./worker-control.js";
 export * from "./state.js";
 export * from "./freshness.js";
 export * from "./drift.js";

@@ -3,10 +3,12 @@ import type {
   Connection,
   DelegationRecord,
   Project,
-  ProjectConnectionBinding
+  ProjectConnectionBinding,
+  WorkerControlState
 } from "../domain/index.js";
+import { emptyWorkerControlState } from "../domain/index.js";
 
-export const CONTROL_REGISTRY_SCHEMA_VERSION = 3 as const;
+export const CONTROL_REGISTRY_SCHEMA_VERSION = 4 as const;
 
 export interface ControlRegistrySnapshot {
   readonly schemaVersion: typeof CONTROL_REGISTRY_SCHEMA_VERSION;
@@ -16,6 +18,7 @@ export interface ControlRegistrySnapshot {
   readonly connections: readonly Connection[];
   readonly projectConnectionBindings: readonly ProjectConnectionBinding[];
   readonly delegations: readonly DelegationRecord[];
+  readonly workerControl: WorkerControlState;
   readonly updatedAt?: string;
 }
 
@@ -25,6 +28,7 @@ export interface SaveControlRegistryInput {
   readonly connections: readonly Connection[];
   readonly projectConnectionBindings: readonly ProjectConnectionBinding[];
   readonly delegations: readonly DelegationRecord[];
+  readonly workerControl: WorkerControlState;
   readonly updatedAt?: string;
 }
 
@@ -53,6 +57,7 @@ export function emptyControlRegistrySnapshot(
     projects: Object.freeze([]),
     connections: Object.freeze([]),
     projectConnectionBindings: Object.freeze([]),
-    delegations: Object.freeze([])
+    delegations: Object.freeze([]),
+    workerControl: emptyWorkerControlState()
   });
 }
