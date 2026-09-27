@@ -5,8 +5,8 @@ import {
   type OAuthTokenVerifier
 } from "@modelcontextprotocol/server";
 
-import { McpAuthenticationError } from "../../ports/index.js";
-import { McpRequestIdentityResolver } from "../../application/index.js";
+import { McpAuthenticationError } from "../../ports/mcp-auth.js";
+import { McpRequestIdentityResolver } from "../../application/mcp-request-identity-resolver.js";
 
 export class SdkMcpOAuthTokenVerifier implements OAuthTokenVerifier {
   readonly #resolver: McpRequestIdentityResolver;

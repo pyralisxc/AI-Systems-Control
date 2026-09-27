@@ -18,7 +18,7 @@ export interface JwtMcpAccessTokenVerifierOptions {
   readonly scopeClaim?: string;
 }
 
-function httpsUrl(value: string, label: string): string {
+function secureUrl(value: string, label: string): string {
   let url: URL;
   try {
     url = new URL(value);
@@ -83,13 +83,13 @@ export class JwtMcpAccessTokenVerifier implements McpAccessTokenVerifier {
   readonly #jwks: ReturnType<typeof createRemoteJWKSet>;
 
   constructor(options: JwtMcpAccessTokenVerifierOptions) {
-    this.#issuer = httpsUrl(options.issuer, "OAuth issuer");
-    this.#audience = httpsUrl(options.audience, "OAuth resource/audience");
+    this.#issuer = secureUrl(options.issuer, "OAuth issuer");
+    this.#audience = secureUrl(options.audience, "OAuth resource/audience");
     this.#accountDomainClaim =
       options.accountDomainClaim?.trim() || "asc_account_domain_id";
     this.#scopeClaim = options.scopeClaim?.trim() || "scope";
     this.#jwks = createRemoteJWKSet(
-      new URL(httpsUrl(options.jwksUrl, "OAuth JWKS URL"))
+      new URL(secureUrl(options.jwksUrl, "OAuth JWKS URL"))
     );
   }
 

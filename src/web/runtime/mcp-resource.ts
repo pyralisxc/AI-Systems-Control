@@ -113,3 +113,62 @@ export function mcpOAuthConfigured(): boolean {
     process.env.ASC_OAUTH_JWKS_URL?.trim()
   );
 }
+
+
+function hostnameList(
+  value: string | undefined,
+  label: string
+): readonly string[] {
+  if (!value?.trim()) return Object.freeze([]);
+
+  const results = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      if (entry.includes("://")) {
+        let url: URL;
+        try {
+          url = new URL(entry);
+        } catch {
+          throw new Error(label + " contains an invalid URL.");
+        }
+        return url.hostname;
+      }
+
+      if (
+        entry.includes("/") ||
+        entry.includes("?") ||
+        entry.includes("#")
+      ) {
+        throw new Error(
+          label + " entries must be hostnames or absolute URLs."
+        );
+      }
+      return entry.replace(/:\d+$/u, "");
+    });
+
+  return Object.freeze([...new Set(results)]);
+}
+
+export function mcpAllowedHostnames(): readonly string[] {
+  const resource = new URL(mcpResourceUrl());
+  return Object.freeze([
+    resource.hostname,
+    ...hostnameList(
+      process.env.ASC_MCP_ALLOWED_HOSTS,
+      "ASC_MCP_ALLOWED_HOSTS"
+    )
+  ]);
+}
+
+export function mcpAllowedOriginHostnames(): readonly string[] {
+  const resource = new URL(mcpResourceUrl());
+  return Object.freeze([
+    resource.hostname,
+    ...hostnameList(
+      process.env.ASC_MCP_ALLOWED_ORIGINS,
+      "ASC_MCP_ALLOWED_ORIGINS"
+    )
+  ]);
+}

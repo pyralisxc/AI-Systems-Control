@@ -33,6 +33,8 @@ import {
   ASC_MCP_SCOPE_THREAD_READ,
   ASC_MCP_SCOPE_THREAD_WRITE,
   mcpAccountDomainClaim,
+  mcpAllowedHostnames,
+  mcpAllowedOriginHostnames,
   mcpOAuthIssuer,
   mcpOAuthJwksUrl,
   mcpResourceMetadataUrl,
@@ -454,28 +456,12 @@ async function bearerGate() {
   return cachedGate;
 }
 
-function allowedOrigins(): readonly string[] {
-  const resource = new URL(mcpResourceUrl());
-  const configured = (
-    process.env.ASC_MCP_ALLOWED_ORIGINS ?? ""
-  )
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  return Object.freeze([
-    resource.hostname,
-    ...configured
-  ]);
-}
-
 export async function serveAscMcp(
   request: Request
 ): Promise<Response> {
-  const resource = new URL(mcpResourceUrl());
   const rejected =
-    hostHeaderValidationResponse(request, [resource.hostname]) ??
-    originValidationResponse(request, allowedOrigins());
+    hostHeaderValidationResponse(request, mcpAllowedHostnames()) ??
+    originValidationResponse(request, mcpAllowedOriginHostnames());
   if (rejected) return rejected;
 
   const gate = await bearerGate();
