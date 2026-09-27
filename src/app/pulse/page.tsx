@@ -293,6 +293,58 @@ export default async function PulsePage() {
                             <code className="relay-calibration__ref">
                               {item.calibration.evidenceReference}
                             </code>
+
+                            {item.currentAutonomyGrant ? (
+                              <div className="relay-autonomy-state">
+                                <span>Current autonomy</span>
+                                <strong>
+                                  Level {item.currentAutonomyGrant.level} ·{" "}
+                                  {item.currentAutonomyGrant.repositoryCeiling.replaceAll(
+                                    "_",
+                                    " "
+                                  )}
+                                </strong>
+                                <small>
+                                  {item.currentAutonomyGrant.state.replaceAll("_", " ")}
+                                </small>
+                              </div>
+                            ) : null}
+
+                            {item.canGrantContinue && item.relay ? (
+                              <form
+                                className="relay-autonomy-review"
+                                method="post"
+                                action="/api/pulse/grant-continue"
+                              >
+                                <input
+                                  type="hidden"
+                                  name="threadId"
+                                  value={item.thread.threadId}
+                                />
+                                <input
+                                  type="hidden"
+                                  name="relayId"
+                                  value={item.relay.relayId}
+                                />
+                                <button
+                                  className="relay-action relay-action--approve"
+                                  type="submit"
+                                >
+                                  Grant Continue · read-only
+                                </button>
+                                <small>
+                                  Explicit Level 2 grant only. A matching WorkEnvelope
+                                  is still required before ASC can continue automatically.
+                                </small>
+                              </form>
+                            ) : item.calibration.readiness === "review_candidate" &&
+                              item.currentAutonomyGrant?.state === "active" &&
+                              item.currentAutonomyGrant.level >= 2 ? (
+                              <p className="relay-note">
+                                This work class already has Continue-or-higher autonomy.
+                                Calibration has not changed the grant automatically.
+                              </p>
+                            ) : null}
                           </div>
                         ) : null}
 

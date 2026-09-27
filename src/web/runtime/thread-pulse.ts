@@ -7,6 +7,7 @@ import {
 import {
   BridgedThreadService,
   FounderRelayService,
+  OwnerAutonomyReviewService,
   RelayCalibrationService
 } from "../../../dist/application/index.js";
 import type {
@@ -85,7 +86,11 @@ export async function bridgedThreadServicesForDomain(
       identities: control.identities,
       continuation: control.continuation
     }),
-    calibration: new RelayCalibrationService(store)
+    calibration: new RelayCalibrationService(store),
+    autonomyReview: new OwnerAutonomyReviewService({
+      calibration: new RelayCalibrationService(store),
+      continuation: control.continuation
+    })
   };
 }
 
@@ -130,7 +135,7 @@ function numericEnv(
   return value;
 }
 
-function calibrationPolicy() {
+export function relayCalibrationPolicy() {
   return {
     minimumResponses: numericEnv(
       "ASC_RELAY_CALIBRATION_MIN_RESPONSES",
@@ -180,9 +185,27 @@ export async function loadPulseView(now?: string) {
               representedPrincipalId: relay.representedPrincipalId,
               projectId: relay.projectId,
               workClass: relay.workClass,
-              policy: calibrationPolicy()
+              policy: relayCalibrationPolicy()
             })
           : undefined;
+        const currentAutonomyGrant = relay
+          ? await services.control.continuation.getLatestAutonomyGrant(
+              relay.projectId,
+              relay.workClass
+            )
+          : undefined;
+        const canGrantContinue =
+          Boolean(
+            relay &&
+            calibration?.readiness === "review_candidate" &&
+            services.control.principalId &&
+            relay.representedPrincipalId === services.control.principalId &&
+            !(
+              currentAutonomyGrant &&
+              currentAutonomyGrant.state === "active" &&
+              currentAutonomyGrant.level >= 2
+            )
+          );
 
         return {
           thread: snapshot.thread,
@@ -194,6 +217,8 @@ export async function loadPulseView(now?: string) {
           checkpointId: checkpoint?.checkpointId,
           relay,
           calibration,
+          currentAutonomyGrant,
+          canGrantContinue,
           canReviewRelay:
             Boolean(
               relay &&

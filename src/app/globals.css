@@ -1544,3 +1544,41 @@ pre {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+.relay-autonomy-state {
+  display: grid;
+  gap: 3px;
+  margin-top: 9px;
+  padding: 8px;
+  border: 1px solid rgba(131, 215, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(7, 12, 18, 0.42);
+}
+
+.relay-autonomy-state span,
+.relay-autonomy-state small,
+.relay-autonomy-review small {
+  color: var(--subtle);
+  font-family: var(--mono);
+  font-size: 7px;
+  line-height: 1.45;
+}
+
+.relay-autonomy-state strong {
+  color: #cfdae4;
+  font-size: 9px;
+}
+
+.relay-autonomy-review {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.relay-autonomy-review small {
+  max-width: 560px;
+}
