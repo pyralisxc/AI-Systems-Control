@@ -22,6 +22,27 @@ Role labels are not themselves the final authorization decision. Resource/effect
 
 Cross-domain access is never inferred merely because one Principal belongs to multiple AccountDomains.
 
+## OAuth / MCP resource-server boundary
+
+ASC's private/write MCP surface is an OAuth resource server.
+
+For every MCP request:
+1. validate token signature against configured JWKS;
+2. validate issuer, resource/audience, expiry/time claims;
+3. require a stable subject;
+4. resolve issuer+subject to an active ASC AuthenticationIdentityBinding/Principal;
+5. require active Membership in the token-selected AccountDomain;
+6. enforce endpoint and per-tool scopes;
+7. execute the bridge tool under that exact Principal + AccountDomain context.
+
+A cryptographically valid token is insufficient when its external identity is unbound or its Membership is inactive.
+
+The raw bearer token and authorization code must not be written to Identity Directory, ControlRegistryStore, ThreadStore, Relay history, or ordinary audit surfaces.
+
+ASC does not implement a second authorization model inside MCP tool handlers. Transport scope checks and the domain bridge policy both apply.
+
+The current deployment uses a separate OAuth/OIDC authorization server. ASC should not become a general-purpose identity provider merely to support ChatGPT.
+
 ## Owner Verification / approvals
 
 "Owner Verified" remains valid personal-mode UX, but the durable consent boundary is an approval/policy result bound to exact reviewed work and Principal provenance.

@@ -55,6 +55,28 @@ Minimum fields:
 
 Personal mode is one human Principal + one personal AccountDomain + one active owner Membership.
 
+### AuthenticationIdentityBinding
+A durable mapping from one stable external authentication identity to one ASC Principal.
+
+Identity key:
+- normalized OAuth/OIDC issuer;
+- stable provider subject.
+
+Minimum fields:
+- binding ID;
+- Principal ID;
+- issuer;
+- subject;
+- optional display label;
+- status;
+- created/updated/revoked timestamps.
+
+Email, display name, token ID, OAuth grant, or session ID are not canonical identity.
+
+A Principal may have multiple authentication bindings. One issuer+subject identity may not be rebound to another Principal.
+
+AccountDomain authority does not live in the authentication binding. A verified token still needs an active Membership in the selected AccountDomain.
+
 ### ProjectReference
 ASC's durable reference to a Project.
 

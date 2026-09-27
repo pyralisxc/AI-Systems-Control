@@ -57,9 +57,48 @@ Heuristic loop/stall detection is advisory in v0 and does not itself kill a runt
 - Thread/Pulse history lives in the separate tenant-scoped ThreadStore;
 - ThreadStore/plugin failure cannot clear or bypass ControlState.
 
-## Transport
+## Authenticated MCP transport
 
-The current implementation is transport-neutral. An MCP/ChatGPT transport must map authenticated session identity into `BridgeToolCaller` and delegate tool calls to `AscBridgeToolService`.
+ASC now has a web-standard Streamable HTTP MCP resource-server surface at `/mcp`.
+
+The transport:
+- uses the stable MCP TypeScript SDK v2 server package;
+- creates a fresh `McpServer` per request;
+- requires OAuth bearer authentication before the MCP handler;
+- advertises protected-resource metadata at the RFC 9728 well-known route, including the path-aware `/.well-known/oauth-protected-resource/mcp` route;
+- requires the base `asc.mcp` scope for the endpoint;
+- requires `asc.thread.read` for read tools;
+- requires `asc.thread.write` for mutating bridge tools;
+- publishes per-tool OAuth `securitySchemes` and scope challenges;
+- validates Host/Origin ahead of MCP dispatch;
+- delegates actual bridge authorization to the existing Principal/Membership-aware tool service.
+
+ASC is an OAuth **resource server**, not the authorization server. Access tokens come from a separately configured OAuth/OIDC identity provider.
+
+### Federated identity mapping
+
+After signature/issuer/audience/time validation:
+1. the token's stable `issuer + subject` resolves a durable `AuthenticationIdentityBinding`;
+2. that binding resolves an ASC Principal;
+3. the token-selected AccountDomain must have an active Membership for that Principal;
+4. the requested MCP scope must be present;
+5. only then does the request open that AccountDomain's control/thread services.
+
+The token's AccountDomain never falls back to `ASC_DEFAULT_ACCOUNT_DOMAIN_ID`.
+
+The default custom claim is `asc_account_domain_id`; deployments may configure the claim name without changing ASC domain semantics.
+
+### OpenAI profile tool
+
+Authenticated MCP exposes `get_profile`, marked with `_meta["openai/profile"]: true`.
+
+The profile:
+- is resolved from validated credentials;
+- has a stable opaque ID derived from immutable ASC Principal + AccountDomain identity;
+- may expose human-readable Principal/domain names as display metadata;
+- never uses email as canonical identity.
+
+This allows Personal and future Business ASC connections to be distinguishable as separate authenticated profiles.
 
 Do not create a separate static-token authorization model merely for the bridge.
 

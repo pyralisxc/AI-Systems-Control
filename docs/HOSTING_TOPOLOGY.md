@@ -65,6 +65,28 @@ Provider credentials/connections are brokered server-side and scoped by AccountD
 
 Specialist systems may keep independent authentication for their direct clients.
 
+### ChatGPT / MCP OAuth topology
+
+```text
+ChatGPT / MCP client
+       |
+       | OAuth 2.1 / bearer token
+       v
+external authorization server / IdP
+       |
+       | signed access token
+       v
+ASC /mcp resource server
+       |
+       +--> issuer+subject -> Principal
+       +--> token AccountDomain -> active Membership
+       +--> tenant-scoped Thread / control services
+```
+
+ASC publishes protected-resource metadata and verifies tokens but does not issue them.
+
+The authorization server must support the MCP/OpenAI OAuth client flow used by the target host, including appropriate discovery/PKCE/resource-audience behavior. Provider choice remains a deployment adapter decision.
+
 ## Failure posture
 
 - ASC unavailable: specialist systems may remain independently usable; no new ASC-mediated authorization/dispatch occurs.
