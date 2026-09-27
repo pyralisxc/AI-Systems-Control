@@ -156,6 +156,7 @@ export class ConnectionAuthorizationBroker {
       );
     }
     if (!callbackUrl) throw new ConnectionAuthorizationError("Callback URL is required.");
+    await this.#connections.assertPrincipalCanAdminister(principalId);
 
     const ttl = input.expiresInSeconds ?? 600;
     if (!Number.isInteger(ttl) || ttl < 30 || ttl > 1800) {

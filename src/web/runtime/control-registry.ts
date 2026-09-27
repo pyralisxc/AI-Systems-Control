@@ -1,17 +1,25 @@
 import {
   JsonFileControlRegistryStore,
-  PostgresControlRegistryStore
+  JsonFileIdentityDirectoryStore,
+  PostgresControlRegistryStore,
+  PostgresIdentityDirectoryStore
 } from "../../../dist/adapters/index.js";
 import {
   PersistentConnectionRegistry,
+  PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
   PersistentProjectRegistry
 } from "../../../dist/application/index.js";
-import type { ControlRegistryStore } from "../../../dist/ports/index.js";
+import type {
+  ControlRegistryStore,
+  IdentityDirectoryStore
+} from "../../../dist/ports/index.js";
 
 let cachedDatabaseUrl: string | undefined;
 let cachedAccountDomainId: string | undefined;
 let cachedDatabaseStore: PostgresControlRegistryStore | undefined;
+let cachedIdentityDatabaseUrl: string | undefined;
+let cachedIdentityStore: PostgresIdentityDirectoryStore | undefined;
 
 export function controlRegistryPath(): string | null {
   const value = process.env.ASC_CONTROL_REGISTRY_PATH?.trim();
@@ -29,6 +37,25 @@ export function defaultAccountDomainId(): string {
 
 export function controlRegistryConfigured(): boolean {
   return Boolean(controlRegistryDatabaseUrl() || controlRegistryPath());
+}
+
+function identityDirectoryStore(): IdentityDirectoryStore {
+  const databaseUrl = controlRegistryDatabaseUrl();
+  if (databaseUrl) {
+    if (!cachedIdentityStore || cachedIdentityDatabaseUrl !== databaseUrl) {
+      cachedIdentityStore =
+        PostgresIdentityDirectoryStore.fromConnectionString(databaseUrl);
+      cachedIdentityDatabaseUrl = databaseUrl;
+    }
+    return cachedIdentityStore;
+  }
+
+  const path = controlRegistryPath();
+  if (path) return new JsonFileIdentityDirectoryStore(path + ".identity");
+
+  throw new Error(
+    "ASC identity directory storage is not configured."
+  );
 }
 
 function controlRegistryStore(): ControlRegistryStore {
@@ -63,10 +90,12 @@ function controlRegistryStore(): ControlRegistryStore {
 
 export function controlRegistryServices() {
   const store = controlRegistryStore();
+  const identities = new PersistentIdentityRegistry(identityDirectoryStore());
   return {
     store,
-    projects: new PersistentProjectRegistry(store),
-    connections: new PersistentConnectionRegistry(store),
+    identities,
+    projects: new PersistentProjectRegistry(store, identities),
+    connections: new PersistentConnectionRegistry(store, identities),
     bindings: new PersistentProjectConnectionBindingRegistry(store)
   };
 }

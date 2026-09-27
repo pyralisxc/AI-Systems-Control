@@ -6,6 +6,7 @@ import {
   InMemoryProjectRegistry
 } from "./project-registry.js";
 import { mutateControlRegistry } from "./control-registry-mutation.js";
+import { PersistentIdentityRegistry } from "./persistent-identity-registry.js";
 import type { Project } from "../domain/index.js";
 import type { ControlRegistryStore } from "../ports/index.js";
 
@@ -30,9 +31,18 @@ function assertStoreDomain(
 
 export class PersistentProjectRegistry {
   readonly #store: ControlRegistryStore;
+  readonly #identities: PersistentIdentityRegistry;
 
-  constructor(store: ControlRegistryStore) {
+  constructor(
+    store: ControlRegistryStore,
+    identities: PersistentIdentityRegistry
+  ) {
     this.#store = store;
+    this.#identities = identities;
+  }
+
+  async #assertTenantWritable(): Promise<void> {
+    await this.#identities.assertActiveDomain(this.#store.accountDomainId);
   }
 
   async listProjects(): Promise<readonly Project[]> {
@@ -58,6 +68,7 @@ export class PersistentProjectRegistry {
   async resolveOrRegisterGithubProject(
     input: ResolveGithubProjectInput
   ): Promise<Project> {
+    await this.#assertTenantWritable();
     assertStoreDomain(this.#store, input.accountDomainId);
     const scopedInput: ResolveGithubProjectInput = {
       ...input,
@@ -84,6 +95,7 @@ export class PersistentProjectRegistry {
     projectId: string,
     accountDomainId: string
   ): Promise<Project> {
+    await this.#assertTenantWritable();
     assertStoreDomain(this.#store, accountDomainId);
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryProjectRegistry(snapshot.projects);
@@ -105,6 +117,7 @@ export class PersistentProjectRegistry {
   }
 
   async registerAlias(projectId: string, alias: string): Promise<Project> {
+    await this.#assertTenantWritable();
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryProjectRegistry(snapshot.projects);
       const before = stableJson(registry.listProjects());
@@ -125,6 +138,7 @@ export class PersistentProjectRegistry {
     projectId: string,
     nextRepository: string
   ): Promise<GithubRepositoryReconciliation> {
+    await this.#assertTenantWritable();
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryProjectRegistry(snapshot.projects);
       const before = stableJson(registry.listProjects());
@@ -145,6 +159,7 @@ export class PersistentProjectRegistry {
   }
 
   async markUnavailable(projectId: string): Promise<Project> {
+    await this.#assertTenantWritable();
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryProjectRegistry(snapshot.projects);
       const before = stableJson(registry.listProjects());

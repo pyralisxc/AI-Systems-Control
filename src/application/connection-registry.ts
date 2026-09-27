@@ -7,6 +7,7 @@ import type {
 } from "../domain/index.js";
 import type { ControlRegistryStore } from "../ports/index.js";
 import { mutateControlRegistry } from "./control-registry-mutation.js";
+import { PersistentIdentityRegistry } from "./persistent-identity-registry.js";
 
 export interface RegisterConnectionInput {
   readonly connectionId?: string;
@@ -304,13 +305,27 @@ function stableJson(value: unknown): string {
 
 export class PersistentConnectionRegistry {
   readonly #store: ControlRegistryStore;
+  readonly #identities: PersistentIdentityRegistry;
 
-  constructor(store: ControlRegistryStore) {
+  constructor(
+    store: ControlRegistryStore,
+    identities: PersistentIdentityRegistry
+  ) {
     this.#store = store;
+    this.#identities = identities;
   }
 
   get accountDomainId(): string {
     return this.#store.accountDomainId;
+  }
+
+  async assertPrincipalCanAdminister(
+    principalId: string
+  ): Promise<void> {
+    await this.#identities.assertPrincipalCanAdministerDomain(
+      principalId,
+      this.#store.accountDomainId
+    );
   }
 
   async listConnections(): Promise<readonly Connection[]> {
@@ -347,6 +362,10 @@ export class PersistentConnectionRegistry {
         " does not match registry " + this.#store.accountDomainId + "."
       );
     }
+    await this.#identities.assertPrincipalCanAdministerDomain(
+      input.authorizedByPrincipalId,
+      this.#store.accountDomainId
+    );
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryConnectionRegistry(snapshot.connections);
       const before = stableJson(registry.listConnections());
