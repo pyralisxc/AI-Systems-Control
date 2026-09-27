@@ -197,6 +197,16 @@ export class PersistentIdentityRegistry {
     });
   }
 
+  async assertActiveMembership(
+    principalId: string,
+    accountDomainId: string
+  ): Promise<Membership> {
+    return registryFrom(await this.#store.load()).assertActiveMembership(
+      principalId,
+      accountDomainId
+    );
+  }
+
   async assertActiveDomain(accountDomainId: string): Promise<AccountDomain> {
     const registry = registryFrom(await this.#store.load());
     const domain = registry.getAccountDomain(accountDomainId);
