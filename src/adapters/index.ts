@@ -3,3 +3,5 @@ export * from "./storage/json-file-control-registry-store.js";
 export * from "./storage/postgres-control-registry-store.js";
 export * from "./storage/json-file-identity-directory-store.js";
 export * from "./storage/postgres-identity-directory-store.js";
+export * from "./storage/json-file-thread-store.js";
+export * from "./storage/postgres-thread-store.js";
