@@ -7,4 +7,5 @@ export * from "./delegation-service.js";
 export * from "./connection-authorization-broker.js";
 export * from "./identity-registry.js";
 export * from "./persistent-identity-registry.js";
+export * from "./worker-authority-service.js";
 export * from "./owner-access.js";
