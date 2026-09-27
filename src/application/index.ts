@@ -8,4 +8,5 @@ export * from "./connection-authorization-broker.js";
 export * from "./identity-registry.js";
 export * from "./persistent-identity-registry.js";
 export * from "./worker-authority-service.js";
+export * from "./pulse-evaluator.js";
 export * from "./owner-access.js";
