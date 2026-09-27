@@ -1,5 +1,6 @@
 import type {
   ConversationThread,
+  FounderRelayRecord,
   ThreadActivityEvent,
   ThreadCheckpoint
 } from "../domain/index.js";
@@ -36,6 +37,25 @@ function freezeSnapshot(snapshot: ThreadSnapshot): ThreadSnapshot {
     ),
     activities: Object.freeze(
       snapshot.activities.map((activity) => Object.freeze({ ...activity }))
+    ),
+    relays: Object.freeze(
+      snapshot.relays.map((relay) => Object.freeze({
+        ...relay,
+        sourceReferences: Object.freeze([...relay.sourceReferences]),
+        evidenceReferences: Object.freeze([...relay.evidenceReferences]),
+        proposalAuthority: Object.freeze({
+          ...relay.proposalAuthority,
+          basis: Object.freeze({ ...relay.proposalAuthority.basis })
+        }),
+        ...(relay.deliveryAuthority
+          ? {
+              deliveryAuthority: Object.freeze({
+                ...relay.deliveryAuthority,
+                basis: Object.freeze({ ...relay.deliveryAuthority.basis })
+              })
+            }
+          : {})
+      }))
     )
   });
 }
@@ -44,7 +64,8 @@ function assertTenant(
   accountDomainId: string,
   thread: ConversationThread,
   checkpoints: readonly ThreadCheckpoint[],
-  activities: readonly ThreadActivityEvent[]
+  activities: readonly ThreadActivityEvent[],
+  relays: readonly FounderRelayRecord[]
 ): void {
   if (thread.accountDomainId !== accountDomainId) {
     throw new Error(
@@ -66,6 +87,14 @@ function assertTenant(
       activity.accountDomainId !== accountDomainId
     ) {
       throw new Error("Activity does not belong to this Thread/AccountDomain.");
+    }
+  }
+  for (const relay of relays) {
+    if (
+      relay.threadId !== thread.threadId ||
+      relay.accountDomainId !== accountDomainId
+    ) {
+      throw new Error("Relay does not belong to this Thread/AccountDomain.");
     }
   }
 }
@@ -99,12 +128,13 @@ export class InMemoryThreadStore implements ThreadStore {
     if (this.#snapshots.has(thread.threadId)) {
       throw new Error("Thread already exists: " + thread.threadId);
     }
-    assertTenant(this.accountDomainId, thread, [], []);
+    assertTenant(this.accountDomainId, thread, [], [], []);
     const snapshot = freezeSnapshot({
       revision: 1,
       thread,
       checkpoints: [],
-      activities: []
+      activities: [],
+      relays: []
     });
     this.#snapshots.set(thread.threadId, snapshot);
     return snapshot;
@@ -127,14 +157,16 @@ export class InMemoryThreadStore implements ThreadStore {
       this.accountDomainId,
       input.thread,
       input.checkpoints,
-      input.activities
+      input.activities,
+      input.relays
     );
 
     const next = freezeSnapshot({
       revision: current.revision + 1,
       thread: input.thread,
       checkpoints: input.checkpoints,
-      activities: input.activities
+      activities: input.activities,
+      relays: input.relays
     });
     this.#snapshots.set(input.threadId, next);
     return next;

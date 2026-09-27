@@ -131,6 +131,7 @@ export class BridgedThreadService {
       readonly thread: ConversationThread;
       readonly checkpoints: readonly ThreadCheckpoint[];
       readonly activities: readonly ThreadActivityEvent[];
+      readonly relays: ThreadSnapshot["relays"];
     },
     maxAttempts = 5
   ): Promise<ThreadSnapshot> {
@@ -144,7 +145,8 @@ export class BridgedThreadService {
           expectedRevision: snapshot.revision,
           thread: next.thread,
           checkpoints: next.checkpoints,
-          activities: next.activities
+          activities: next.activities,
+          relays: next.relays
         });
       } catch (error) {
         if (
@@ -273,7 +275,8 @@ export class BridgedThreadService {
           updatedAt: publishedAt
         }),
         checkpoints: [...snapshot.checkpoints, checkpoint],
-        activities: [...snapshot.activities, activity]
+        activities: [...snapshot.activities, activity],
+        relays: snapshot.relays
       };
     });
 
@@ -354,7 +357,8 @@ export class BridgedThreadService {
           updatedAt: occurredAt
         }),
         checkpoints: snapshot.checkpoints,
-        activities: [...snapshot.activities, activity]
+        activities: [...snapshot.activities, activity],
+        relays: snapshot.relays
       };
     });
 

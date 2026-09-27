@@ -4,6 +4,11 @@ import type {
   PrincipalId,
   ProjectId
 } from "./shared.js";
+import type { EffectClass } from "./capability.js";
+import type {
+  ContinuationEvaluation,
+  RepositoryBoundary
+} from "./work-envelope.js";
 
 export const THREAD_MODES = ["external", "bridged", "managed"] as const;
 export type ThreadMode = (typeof THREAD_MODES)[number];
@@ -131,4 +136,48 @@ export interface PulseProjection {
   readonly lastActivityAt?: IsoTimestamp;
   readonly repeatedFailureCount?: number;
   readonly latestCheckpointId?: string;
+}
+
+
+export const FOUNDER_RELAY_STATES = [
+  "suggested",
+  "owner_approved",
+  "edited",
+  "rejected",
+  "auto_sent"
+] as const;
+export type FounderRelayState =
+  (typeof FOUNDER_RELAY_STATES)[number];
+
+export const FOUNDER_RELAY_PROPOSAL_MODES = [
+  "suggest",
+  "auto_candidate"
+] as const;
+export type FounderRelayProposalMode =
+  (typeof FOUNDER_RELAY_PROPOSAL_MODES)[number];
+
+export interface FounderRelayRecord {
+  readonly relayId: string;
+  readonly threadId: string;
+  readonly accountDomainId: AccountDomainId;
+  readonly projectId: ProjectId;
+  readonly representedPrincipalId: PrincipalId;
+  readonly generatedByPrincipalId: PrincipalId;
+  readonly proposalMode: FounderRelayProposalMode;
+  readonly proposedText: string;
+  readonly finalText?: string;
+  readonly workClass: string;
+  readonly requestedEffect: EffectClass;
+  readonly requestedRepositoryBoundary: RepositoryBoundary;
+  readonly capabilityId?: string;
+  readonly sourceReferences: readonly string[];
+  readonly evidenceReferences: readonly string[];
+  readonly generatedAt: IsoTimestamp;
+  readonly proposalAuthority: ContinuationEvaluation;
+  readonly deliveryAuthority?: ContinuationEvaluation;
+  readonly state: FounderRelayState;
+  readonly ownerFeedbackPrincipalId?: PrincipalId;
+  readonly feedbackAt?: IsoTimestamp;
+  readonly deliveredAt?: IsoTimestamp;
+  readonly deliveryRef?: string;
 }

@@ -1,5 +1,6 @@
 import type {
   ConversationThread,
+  FounderRelayRecord,
   ThreadActivityEvent,
   ThreadCheckpoint
 } from "../domain/index.js";
@@ -9,6 +10,7 @@ export interface ThreadSnapshot {
   readonly thread: ConversationThread;
   readonly checkpoints: readonly ThreadCheckpoint[];
   readonly activities: readonly ThreadActivityEvent[];
+  readonly relays: readonly FounderRelayRecord[];
 }
 
 export interface SaveThreadSnapshotInput {
@@ -17,6 +19,7 @@ export interface SaveThreadSnapshotInput {
   readonly thread: ConversationThread;
   readonly checkpoints: readonly ThreadCheckpoint[];
   readonly activities: readonly ThreadActivityEvent[];
+  readonly relays: readonly FounderRelayRecord[];
 }
 
 export interface ThreadStore {
