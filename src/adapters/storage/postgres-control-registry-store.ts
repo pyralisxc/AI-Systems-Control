@@ -1,6 +1,11 @@
 import { Pool } from "pg";
 
-import { emptyWorkerControlState, type WorkerControlState } from "../../domain/index.js";
+import {
+  emptyContinuationControlState,
+  emptyWorkerControlState,
+  type ContinuationControlState,
+  type WorkerControlState
+} from "../../domain/index.js";
 import {
   CONTROL_REGISTRY_SCHEMA_VERSION,
   RegistryRevisionConflictError,
@@ -148,6 +153,44 @@ function normalizeWorkerControl(value: unknown, accountDomainId: string): Worker
   });
 }
 
+function normalizeContinuationControl(
+  value: unknown,
+  accountDomainId: string
+): ContinuationControlState {
+  const source =
+    value && typeof value === "object"
+      ? value as Record<string, unknown>
+      : emptyContinuationControlState();
+  const workEnvelopes = Array.isArray(source.workEnvelopes)
+    ? source.workEnvelopes
+    : [];
+  const autonomyGrants = Array.isArray(source.autonomyGrants)
+    ? source.autonomyGrants
+    : [];
+
+  for (const [kind, records] of [
+    ["workEnvelopes", workEnvelopes],
+    ["autonomyGrants", autonomyGrants]
+  ] as const) {
+    for (const record of records as readonly Record<string, unknown>[]) {
+      if (
+        typeof record.accountDomainId === "string" &&
+        record.accountDomainId !== accountDomainId
+      ) {
+        throw new Error(
+          "Continuation-control " + kind + " record belongs to " +
+          record.accountDomainId + ", not registry " + accountDomainId + "."
+        );
+      }
+    }
+  }
+
+  return Object.freeze({
+    workEnvelopes: Object.freeze([...workEnvelopes]) as ContinuationControlState["workEnvelopes"],
+    autonomyGrants: Object.freeze([...autonomyGrants]) as ContinuationControlState["autonomyGrants"]
+  });
+}
+
 function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnapshot {
   return Object.freeze({
     ...snapshot,
@@ -155,7 +198,11 @@ function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnaps
     connections: Object.freeze([...snapshot.connections]),
     projectConnectionBindings: Object.freeze([...snapshot.projectConnectionBindings]),
     delegations: Object.freeze([...snapshot.delegations]),
-    workerControl: normalizeWorkerControl(snapshot.workerControl, snapshot.accountDomainId)
+    workerControl: normalizeWorkerControl(snapshot.workerControl, snapshot.accountDomainId),
+    continuationControl: normalizeContinuationControl(
+      snapshot.continuationControl,
+      snapshot.accountDomainId
+    )
   });
 }
 
@@ -175,6 +222,7 @@ function decodePayload(
     version !== 1 &&
     version !== 2 &&
     version !== 3 &&
+    version !== 4 &&
     version !== CONTROL_REGISTRY_SCHEMA_VERSION
   ) {
     throw new Error("Unsupported control registry schema version: " + String(version));
@@ -212,6 +260,10 @@ function decodePayload(
       ? payload.delegations as ControlRegistrySnapshot["delegations"]
       : Object.freeze([]),
     workerControl: normalizeWorkerControl(payload.workerControl, accountDomainId),
+    continuationControl: normalizeContinuationControl(
+      payload.continuationControl,
+      accountDomainId
+    ),
     ...(typeof updatedAtInput === "string"
       ? { updatedAt: updatedAtInput }
       : typeof payload.updatedAt === "string"
@@ -230,6 +282,10 @@ function decodePayload(
     "registry.projectConnectionBindings"
   );
   assertNoSecretLikeFields(snapshot.delegations, "registry.delegations");
+  assertNoSecretLikeFields(
+    snapshot.continuationControl,
+    "registry.continuationControl"
+  );
   return freezeSnapshot(snapshot);
 }
 
@@ -248,7 +304,18 @@ function encodePayload(
     "registry.projectConnectionBindings"
   );
   assertNoSecretLikeFields(input.delegations, "registry.delegations");
-  const workerControl = normalizeWorkerControl(input.workerControl, accountDomainId);
+  assertNoSecretLikeFields(
+    input.continuationControl,
+    "registry.continuationControl"
+  );
+  const workerControl = normalizeWorkerControl(
+    input.workerControl,
+    accountDomainId
+  );
+  const continuationControl = normalizeContinuationControl(
+    input.continuationControl,
+    accountDomainId
+  );
 
   return JSON.stringify({
     schemaVersion: CONTROL_REGISTRY_SCHEMA_VERSION,
@@ -258,6 +325,7 @@ function encodePayload(
     projectConnectionBindings: input.projectConnectionBindings,
     delegations: input.delegations,
     workerControl,
+    continuationControl,
     ...(input.updatedAt ? { updatedAt: input.updatedAt } : {})
   });
 }
