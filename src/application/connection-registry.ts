@@ -309,6 +309,10 @@ export class PersistentConnectionRegistry {
     this.#store = store;
   }
 
+  get accountDomainId(): string {
+    return this.#store.accountDomainId;
+  }
+
   async listConnections(): Promise<readonly Connection[]> {
     const snapshot = await this.#store.load();
     return new InMemoryConnectionRegistry(snapshot.connections).listConnections();
@@ -323,6 +327,12 @@ export class PersistentConnectionRegistry {
     accountDomainId: string,
     provider: string
   ): Promise<readonly Connection[]> {
+    if (accountDomainId.trim() !== this.#store.accountDomainId) {
+      throw new ConnectionIdentityConflictError(
+        "Requested AccountDomain " + accountDomainId +
+        " does not match registry " + this.#store.accountDomainId + "."
+      );
+    }
     const snapshot = await this.#store.load();
     return new InMemoryConnectionRegistry(snapshot.connections).listByProvider(
       accountDomainId,
@@ -331,6 +341,12 @@ export class PersistentConnectionRegistry {
   }
 
   async register(input: RegisterConnectionInput): Promise<Connection> {
+    if (input.accountDomainId.trim() !== this.#store.accountDomainId) {
+      throw new ConnectionIdentityConflictError(
+        "Connection AccountDomain " + input.accountDomainId +
+        " does not match registry " + this.#store.accountDomainId + "."
+      );
+    }
     return mutateControlRegistry(this.#store, (snapshot) => {
       const registry = new InMemoryConnectionRegistry(snapshot.connections);
       const before = stableJson(registry.listConnections());

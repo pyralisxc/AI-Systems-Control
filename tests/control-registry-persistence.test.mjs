@@ -17,7 +17,7 @@ async function fixture() {
   return {
     directory,
     path,
-    store: new JsonFileControlRegistryStore(path)
+    store: new JsonFileControlRegistryStore(path, "business-a")
   };
 }
 
@@ -45,7 +45,7 @@ test("durable Project aliases survive registry restart and resolve canonical rep
     });
 
     const restarted = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path)
+      new JsonFileControlRegistryStore(path, "business-a")
     );
     assert.equal((await restarted.getByAlias("asc"))?.projectId, "asc");
     assert.equal((await restarted.getByAlias("DEVOS"))?.projectId, "devos");
@@ -71,7 +71,7 @@ test("repository rename preserves Project identity and historical reference acro
     await projects.reconcileGithubRepository("project-1", "owner/new-name");
 
     const restarted = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path)
+      new JsonFileControlRegistryStore(path, "business-a")
     );
 
     assert.equal(
@@ -92,10 +92,10 @@ test("concurrent Project mutations retry optimistic revision conflicts without l
   const { directory, path } = await fixture();
   try {
     const first = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path)
+      new JsonFileControlRegistryStore(path, "business-a")
     );
     const second = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path)
+      new JsonFileControlRegistryStore(path, "business-a")
     );
 
     await Promise.all([
@@ -112,7 +112,7 @@ test("concurrent Project mutations retry optimistic revision conflicts without l
     ]);
 
     const restarted = new PersistentProjectRegistry(
-      new JsonFileControlRegistryStore(path)
+      new JsonFileControlRegistryStore(path, "business-a")
     );
     assert.equal((await restarted.listProjects()).length, 2);
     assert.equal((await restarted.getByAlias("one"))?.projectId, "one");
@@ -169,7 +169,7 @@ test("Connection registry supports multiple provider accounts and explicit envir
     assert.equal(prod.generation, 1);
 
     const restarted = new PersistentConnectionRegistry(
-      new JsonFileControlRegistryStore(path)
+      new JsonFileControlRegistryStore(path, "business-a")
     );
     assert.equal((await restarted.listByProvider("business-a", "example-billing")).length, 2);
     assert.equal((await restarted.listByProvider("business-a", "deployment-provider")).length, 2);

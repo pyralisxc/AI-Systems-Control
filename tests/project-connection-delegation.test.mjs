@@ -16,7 +16,7 @@ import { JsonFileControlRegistryStore } from "../dist/adapters/index.js";
 async function setup() {
   const directory = await mkdtemp(join(tmpdir(), "asc-binding-"));
   const path = join(directory, "registry.json");
-  const store = new JsonFileControlRegistryStore(path);
+  const store = new JsonFileControlRegistryStore(path, "business-a");
   const projects = new PersistentProjectRegistry(store);
   const connections = new PersistentConnectionRegistry(store);
   const bindings = new PersistentProjectConnectionBindingRegistry(store);
@@ -323,25 +323,19 @@ test("expired and old-generation delegations fail closed", async () => {
 });
 
 
-test("cross-domain Connections cannot be bound to a Project", async () => {
+test("cross-domain Connection creation fails before binding", async () => {
   const context = await setup();
   try {
-    const personal = await context.connections.register({
-      ownerId: "owner-1",
-      accountDomainId: "personal",
-      provider: "source-provider",
-      providerAccountId: "personal-account",
-      authenticationStrategy: "oauth",
-      capabilities: ["source.read"]
-    });
-
     await assert.rejects(
-      () => context.bindings.register({
-        projectId: "cardforge",
-        connectionId: personal.connectionId,
-        capabilityScope: { kind: "exact", value: "source.read" }
+      () => context.connections.register({
+        ownerId: "owner-1",
+        accountDomainId: "personal",
+        provider: "source-provider",
+        providerAccountId: "personal-account",
+        authenticationStrategy: "oauth",
+        capabilities: ["source.read"]
       }),
-      /belongs to account domain/i
+      /does not match registry/i
     );
   } finally {
     await rm(context.directory, { recursive: true, force: true });

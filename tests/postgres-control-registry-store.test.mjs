@@ -5,48 +5,55 @@ import { PostgresControlRegistryStore } from "../dist/adapters/index.js";
 import { RegistryRevisionConflictError } from "../dist/ports/index.js";
 
 class FakePostgresClient {
-  row = null;
+  rows = new Map();
 
   async query(text, values = []) {
     if (text.startsWith("CREATE TABLE")) {
       return { rowCount: null, rows: [] };
     }
 
+    const key = values[0];
+
     if (text.startsWith("SELECT revision, payload")) {
+      const row = this.rows.get(key);
       return {
-        rowCount: this.row ? 1 : 0,
-        rows: this.row ? [this.row] : []
+        rowCount: row ? 1 : 0,
+        rows: row ? [row] : []
       };
     }
 
     if (text.startsWith("SELECT revision FROM")) {
+      const row = this.rows.get(key);
       return {
-        rowCount: this.row ? 1 : 0,
-        rows: this.row ? [{ revision: this.row.revision }] : []
+        rowCount: row ? 1 : 0,
+        rows: row ? [{ revision: row.revision }] : []
       };
     }
 
     if (text.startsWith("INSERT INTO")) {
-      if (this.row) return { rowCount: 0, rows: [] };
-      this.row = {
+      if (this.rows.has(key)) return { rowCount: 0, rows: [] };
+      const row = {
         revision: 1,
         payload: JSON.parse(values[1]),
         updated_at: values[2]
       };
-      return { rowCount: 1, rows: [this.row] };
+      this.rows.set(key, row);
+      return { rowCount: 1, rows: [row] };
     }
 
     if (text.startsWith("UPDATE asc_control_registry")) {
       const expected = Number(values[3]);
-      if (!this.row || this.row.revision !== expected) {
+      const current = this.rows.get(key);
+      if (!current || current.revision !== expected) {
         return { rowCount: 0, rows: [] };
       }
-      this.row = {
-        revision: this.row.revision + 1,
+      const row = {
+        revision: current.revision + 1,
         payload: JSON.parse(values[1]),
         updated_at: values[2]
       };
-      return { rowCount: 1, rows: [this.row] };
+      this.rows.set(key, row);
+      return { rowCount: 1, rows: [row] };
     }
 
     throw new Error("Unexpected SQL in fake client: " + text);
@@ -64,26 +71,43 @@ function emptySave(expectedRevision) {
   };
 }
 
-test("Postgres store persists and reloads one revisioned registry document", async () => {
+test("Postgres store persists one AccountDomain-scoped registry", async () => {
   const client = new FakePostgresClient();
-  const store = new PostgresControlRegistryStore(client);
+  const store = new PostgresControlRegistryStore(client, "business-a");
 
   const initial = await store.load();
+  assert.equal(initial.accountDomainId, "business-a");
   assert.equal(initial.revision, 0);
 
   const saved = await store.save(emptySave(0));
   assert.equal(saved.revision, 1);
 
   const loaded = await store.load();
+  assert.equal(loaded.accountDomainId, "business-a");
   assert.equal(loaded.revision, 1);
-  assert.deepEqual(loaded.projects, []);
-  assert.deepEqual(loaded.connections, []);
 });
 
-test("Postgres store compare-and-swap rejects stale writers", async () => {
+test("two AccountDomains maintain independent revisions and documents", async () => {
   const client = new FakePostgresClient();
-  const first = new PostgresControlRegistryStore(client);
-  const second = new PostgresControlRegistryStore(client);
+  const businessA = new PostgresControlRegistryStore(client, "business-a");
+  const businessB = new PostgresControlRegistryStore(client, "business-b");
+
+  await businessA.save(emptySave(0));
+  await businessA.save(emptySave(1));
+
+  const bInitial = await businessB.load();
+  assert.equal(bInitial.revision, 0);
+  await businessB.save(emptySave(0));
+
+  assert.equal((await businessA.load()).revision, 2);
+  assert.equal((await businessB.load()).revision, 1);
+  assert.equal(client.rows.size, 2);
+});
+
+test("Postgres compare-and-swap is scoped to one AccountDomain", async () => {
+  const client = new FakePostgresClient();
+  const first = new PostgresControlRegistryStore(client, "business-a");
+  const second = new PostgresControlRegistryStore(client, "business-a");
 
   await first.save(emptySave(0));
 
@@ -93,17 +117,34 @@ test("Postgres store compare-and-swap rejects stale writers", async () => {
       error instanceof RegistryRevisionConflictError &&
       /expected 0, current 1/i.test(error.message)
   );
+});
 
-  const secondRevision = await first.save({
-    ...emptySave(1),
-    updatedAt: "2026-09-27T06:01:00.000Z"
-  });
-  assert.equal(secondRevision.revision, 2);
+test("Postgres store rejects cross-domain resources", async () => {
+  const client = new FakePostgresClient();
+  const store = new PostgresControlRegistryStore(client, "business-a");
+
+  await assert.rejects(
+    () => store.save({
+      expectedRevision: 0,
+      projects: [{
+        projectId: "wrong-project",
+        accountDomainId: "business-b",
+        name: "Wrong",
+        references: [],
+        createdAt: "2026-09-27T06:00:00.000Z",
+        status: "active"
+      }],
+      connections: [],
+      projectConnectionBindings: [],
+      delegations: []
+    }),
+    /not registry business-a/i
+  );
 });
 
 test("Postgres store rejects secret-like registry metadata before SQL write", async () => {
   const client = new FakePostgresClient();
-  const store = new PostgresControlRegistryStore(client);
+  const store = new PostgresControlRegistryStore(client, "business-a");
 
   await assert.rejects(
     () => store.save({
@@ -128,5 +169,5 @@ test("Postgres store rejects secret-like registry metadata before SQL write", as
     }),
     /Secret-like field/i
   );
-  assert.equal(client.row, null);
+  assert.equal(client.rows.size, 0);
 });

@@ -67,7 +67,7 @@ class FakeAuthorizationProvider {
 async function setup() {
   const directory = await mkdtemp(join(tmpdir(), "asc-auth-broker-"));
   const path = join(directory, "registry.json");
-  const store = new JsonFileControlRegistryStore(path);
+  const store = new JsonFileControlRegistryStore(path, "business-a");
   const provider = new FakeAuthorizationProvider();
   const connections = new PersistentConnectionRegistry(store);
   const projects = new PersistentProjectRegistry(store);

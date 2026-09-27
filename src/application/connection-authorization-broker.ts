@@ -149,6 +149,12 @@ export class ConnectionAuthorizationBroker {
     const callbackUrl = input.callbackUrl.trim();
     if (!ownerId) throw new ConnectionAuthorizationError("Owner is required.");
     if (!accountDomainId) throw new ConnectionAuthorizationError("AccountDomain is required.");
+    if (accountDomainId !== this.#connections.accountDomainId) {
+      throw new ConnectionAuthorizationError(
+        "Authorization AccountDomain " + accountDomainId +
+        " does not match registry " + this.#connections.accountDomainId + "."
+      );
+    }
     if (!callbackUrl) throw new ConnectionAuthorizationError("Callback URL is required.");
 
     const ttl = input.expiresInSeconds ?? 600;
