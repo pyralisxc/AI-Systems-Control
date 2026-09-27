@@ -185,3 +185,31 @@ test("Postgres store rejects secret-like registry metadata before SQL write", as
   );
   assert.equal(client.rows.size, 0);
 });
+
+
+test("v3 tenant registry upgrades with empty worker-control state", async () => {
+  const client = new FakePostgresClient();
+  client.rows.set("domain:business-a", {
+    revision: 7,
+    payload: {
+      schemaVersion: 3,
+      accountDomainId: "business-a",
+      projects: [],
+      connections: [],
+      projectConnectionBindings: [],
+      delegations: []
+    },
+    updated_at: "2026-09-27T06:30:00.000Z"
+  });
+
+  const store = new PostgresControlRegistryStore(client, "business-a");
+  const loaded = await store.load();
+
+  assert.equal(loaded.revision, 7);
+  assert.deepEqual(loaded.workerControl.approvals, []);
+  assert.deepEqual(loaded.workerControl.authorizations, []);
+  assert.deepEqual(loaded.workerControl.workerRuns, []);
+  assert.deepEqual(loaded.workerControl.leases, []);
+  assert.deepEqual(loaded.workerControl.projectControls, []);
+  assert.deepEqual(loaded.workerControl.events, []);
+});

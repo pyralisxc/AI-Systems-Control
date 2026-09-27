@@ -174,6 +174,7 @@ function decodePayload(
   if (
     version !== 1 &&
     version !== 2 &&
+    version !== 3 &&
     version !== CONTROL_REGISTRY_SCHEMA_VERSION
   ) {
     throw new Error("Unsupported control registry schema version: " + String(version));
