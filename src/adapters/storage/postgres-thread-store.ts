@@ -12,8 +12,7 @@ import {
   type ThreadStore
 } from "../../ports/index.js";
 import type {
-  PostgresQueryClient,
-  PostgresQueryResult
+  PostgresQueryClient
 } from "./postgres-control-registry-store.js";
 
 const THREAD_PAYLOAD_SCHEMA_VERSION = 1 as const;
