@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import {
   ContinuationAuthorityError,
   OwnerAutonomyReviewError
-} from "../../../../../../dist/application/index.js";
+} from "../../../../../dist/application/index.js";
 import { isOwnerAuthenticated } from "@/web/auth/owner-auth";
 import {
   controlRegistryConfigured
