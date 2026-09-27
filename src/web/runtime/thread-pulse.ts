@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import {
   JsonFileThreadStore,
   PostgresThreadStore
@@ -15,36 +17,50 @@ import {
   controlRegistryDatabaseUrl,
   controlRegistryPath,
   controlRegistryServices,
+  controlRegistryServicesForDomain,
   defaultAccountDomainId
 } from "./control-registry";
 
-let cachedDatabaseUrl: string | undefined;
-let cachedAccountDomainId: string | undefined;
-let cachedPostgresThreadStore: PostgresThreadStore | undefined;
+const postgresThreadStores = new Map<string, PostgresThreadStore>();
 
-function threadStore(): ThreadStore {
-  const accountDomainId = defaultAccountDomainId();
+function localTenantSuffix(accountDomainId: string): string {
+  return createHash("sha256")
+    .update(accountDomainId)
+    .digest("hex")
+    .slice(0, 20);
+}
+
+export function threadStoreForDomain(
+  accountDomainIdInput: string
+): ThreadStore {
+  const accountDomainId = accountDomainIdInput.trim();
+  if (!accountDomainId) {
+    throw new Error("ThreadStore AccountDomain context is required.");
+  }
+
   const databaseUrl = controlRegistryDatabaseUrl();
-
   if (databaseUrl) {
-    if (
-      !cachedPostgresThreadStore ||
-      cachedDatabaseUrl !== databaseUrl ||
-      cachedAccountDomainId !== accountDomainId
-    ) {
-      cachedPostgresThreadStore = PostgresThreadStore.fromConnectionString(
-        databaseUrl,
-        accountDomainId
-      );
-      cachedDatabaseUrl = databaseUrl;
-      cachedAccountDomainId = accountDomainId;
-    }
-    return cachedPostgresThreadStore;
+    const cacheKey = databaseUrl + "\u0000" + accountDomainId;
+    const existing = postgresThreadStores.get(cacheKey);
+    if (existing) return existing;
+
+    const store = PostgresThreadStore.fromConnectionString(
+      databaseUrl,
+      accountDomainId
+    );
+    postgresThreadStores.set(cacheKey, store);
+    return store;
   }
 
   const path = controlRegistryPath();
   if (path) {
-    return new JsonFileThreadStore(path + ".threads", accountDomainId);
+    if (accountDomainId === defaultAccountDomainId()) {
+      return new JsonFileThreadStore(path + ".threads", accountDomainId);
+    }
+    return new JsonFileThreadStore(
+      path + ".threads.domain-" + localTenantSuffix(accountDomainId),
+      accountDomainId
+    );
   }
 
   throw new Error(
@@ -52,10 +68,13 @@ function threadStore(): ThreadStore {
   );
 }
 
-export async function bridgedThreadServices() {
-  const control = await controlRegistryServices();
-  const store = threadStore();
+export async function bridgedThreadServicesForDomain(
+  accountDomainId: string
+) {
+  const control = await controlRegistryServicesForDomain(accountDomainId);
+  const store = threadStoreForDomain(accountDomainId);
   const bridge = new BridgedThreadService(store, control.projects);
+
   return {
     store,
     control,
@@ -65,6 +84,20 @@ export async function bridgedThreadServices() {
       identities: control.identities,
       continuation: control.continuation
     })
+  };
+}
+
+export async function bridgedThreadServices() {
+  const control = await controlRegistryServices();
+  const services = await bridgedThreadServicesForDomain(
+    control.store.accountDomainId
+  );
+  return {
+    ...services,
+    control: {
+      ...services.control,
+      principalId: control.principalId
+    }
   };
 }
 

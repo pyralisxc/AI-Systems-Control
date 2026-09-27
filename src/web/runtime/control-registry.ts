@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import {
   JsonFileControlRegistryStore,
   JsonFileIdentityDirectoryStore,
@@ -17,11 +19,9 @@ import type {
   IdentityDirectoryStore
 } from "../../../dist/ports/index.js";
 
-let cachedDatabaseUrl: string | undefined;
-let cachedAccountDomainId: string | undefined;
-let cachedDatabaseStore: PostgresControlRegistryStore | undefined;
 let cachedIdentityDatabaseUrl: string | undefined;
 let cachedIdentityStore: PostgresIdentityDirectoryStore | undefined;
+const postgresControlStores = new Map<string, PostgresControlRegistryStore>();
 
 export function controlRegistryPath(): string | null {
   const value = process.env.ASC_CONTROL_REGISTRY_PATH?.trim();
@@ -61,6 +61,21 @@ export function personalBootstrapEnabled(): boolean {
   return process.env.ASC_PERSONAL_BOOTSTRAP_ENABLED?.trim().toLowerCase() !== "false";
 }
 
+function requiredAccountDomainId(accountDomainId: string): string {
+  const normalized = accountDomainId.trim();
+  if (!normalized) {
+    throw new Error("AccountDomain context is required.");
+  }
+  return normalized;
+}
+
+function localTenantSuffix(accountDomainId: string): string {
+  return createHash("sha256")
+    .update(accountDomainId)
+    .digest("hex")
+    .slice(0, 20);
+}
+
 function identityDirectoryStore(): IdentityDirectoryStore {
   const databaseUrl = controlRegistryDatabaseUrl();
   if (databaseUrl) {
@@ -80,28 +95,33 @@ function identityDirectoryStore(): IdentityDirectoryStore {
   );
 }
 
-function controlRegistryStore(): ControlRegistryStore {
-  const accountDomainId = defaultAccountDomainId();
+export function controlRegistryStoreForDomain(
+  accountDomainIdInput: string
+): ControlRegistryStore {
+  const accountDomainId = requiredAccountDomainId(accountDomainIdInput);
   const databaseUrl = controlRegistryDatabaseUrl();
   if (databaseUrl) {
-    if (
-      !cachedDatabaseStore ||
-      cachedDatabaseUrl !== databaseUrl ||
-      cachedAccountDomainId !== accountDomainId
-    ) {
-      cachedDatabaseStore = PostgresControlRegistryStore.fromConnectionString(
-        databaseUrl,
-        accountDomainId
-      );
-      cachedDatabaseUrl = databaseUrl;
-      cachedAccountDomainId = accountDomainId;
-    }
-    return cachedDatabaseStore;
+    const cacheKey = databaseUrl + "\u0000" + accountDomainId;
+    const existing = postgresControlStores.get(cacheKey);
+    if (existing) return existing;
+
+    const store = PostgresControlRegistryStore.fromConnectionString(
+      databaseUrl,
+      accountDomainId
+    );
+    postgresControlStores.set(cacheKey, store);
+    return store;
   }
 
   const path = controlRegistryPath();
   if (path) {
-    return new JsonFileControlRegistryStore(path, accountDomainId);
+    if (accountDomainId === defaultAccountDomainId()) {
+      return new JsonFileControlRegistryStore(path, accountDomainId);
+    }
+    return new JsonFileControlRegistryStore(
+      path + ".domain-" + localTenantSuffix(accountDomainId),
+      accountDomainId
+    );
   }
 
   throw new Error(
@@ -129,20 +149,37 @@ async function ensurePersonalBootstrap(
   });
 }
 
-export async function controlRegistryServices() {
-  const store = controlRegistryStore();
+export async function identityRegistryServices() {
   const identities = new PersistentIdentityRegistry(identityDirectoryStore());
   await ensurePersonalBootstrap(identities);
+  return { identities };
+}
+
+export async function controlRegistryServicesForDomain(
+  accountDomainId: string
+) {
+  const { identities } = await identityRegistryServices();
+  await identities.assertActiveDomain(accountDomainId);
+  const store = controlRegistryStoreForDomain(accountDomainId);
 
   return {
     store,
     identities,
-    principalId: resolvedPersonalPrincipalId(),
     projects: new PersistentProjectRegistry(store, identities),
     connections: new PersistentConnectionRegistry(store, identities),
     bindings: new PersistentProjectConnectionBindingRegistry(store),
     authority: new WorkerAuthorityService(store, identities),
     continuation: new ContinuationAuthorityService(store, identities)
+  };
+}
+
+export async function controlRegistryServices() {
+  const services = await controlRegistryServicesForDomain(
+    defaultAccountDomainId()
+  );
+  return {
+    ...services,
+    principalId: resolvedPersonalPrincipalId()
   };
 }
 
@@ -172,7 +209,6 @@ export async function loadConnectionsControlView() {
     bindings
   };
 }
-
 
 export async function loadProjectControlView(repository: string) {
   if (!controlRegistryConfigured()) {
