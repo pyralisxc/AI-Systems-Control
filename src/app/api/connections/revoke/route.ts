@@ -30,6 +30,12 @@ export async function POST(request: Request) {
   }
 
   const services = await controlRegistryServices();
+  if (!services.principalId) {
+    return NextResponse.json(
+      { error: "principal_context_required" },
+      { status: 503 }
+    );
+  }
   await services.connections.assertPrincipalCanAdminister(
     services.principalId
   );

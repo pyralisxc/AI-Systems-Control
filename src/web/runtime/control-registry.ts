@@ -8,7 +8,8 @@ import {
   PersistentConnectionRegistry,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
-  PersistentProjectRegistry
+  PersistentProjectRegistry,
+  WorkerAuthorityService
 } from "../../../dist/application/index.js";
 import type {
   ControlRegistryStore,
@@ -45,6 +46,10 @@ export function bootstrapPrincipalId(): string {
 
 export function bootstrapPrincipalName(): string {
   return process.env.ASC_BOOTSTRAP_PRINCIPAL_NAME?.trim() || "Owner";
+}
+
+export function resolvedPersonalPrincipalId(): string | null {
+  return personalBootstrapEnabled() ? bootstrapPrincipalId() : null;
 }
 
 export function controlRegistryConfigured(): boolean {
@@ -131,10 +136,11 @@ export async function controlRegistryServices() {
   return {
     store,
     identities,
-    principalId: bootstrapPrincipalId(),
+    principalId: resolvedPersonalPrincipalId(),
     projects: new PersistentProjectRegistry(store, identities),
     connections: new PersistentConnectionRegistry(store, identities),
-    bindings: new PersistentProjectConnectionBindingRegistry(store)
+    bindings: new PersistentProjectConnectionBindingRegistry(store),
+    authority: new WorkerAuthorityService(store, identities)
   };
 }
 
@@ -162,5 +168,43 @@ export async function loadConnectionsControlView() {
     projects,
     connections,
     bindings
+  };
+}
+
+
+export async function loadProjectControlView(repository: string) {
+  if (!controlRegistryConfigured()) {
+    return {
+      configured: false as const,
+      registered: false as const,
+      principalAvailable: false,
+      accountDomainId: defaultAccountDomainId(),
+      reason: "ASC control registry is not configured."
+    };
+  }
+
+  const services = await controlRegistryServices();
+  const project = await services.projects.getByGithubRepository(repository);
+  if (!project) {
+    return {
+      configured: true as const,
+      registered: false as const,
+      principalAvailable: services.principalId !== null,
+      accountDomainId: services.store.accountDomainId,
+      reason: "This repository is not registered as a durable ASC Project."
+    };
+  }
+
+  const control = await services.authority.getProjectControl(project.projectId);
+  return {
+    configured: true as const,
+    registered: true as const,
+    principalAvailable: services.principalId !== null,
+    accountDomainId: services.store.accountDomainId,
+    projectId: project.projectId,
+    mode: control.mode,
+    generation: control.generation,
+    changedAt: control.changedAt,
+    reason: control.reason
   };
 }

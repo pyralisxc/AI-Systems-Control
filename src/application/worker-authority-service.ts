@@ -579,6 +579,22 @@ export class WorkerAuthorityService {
     });
   }
 
+  async getProjectControl(
+    projectId: string
+  ): Promise<ProjectControlState> {
+    const snapshot = await this.#store.load();
+    if (!snapshot.projects.some(
+      (project) => project.projectId === projectId
+    )) {
+      throw new WorkerAuthorityError("Unknown Project: " + projectId);
+    }
+    return projectControl(
+      snapshot.workerControl,
+      this.#store.accountDomainId,
+      projectId
+    );
+  }
+
   async getProjectAudit(
     projectId: string
   ): Promise<readonly OrchestrationEvent[]> {
