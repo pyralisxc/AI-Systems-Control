@@ -60,6 +60,17 @@ class FakePostgresClient {
   }
 }
 
+function emptyWorkerControl() {
+  return {
+    approvals: [],
+    authorizations: [],
+    workerRuns: [],
+    leases: [],
+    projectControls: [],
+    events: []
+  };
+}
+
 function emptySave(expectedRevision) {
   return {
     expectedRevision,
@@ -67,6 +78,7 @@ function emptySave(expectedRevision) {
     connections: [],
     projectConnectionBindings: [],
     delegations: [],
+    workerControl: emptyWorkerControl(),
     updatedAt: "2026-09-27T06:00:00.000Z"
   };
 }
@@ -136,7 +148,8 @@ test("Postgres store rejects cross-domain resources", async () => {
       }],
       connections: [],
       projectConnectionBindings: [],
-      delegations: []
+      delegations: [],
+      workerControl: emptyWorkerControl()
     }),
     /not registry business-a/i
   );
@@ -165,7 +178,8 @@ test("Postgres store rejects secret-like registry metadata before SQL write", as
         accessToken: "must-not-persist"
       }],
       projectConnectionBindings: [],
-      delegations: []
+      delegations: [],
+      workerControl: emptyWorkerControl()
     }),
     /Secret-like field/i
   );

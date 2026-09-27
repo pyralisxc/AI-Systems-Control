@@ -15,6 +15,17 @@ import {
   JsonFileIdentityDirectoryStore
 } from "../dist/adapters/index.js";
 
+function emptyWorkerControl() {
+  return {
+    approvals: [],
+    authorizations: [],
+    workerRuns: [],
+    leases: [],
+    projectControls: [],
+    events: []
+  };
+}
+
 async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), "asc-registry-"));
   const path = join(directory, "control-registry.json");
@@ -229,7 +240,8 @@ test("Connection metadata serializer rejects secret-bearing fields", async () =>
         projects: [],
         connections: [{ ...valid, accessToken: "never-persist-me" }],
         projectConnectionBindings: [],
-        delegations: []
+        delegations: [],
+        workerControl: emptyWorkerControl()
       }),
       /Secret-like field/
     );
@@ -239,7 +251,8 @@ test("Connection metadata serializer rejects secret-bearing fields", async () =>
       projects: [],
       connections: [valid],
       projectConnectionBindings: [],
-      delegations: []
+      delegations: [],
+      workerControl: emptyWorkerControl()
     });
 
     const raw = await readFile(path, "utf8");
