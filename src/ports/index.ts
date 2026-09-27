@@ -6,3 +6,4 @@ export * from "./authorization-flow-store.js";
 export * from "./identity-directory-store.js";
 export * from "./thread-store.js";
 export * from "./founder-relay-delivery.js";
+export * from "./mcp-auth.js";
