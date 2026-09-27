@@ -13,6 +13,8 @@ import {
   ASC_MCP_SCOPES,
   mcpAccountDomainClaim,
   mcpResourceMetadataUrl,
+  mcpResourceUrl,
+  mcpResourceUrlSource,
   mcpScopeClaim
 } from "./mcp-resource";
 
@@ -24,15 +26,17 @@ function safeResourceUrls():
   | {
       readonly resourceUrl: string;
       readonly metadataUrl: string;
+      readonly source: "explicit" | "vercel_branch";
     }
   | undefined {
-  if (!present("ASC_MCP_RESOURCE_URL")) return undefined;
-
-  const resourceUrl = process.env.ASC_MCP_RESOURCE_URL!.trim();
   try {
+    const source = mcpResourceUrlSource();
+    if (!source) return undefined;
+
     return Object.freeze({
-      resourceUrl,
-      metadataUrl: mcpResourceMetadataUrl()
+      resourceUrl: mcpResourceUrl(),
+      metadataUrl: mcpResourceMetadataUrl(),
+      source
     });
   } catch {
     return undefined;
@@ -43,7 +47,7 @@ export function loadMcpSetupReadinessView() {
   const urls = safeResourceUrls();
   const readiness = deriveMcpSetupReadiness({
     durableStorageConfigured: controlRegistryConfigured(),
-    resourceUrlConfigured: present("ASC_MCP_RESOURCE_URL"),
+    resourceUrlConfigured: Boolean(urls),
     oauthIssuerConfigured: present("ASC_OAUTH_ISSUER"),
     oauthJwksConfigured: present("ASC_OAUTH_JWKS_URL"),
     externalIdentityIssuerConfigured: present(
@@ -58,7 +62,8 @@ export function loadMcpSetupReadinessView() {
     readiness,
     configuration: Object.freeze({
       durableStorageConfigured: controlRegistryConfigured(),
-      resourceUrlConfigured: present("ASC_MCP_RESOURCE_URL"),
+      resourceUrlConfigured: Boolean(urls),
+      resourceUrlSource: urls?.source,
       oauthIssuerConfigured: present("ASC_OAUTH_ISSUER"),
       oauthJwksConfigured: present("ASC_OAUTH_JWKS_URL"),
       externalIdentityIssuerConfigured: present(

@@ -107,7 +107,7 @@ export default async function McpSetupPage() {
             <Check
               label="Stable MCP resource URL"
               configured={view.configuration.resourceUrlConfigured}
-              detail="Use a stable Preview branch/custom domain ending at /mcp. Do not use a deployment-specific Vercel URL that changes on each build."
+              detail="On Vercel Preview, ASC derives this automatically from VERCEL_BRANCH_URL. ASC_MCP_RESOURCE_URL is only an explicit override or non-Vercel fallback."
             />
             <Check
               label="OAuth issuer"
@@ -185,6 +185,12 @@ export default async function McpSetupPage() {
             <div className="setup-url-card">
               <span>MCP resource</span>
               <code>{view.urls.resourceUrl}</code>
+              <span>Source</span>
+              <code>
+                {view.urls.source === "vercel_branch"
+                  ? "Vercel stable branch alias"
+                  : "ASC_MCP_RESOURCE_URL override"}
+              </code>
               <span>Protected-resource metadata</span>
               <code>{view.urls.metadataUrl}</code>
             </div>
@@ -207,17 +213,6 @@ export default async function McpSetupPage() {
             <article>
               <strong>1</strong>
               <div>
-                <h3>Give Preview a stable branch domain</h3>
-                <p>
-                  Point a Vercel Branch Domain at <code>preview</code>. This
-                  stable HTTPS URL becomes the OAuth resource/audience and must
-                  end with <code>/mcp</code> for ASC.
-                </p>
-              </div>
-            </article>
-            <article>
-              <strong>2</strong>
-              <div>
                 <h3>Provision durable PostgreSQL</h3>
                 <p>
                   Neon, Supabase Postgres, ordinary hosted PostgreSQL, or your
@@ -227,7 +222,7 @@ export default async function McpSetupPage() {
               </div>
             </article>
             <article>
-              <strong>3</strong>
+              <strong>2</strong>
               <div>
                 <h3>Create the Auth0 MCP/API resource</h3>
                 <p>
@@ -238,7 +233,7 @@ export default async function McpSetupPage() {
               </div>
             </article>
             <article>
-              <strong>4</strong>
+              <strong>3</strong>
               <div>
                 <h3>Add tenant context to the token</h3>
                 <p>
@@ -250,7 +245,7 @@ export default async function McpSetupPage() {
               </div>
             </article>
             <article>
-              <strong>5</strong>
+              <strong>4</strong>
               <div>
                 <h3>Bind your external identity</h3>
                 <p>
@@ -263,7 +258,7 @@ export default async function McpSetupPage() {
               </div>
             </article>
             <article>
-              <strong>6</strong>
+              <strong>5</strong>
               <div>
                 <h3>Run MCP Inspector, then ChatGPT</h3>
                 <p>

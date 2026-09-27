@@ -125,9 +125,9 @@ A hosted Preview MCP proof currently needs three external infrastructure decisio
    - The same ASC storage contract works with Neon, Supabase Postgres, ordinary hosted PostgreSQL, or future owner-operated PostgreSQL.
 
 2. **Stable Preview MCP resource URL**
-   - Configure `ASC_MCP_RESOURCE_URL`.
-   - Use a stable Vercel Branch Domain/custom domain for `preview`, not a deployment-specific URL that changes every build.
-   - The current resource shape is expected to end in `/mcp`.
+   - On Vercel, ASC automatically derives `https://<VERCEL_BRANCH_URL>/mcp` from the stable Git branch alias.
+   - `ASC_MCP_RESOURCE_URL` remains an explicit override and the fallback for non-Vercel deployments.
+   - ASC never derives OAuth resource identity from deployment-specific `VERCEL_URL`.
 
 3. **External OAuth/OIDC authorization server**
    - Configure `ASC_OAUTH_ISSUER` and `ASC_OAUTH_JWKS_URL`.
@@ -151,7 +151,7 @@ The following do not need environment variables for the personal proof unless th
 
 ### First proof order
 
-1. Give `preview` a stable HTTPS branch/custom domain.
+1. Confirm `/setup/mcp` shows the Vercel branch-derived MCP resource URL (or configure an explicit override for non-Vercel hosting).
 2. Provision durable PostgreSQL.
 3. Configure the external IdP for the exact MCP resource/audience.
 4. Add the ASC scopes and AccountDomain claim.
