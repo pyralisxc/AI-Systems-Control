@@ -50,9 +50,18 @@ function resolvedMcpResource():
       readonly source: McpResourceUrlSource;
     }
   | undefined {
+  const explicitResourceUrl =
+    process.env.ASC_MCP_RESOURCE_URL?.trim();
+  const vercelBranchUrl =
+    process.env.VERCEL_BRANCH_URL?.trim();
+
   return deriveMcpResourceUrl({
-    explicitResourceUrl: process.env.ASC_MCP_RESOURCE_URL,
-    vercelBranchUrl: process.env.VERCEL_BRANCH_URL
+    ...(explicitResourceUrl
+      ? { explicitResourceUrl }
+      : {}),
+    ...(vercelBranchUrl
+      ? { vercelBranchUrl }
+      : {})
   });
 }
 
