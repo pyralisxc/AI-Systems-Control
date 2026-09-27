@@ -58,6 +58,22 @@ export interface Membership {
   readonly revokedAt?: IsoTimestamp;
 }
 
+export const AUTHENTICATION_IDENTITY_STATUSES = ["active", "revoked"] as const;
+export type AuthenticationIdentityStatus =
+  (typeof AUTHENTICATION_IDENTITY_STATUSES)[number];
+
+export interface AuthenticationIdentityBinding {
+  readonly bindingId: string;
+  readonly principalId: PrincipalId;
+  readonly issuer: string;
+  readonly subject: string;
+  readonly label?: string;
+  readonly status: AuthenticationIdentityStatus;
+  readonly createdAt: IsoTimestamp;
+  readonly updatedAt: IsoTimestamp;
+  readonly revokedAt?: IsoTimestamp;
+}
+
 export function membershipHasRole(
   membership: Membership,
   role: string

@@ -4,6 +4,8 @@ import type {
   AccountDomain,
   AccountDomainKind,
   AccountDomainStatus,
+  AuthenticationIdentityBinding,
+  AuthenticationIdentityStatus,
   Membership,
   MembershipStatus,
   Principal,
@@ -45,10 +47,34 @@ export interface RegisterMembershipInput {
   readonly createdAt?: string;
 }
 
+export interface RegisterAuthenticationIdentityInput {
+  readonly bindingId?: string;
+  readonly principalId: string;
+  readonly issuer: string;
+  readonly subject: string;
+  readonly label?: string;
+  readonly status?: AuthenticationIdentityStatus;
+  readonly createdAt?: string;
+}
+
 function required(value: string, label: string): string {
   const normalized = value.trim();
   if (!normalized) throw new Error(label + " cannot be empty.");
   return normalized;
+}
+
+function normalizedIssuer(value: string): string {
+  const issuer = required(value, "Authentication issuer");
+  let url: URL;
+  try {
+    url = new URL(issuer);
+  } catch {
+    throw new Error("Authentication issuer must be an absolute URL.");
+  }
+  if (url.protocol !== "https:") {
+    throw new Error("Authentication issuer must use HTTPS.");
+  }
+  return url.toString().replace(//$/u, "");
 }
 
 function normalizedRoles(roles: readonly string[]): readonly string[] {
@@ -65,12 +91,27 @@ function membershipKey(principalId: string, accountDomainId: string): string {
   return principalId + "\u0000" + accountDomainId;
 }
 
+function authenticationKey(issuer: string, subject: string): string {
+  return normalizedIssuer(issuer) + "\u0000" + required(subject, "Authentication subject");
+}
+
 function generatedMembershipId(principalId: string, accountDomainId: string): string {
   const digest = createHash("sha256")
     .update(membershipKey(principalId, accountDomainId))
     .digest("hex")
     .slice(0, 24);
   return "membership:" + digest;
+}
+
+function generatedAuthenticationBindingId(
+  issuer: string,
+  subject: string
+): string {
+  const digest = createHash("sha256")
+    .update(authenticationKey(issuer, subject))
+    .digest("hex")
+    .slice(0, 24);
+  return "auth-binding:" + digest;
 }
 
 function freezeMembership(membership: Membership): Membership {
@@ -80,16 +121,25 @@ function freezeMembership(membership: Membership): Membership {
   });
 }
 
+function freezeAuthenticationBinding(
+  binding: AuthenticationIdentityBinding
+): AuthenticationIdentityBinding {
+  return Object.freeze({ ...binding });
+}
+
 export class InMemoryIdentityRegistry {
   readonly #principals = new Map<string, Principal>();
   readonly #domains = new Map<string, AccountDomain>();
   readonly #memberships = new Map<string, Membership>();
   readonly #membershipByPair = new Map<string, string>();
+  readonly #authenticationBindings = new Map<string, AuthenticationIdentityBinding>();
+  readonly #authenticationByKey = new Map<string, string>();
 
   constructor(input: {
     readonly principals?: readonly Principal[];
     readonly accountDomains?: readonly AccountDomain[];
     readonly memberships?: readonly Membership[];
+    readonly authenticationBindings?: readonly AuthenticationIdentityBinding[];
   } = {}) {
     for (const principal of input.principals ?? []) {
       if (this.#principals.has(principal.principalId)) {
@@ -111,6 +161,10 @@ export class InMemoryIdentityRegistry {
 
     for (const membership of input.memberships ?? []) {
       this.#indexMembership(freezeMembership(membership));
+    }
+
+    for (const binding of input.authenticationBindings ?? []) {
+      this.#indexAuthenticationBinding(freezeAuthenticationBinding(binding));
     }
   }
 
@@ -147,6 +201,31 @@ export class InMemoryIdentityRegistry {
     this.#membershipByPair.set(pair, membership.membershipId);
   }
 
+  #indexAuthenticationBinding(binding: AuthenticationIdentityBinding): void {
+    if (!this.#principals.has(binding.principalId)) {
+      throw new IdentityConflictError(
+        "Authentication identity references unknown Principal: " +
+        binding.principalId
+      );
+    }
+    if (this.#authenticationBindings.has(binding.bindingId)) {
+      throw new IdentityConflictError(
+        "Duplicate authentication identity binding: " + binding.bindingId
+      );
+    }
+
+    const key = authenticationKey(binding.issuer, binding.subject);
+    const existing = this.#authenticationByKey.get(key);
+    if (existing && existing !== binding.bindingId) {
+      throw new IdentityConflictError(
+        "Authentication identity is bound more than once: " + key
+      );
+    }
+
+    this.#authenticationBindings.set(binding.bindingId, binding);
+    this.#authenticationByKey.set(key, binding.bindingId);
+  }
+
   listPrincipals(): readonly Principal[] {
     return Object.freeze(
       [...this.#principals.values()]
@@ -177,6 +256,13 @@ export class InMemoryIdentityRegistry {
     );
   }
 
+  listAuthenticationBindings(): readonly AuthenticationIdentityBinding[] {
+    return Object.freeze(
+      [...this.#authenticationBindings.values()]
+        .sort((left, right) => left.bindingId.localeCompare(right.bindingId))
+    );
+  }
+
   getPrincipal(principalId: string): Principal | undefined {
     return this.#principals.get(principalId);
   }
@@ -195,6 +281,19 @@ export class InMemoryIdentityRegistry {
     return membershipId
       ? this.#memberships.get(membershipId)
       : undefined;
+  }
+
+  resolveAuthenticationIdentity(
+    issuer: string,
+    subject: string
+  ): AuthenticationIdentityBinding | undefined {
+    const bindingId = this.#authenticationByKey.get(
+      authenticationKey(issuer, subject)
+    );
+    const binding = bindingId
+      ? this.#authenticationBindings.get(bindingId)
+      : undefined;
+    return binding?.status === "active" ? binding : undefined;
   }
 
   registerPrincipal(input: RegisterPrincipalInput): Principal {
@@ -295,6 +394,49 @@ export class InMemoryIdentityRegistry {
 
     this.#indexMembership(membership);
     return membership;
+  }
+
+  registerAuthenticationIdentity(
+    input: RegisterAuthenticationIdentityInput
+  ): AuthenticationIdentityBinding {
+    const principalId = required(input.principalId, "Principal ID");
+    if (!this.#principals.has(principalId)) {
+      throw new IdentityConflictError(
+        "Unknown Principal: " + principalId
+      );
+    }
+
+    const issuer = normalizedIssuer(input.issuer);
+    const subject = required(input.subject, "Authentication subject");
+    const key = authenticationKey(issuer, subject);
+    const existingId = this.#authenticationByKey.get(key);
+    if (existingId) {
+      const existing = this.#authenticationBindings.get(existingId)!;
+      if (existing.principalId !== principalId) {
+        throw new IdentityConflictError(
+          "Authentication identity is already bound to Principal " +
+          existing.principalId + "."
+        );
+      }
+      return existing;
+    }
+
+    const createdAt = input.createdAt ?? new Date().toISOString();
+    const binding = freezeAuthenticationBinding({
+      bindingId:
+        input.bindingId ??
+        generatedAuthenticationBindingId(issuer, subject),
+      principalId,
+      issuer,
+      subject,
+      ...(input.label?.trim() ? { label: input.label.trim() } : {}),
+      status: input.status ?? "active",
+      createdAt,
+      updatedAt: createdAt
+    });
+
+    this.#indexAuthenticationBinding(binding);
+    return binding;
   }
 
   assertActiveMembership(
