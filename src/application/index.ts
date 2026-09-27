@@ -16,3 +16,4 @@ export * from "./asc-bridge-tools.js";
 export * from "./continuation-authority-service.js";
 export * from "./founder-relay-service.js";
 export * from "./mcp-request-identity-resolver.js";
+export * from "./relay-calibration-service.js";
