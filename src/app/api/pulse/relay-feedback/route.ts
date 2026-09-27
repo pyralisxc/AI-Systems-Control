@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { FounderRelayError } from "../../../../../../dist/application/index.js";
+import { FounderRelayError } from "../../../../../dist/application/index.js";
 import { isOwnerAuthenticated } from "@/web/auth/owner-auth";
 import {
   controlRegistryConfigured

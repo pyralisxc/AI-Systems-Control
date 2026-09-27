@@ -1298,3 +1298,179 @@ pre {
     justify-content: flex-start;
   }
 }
+
+
+.relay-card {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(179, 154, 255, 0.18);
+  border-radius: 11px;
+  background: rgba(15, 12, 24, 0.56);
+}
+
+.relay-card__heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.relay-card__heading strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.relay-copy {
+  margin-top: 12px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(6, 9, 14, 0.55);
+}
+
+.relay-copy--final {
+  border-color: rgba(131, 215, 255, 0.2);
+}
+
+.relay-copy > span,
+.relay-authority span,
+.relay-review__edit label {
+  color: var(--subtle);
+  font-family: var(--mono);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.relay-copy p {
+  margin: 7px 0 0;
+  color: #d4dce5;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.relay-authority {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.relay-authority > div {
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(8, 11, 16, 0.4);
+}
+
+.relay-authority strong {
+  display: block;
+  margin-top: 5px;
+  color: #cad5df;
+  font-size: 9px;
+}
+
+.relay-authority p {
+  margin: 4px 0 0;
+  color: var(--subtle);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.relay-basis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.relay-basis code {
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--subtle);
+  font-size: 7px;
+}
+
+.relay-review {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.relay-review__quick {
+  display: flex;
+  gap: 7px;
+}
+
+.relay-action {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #cbd5df;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.relay-action--approve {
+  border-color: rgba(118, 225, 168, 0.26);
+  color: var(--positive);
+  background: rgba(118, 225, 168, 0.055);
+}
+
+.relay-action--reject {
+  border-color: rgba(255, 138, 152, 0.26);
+  color: var(--critical);
+  background: rgba(255, 138, 152, 0.055);
+}
+
+.relay-review__edit {
+  display: grid;
+  gap: 7px;
+}
+
+.relay-review__edit textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(5, 8, 12, 0.75);
+  color: #dce4eb;
+  font: 10px/1.55 var(--mono);
+}
+
+.relay-review__edit textarea:focus {
+  border-color: rgba(131, 215, 255, 0.35);
+}
+
+.relay-note {
+  margin: 11px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .relay-authority {
+    grid-template-columns: 1fr;
+  }
+
+  .relay-card__heading {
+    display: grid;
+  }
+
+  .relay-review__quick {
+    flex-wrap: wrap;
+  }
+}
