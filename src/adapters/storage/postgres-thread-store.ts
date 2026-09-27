@@ -2,6 +2,7 @@ import { Pool } from "pg";
 
 import type {
   ConversationThread,
+  FounderRelayRecord,
   ThreadActivityEvent,
   ThreadCheckpoint
 } from "../../domain/index.js";
@@ -15,7 +16,7 @@ import type {
   PostgresQueryClient
 } from "./postgres-control-registry-store.js";
 
-const THREAD_PAYLOAD_SCHEMA_VERSION = 1 as const;
+const THREAD_PAYLOAD_SCHEMA_VERSION = 2 as const;
 
 function requiredDomain(value: string): string {
   const normalized = value.trim();
@@ -27,7 +28,8 @@ function assertTenant(
   accountDomainId: string,
   thread: ConversationThread,
   checkpoints: readonly ThreadCheckpoint[],
-  activities: readonly ThreadActivityEvent[]
+  activities: readonly ThreadActivityEvent[],
+  relays: readonly FounderRelayRecord[]
 ): void {
   if (thread.accountDomainId !== accountDomainId) {
     throw new Error(
@@ -58,7 +60,8 @@ function freezeSnapshot(snapshot: ThreadSnapshot): ThreadSnapshot {
     snapshot.thread.accountDomainId,
     snapshot.thread,
     snapshot.checkpoints,
-    snapshot.activities
+    snapshot.activities,
+    snapshot.relays
   );
   return Object.freeze({
     revision: snapshot.revision,
@@ -85,6 +88,25 @@ function freezeSnapshot(snapshot: ThreadSnapshot): ThreadSnapshot {
     ),
     activities: Object.freeze(
       snapshot.activities.map((activity) => Object.freeze({ ...activity }))
+    ),
+    relays: Object.freeze(
+      snapshot.relays.map((relay) => Object.freeze({
+        ...relay,
+        sourceReferences: Object.freeze([...relay.sourceReferences]),
+        evidenceReferences: Object.freeze([...relay.evidenceReferences]),
+        proposalAuthority: Object.freeze({
+          ...relay.proposalAuthority,
+          basis: Object.freeze({ ...relay.proposalAuthority.basis })
+        }),
+        ...(relay.deliveryAuthority
+          ? {
+              deliveryAuthority: Object.freeze({
+                ...relay.deliveryAuthority,
+                basis: Object.freeze({ ...relay.deliveryAuthority.basis })
+              })
+            }
+          : {})
+      }))
     )
   });
 }
@@ -94,7 +116,8 @@ function encode(snapshot: Omit<ThreadSnapshot, "revision">): string {
     schemaVersion: THREAD_PAYLOAD_SCHEMA_VERSION,
     thread: snapshot.thread,
     checkpoints: snapshot.checkpoints,
-    activities: snapshot.activities
+    activities: snapshot.activities,
+    relays: snapshot.relays
   });
 }
 
@@ -108,7 +131,10 @@ function decode(
       ? JSON.parse(payloadInput) as Record<string, unknown>
       : payloadInput as Record<string, unknown>;
 
-  if (payload.schemaVersion !== THREAD_PAYLOAD_SCHEMA_VERSION) {
+  if (
+    payload.schemaVersion !== 1 &&
+    payload.schemaVersion !== THREAD_PAYLOAD_SCHEMA_VERSION
+  ) {
     throw new Error(
       "Unsupported Thread payload schema version: " +
       String(payload.schemaVersion)
@@ -127,13 +153,17 @@ function decode(
     revision,
     thread: payload.thread as ConversationThread,
     checkpoints: payload.checkpoints as ThreadCheckpoint[],
-    activities: payload.activities as ThreadActivityEvent[]
+    activities: payload.activities as ThreadActivityEvent[],
+    relays: Array.isArray(payload.relays)
+      ? payload.relays as FounderRelayRecord[]
+      : []
   };
   assertTenant(
     accountDomainId,
     snapshot.thread,
     snapshot.checkpoints,
-    snapshot.activities
+    snapshot.activities,
+    snapshot.relays
   );
   return freezeSnapshot(snapshot);
 }
@@ -232,12 +262,13 @@ export class PostgresThreadStore implements ThreadStore {
 
   async create(thread: ConversationThread): Promise<ThreadSnapshot> {
     await this.#ensureTable();
-    assertTenant(this.accountDomainId, thread, [], []);
+    assertTenant(this.accountDomainId, thread, [], [], []);
     const snapshot = freezeSnapshot({
       revision: 1,
       thread,
       checkpoints: [],
-      activities: []
+      activities: [],
+      relays: []
     });
 
     const result = await this.#client.query(
@@ -271,13 +302,15 @@ export class PostgresThreadStore implements ThreadStore {
       this.accountDomainId,
       input.thread,
       input.checkpoints,
-      input.activities
+      input.activities,
+      input.relays
     );
 
     const payload = encode({
       thread: input.thread,
       checkpoints: input.checkpoints,
-      activities: input.activities
+      activities: input.activities,
+      relays: input.relays
     });
     const result = await this.#client.query(
       [
