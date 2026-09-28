@@ -75,7 +75,20 @@ Email, display name, token ID, OAuth grant, or session ID are not canonical iden
 
 A Principal may have multiple authentication bindings. One issuer+subject identity may not be rebound to another Principal.
 
-AccountDomain authority does not live in the authentication binding. A verified token still needs an active Membership in the selected AccountDomain.
+### AuthenticationIdentityPairing
+A short-lived Identity Directory setup record used to connect a verified external identity without asking the owner to copy a provider subject identifier.
+
+States:
+- armed;
+- candidate_detected;
+- consumed;
+- revoked.
+
+The pairing binds an exact Principal + AccountDomain + issuer and expires. Candidate detection does not grant access. The represented human Principal must explicitly approve the candidate before ASC creates an AuthenticationIdentityBinding.
+
+V0 permits only one active pairing per issuer + AccountDomain so multi-user pairing cannot become ambiguous without a stronger browser/OAuth state correlation mechanism.
+
+AccountDomain authority does not live in the authentication binding or pairing. A verified token still needs an active Membership in the selected AccountDomain.
 
 ### ProjectReference
 ASC's durable reference to a Project.

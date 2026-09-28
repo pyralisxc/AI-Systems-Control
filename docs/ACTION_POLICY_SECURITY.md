@@ -37,6 +37,15 @@ For every MCP request:
 
 A cryptographically valid token is insufficient when its external identity is unbound or its Membership is inactive.
 
+When owner-approved identity pairing is armed, a valid-but-unbound token may record its issuer+subject as a candidate on that exact short-lived pairing. Candidate detection is not authorization: the MCP request still fails until the represented owner explicitly approves the candidate and a durable AuthenticationIdentityBinding is created.
+
+Pairing fails closed when:
+- no active pairing exists;
+- the issuer or AccountDomain differs;
+- the pairing expired or was revoked/consumed;
+- another active pairing would make the issuer+AccountDomain ambiguous;
+- another Principal attempts approval.
+
 The raw bearer token and authorization code must not be written to Identity Directory, ControlRegistryStore, ThreadStore, Relay history, or ordinary audit surfaces.
 
 ASC does not implement a second authorization model inside MCP tool handlers. Transport scope checks and the domain bridge policy both apply.
