@@ -7,3 +7,4 @@ export * from "./storage/json-file-thread-store.js";
 export * from "./storage/postgres-thread-store.js";
 export * from "./auth/jwt-mcp-access-token-verifier.js";
 export * from "./auth/sdk-mcp-oauth-token-verifier.js";
+export * from "./auth/oauth-metadata-jwks-resolver.js";
