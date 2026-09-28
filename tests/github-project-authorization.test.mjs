@@ -96,6 +96,7 @@ async function setup() {
   return {
     directory,
     service,
+    projects,
     connections,
     bindings,
     delegations,
@@ -245,8 +246,7 @@ test("GitHub Project authorization fails closed when repository capability proof
   try {
     const failing =
       new GitHubProjectAuthorizationService({
-        projects:
-          context.service["#projects"],
+        projects: context.projects,
         connections: context.connections,
         bindings: context.bindings,
         delegations: context.delegations,
