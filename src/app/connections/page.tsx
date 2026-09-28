@@ -8,6 +8,39 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function preferredExecutionCapability(
+  capabilities: readonly string[]
+): string | undefined {
+  if (capabilities.includes("pull_request.write")) {
+    return "pull_request.write";
+  }
+  if (capabilities.includes("issue.write")) {
+    return "issue.write";
+  }
+  return undefined;
+}
+
+function hasExactBinding(
+  bindings: readonly {
+    readonly projectId: string;
+    readonly capabilityScope: {
+      readonly kind: "exact" | "prefix";
+      readonly value: string;
+    };
+    readonly status: string;
+  }[],
+  projectId: string,
+  capabilityId: string
+): boolean {
+  return bindings.some(
+    (binding) =>
+      binding.projectId === projectId &&
+      binding.status === "active" &&
+      binding.capabilityScope.kind === "exact" &&
+      binding.capabilityScope.value === capabilityId
+  );
+}
+
 function tone(status: string): "positive" | "warning" | "critical" | "neutral" {
   if (status === "active") return "positive";
   if (status === "reconnect_required" || status === "unavailable") return "warning";
@@ -126,6 +159,13 @@ export default async function ConnectionsPage() {
           bounded connection class rather than a pasted PAT.
         </div>
 
+        <div className="connections-notice">
+          Project binding requires Conductor to attest that this exact GitHub App
+          installation covers the exact repository. Binding creates durable
+          read/execution routing only; mutation still requires a separate
+          approval-bound, short-lived delegation when work actually runs.
+        </div>
+
         <section className="connections-grid">
           {view.connections.length === 0 ? (
             <div className="empty-state">No provider Connections are registered yet.</div>
@@ -190,6 +230,92 @@ export default async function ConnectionsPage() {
                   </div>
 
                   <div className="connection-card__actions">
+                    {connection.provider === "github" &&
+                    connection.authenticationStrategy === "app_installation" &&
+                    connection.status === "active" ? (
+                      view.projects.map((project) => {
+                        const executionCapability =
+                          preferredExecutionCapability(
+                            connection.capabilities
+                          );
+                        const fullyBound =
+                          hasExactBinding(
+                            bindings,
+                            project.projectId,
+                            "source.read"
+                          ) &&
+                          hasExactBinding(
+                            bindings,
+                            project.projectId,
+                            "repository.read"
+                          ) &&
+                          Boolean(
+                            executionCapability &&
+                            hasExactBinding(
+                              bindings,
+                              project.projectId,
+                              executionCapability
+                            )
+                          );
+
+                        if (fullyBound) {
+                          return (
+                            <span
+                              className="connection-chip"
+                              key={project.projectId}
+                            >
+                              {project.name} · specialist access bound
+                            </span>
+                          );
+                        }
+
+                        if (
+                          !executionCapability ||
+                          !connection.capabilities.includes("source.read") ||
+                          !connection.capabilities.includes("repository.read")
+                        ) {
+                          return (
+                            <span
+                              className="connection-chip"
+                              key={project.projectId}
+                            >
+                              {project.name} · required GitHub capabilities unavailable
+                            </span>
+                          );
+                        }
+
+                        return (
+                          <form
+                            action="/api/connections/github/bind-project"
+                            method="post"
+                            key={project.projectId}
+                          >
+                            <input
+                              type="hidden"
+                              name="connectionId"
+                              value={connection.connectionId}
+                            />
+                            <input
+                              type="hidden"
+                              name="projectId"
+                              value={project.projectId}
+                            />
+                            <input
+                              type="hidden"
+                              name="executionCapability"
+                              value={executionCapability}
+                            />
+                            <button
+                              className="connection-action"
+                              type="submit"
+                            >
+                              Bind {project.name} · DI read + Conductor {executionCapability}
+                            </button>
+                          </form>
+                        );
+                      })
+                    ) : null}
+
                     {connection.status !== "revoked" ? (
                       <form action="/api/connections/revoke" method="post">
                         <input type="hidden" name="connectionId" value={connection.connectionId} />

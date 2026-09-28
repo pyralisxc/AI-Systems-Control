@@ -8,7 +8,8 @@ import {
 } from "../../../dist/adapters/index.js";
 import {
   ConnectionAuthorizationBroker,
-  flowIdFromAuthorizationState
+  flowIdFromAuthorizationState,
+  GitHubProjectAuthorizationService
 } from "../../../dist/application/index.js";
 import type {
   AuthorizationFlowStore
@@ -145,6 +146,7 @@ export async function githubConnectionServices() {
   return {
     control,
     app,
+    attestor,
     setupCallbackUrl,
     broker: new ConnectionAuthorizationBroker({
       flowStore: authorizationFlowStore(
@@ -186,5 +188,72 @@ export async function completeGitHubConnection(
     flowId,
     state,
     callback
+  });
+}
+
+
+export async function bindGitHubConnectionToProject(input: {
+  readonly projectId: string;
+  readonly connectionId: string;
+  readonly executionCapability: string;
+}) {
+  const services = await githubConnectionServices();
+  const authorization =
+    new GitHubProjectAuthorizationService({
+      projects: services.control.projects,
+      connections: services.control.connections,
+      bindings: services.control.bindings,
+      delegations: services.control.delegations,
+      repositoryAttestor: services.attestor
+    });
+
+  return authorization.bindProject({
+    principalId: services.control.principalId!,
+    projectId: input.projectId,
+    connectionId: input.connectionId,
+    executionCapability:
+      input.executionCapability
+  });
+}
+
+export async function issueGitHubDevelopmentIntelligenceDelegations(
+  projectId: string
+) {
+  const services = await githubConnectionServices();
+  const authorization =
+    new GitHubProjectAuthorizationService({
+      projects: services.control.projects,
+      connections: services.control.connections,
+      bindings: services.control.bindings,
+      delegations: services.control.delegations,
+      repositoryAttestor: services.attestor
+    });
+
+  return authorization.issueDevelopmentIntelligenceDelegations({
+    principalId: services.control.principalId!,
+    projectId
+  });
+}
+
+export async function issueGitHubConductorDelegation(input: {
+  readonly projectId: string;
+  readonly capabilityId: string;
+  readonly approvalReference: string;
+}) {
+  const services = await githubConnectionServices();
+  const authorization =
+    new GitHubProjectAuthorizationService({
+      projects: services.control.projects,
+      connections: services.control.connections,
+      bindings: services.control.bindings,
+      delegations: services.control.delegations,
+      repositoryAttestor: services.attestor
+    });
+
+  return authorization.issueConductorDelegation({
+    principalId: services.control.principalId!,
+    projectId: input.projectId,
+    capabilityId: input.capabilityId,
+    approvalReference: input.approvalReference
   });
 }
