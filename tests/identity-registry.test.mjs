@@ -322,3 +322,222 @@ test("Identity Directory v1 upgrades with no federated bindings", async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+
+test("owner can arm pairing and detected identity remains unbound until approval", () => {
+  const bootstrap = bootstrapPersonalIdentity({
+    principalId: "principal:owner",
+    principalDisplayName: "Owner",
+    accountDomainId: "domain:personal",
+    accountDomainName: "Personal",
+    createdAt: "2026-09-28T00:00:00.000Z"
+  });
+  const registry = bootstrap.registry;
+
+  const pairing = registry.armAuthenticationIdentityPairing({
+    principalId: "principal:owner",
+    accountDomainId: "domain:personal",
+    issuer: "https://auth.example.test",
+    expiresAt: "2026-09-28T00:10:00.000Z",
+    createdAt: "2026-09-28T00:00:00.000Z"
+  });
+  assert.equal(pairing.state, "armed");
+
+  const detected = registry.detectAuthenticationIdentityCandidate({
+    issuer: "https://auth.example.test",
+    subject: "subject-123",
+    accountDomainId: "domain:personal",
+    detectedAt: "2026-09-28T00:01:00.000Z"
+  });
+  assert.equal(detected?.state, "candidate_detected");
+  assert.equal(detected?.candidateSubject, "subject-123");
+  assert.equal(
+    registry.resolveAuthenticationIdentity(
+      "https://auth.example.test",
+      "subject-123"
+    ),
+    undefined
+  );
+
+  const approved = registry.approveAuthenticationIdentityPairing({
+    pairingId: pairing.pairingId,
+    reviewedByPrincipalId: "principal:owner",
+    approvedAt: "2026-09-28T00:02:00.000Z"
+  });
+  assert.equal(approved.pairing.state, "consumed");
+  assert.equal(approved.binding.principalId, "principal:owner");
+  assert.equal(
+    registry.resolveAuthenticationIdentity(
+      "https://auth.example.test",
+      "subject-123"
+    )?.bindingId,
+    approved.binding.bindingId
+  );
+});
+
+test("unarmed token identity does not create pairing candidate state", () => {
+  const bootstrap = bootstrapPersonalIdentity({
+    principalId: "principal:owner",
+    principalDisplayName: "Owner",
+    accountDomainId: "domain:personal",
+    accountDomainName: "Personal"
+  });
+
+  const detected =
+    bootstrap.registry.detectAuthenticationIdentityCandidate({
+      issuer: "https://auth.example.test",
+      subject: "subject-123",
+      accountDomainId: "domain:personal"
+    });
+
+  assert.equal(detected, undefined);
+  assert.deepEqual(
+    bootstrap.registry.listAuthenticationPairings(),
+    []
+  );
+});
+
+test("only one active pairing per issuer and AccountDomain is allowed", () => {
+  const registry = new InMemoryIdentityRegistry();
+  registry.registerAccountDomain({
+    accountDomainId: "domain:a",
+    kind: "organization",
+    name: "A"
+  });
+  for (const id of ["one", "two"]) {
+    registry.registerPrincipal({
+      principalId: "principal:" + id,
+      kind: "human",
+      displayName: id
+    });
+    registry.registerMembership({
+      principalId: "principal:" + id,
+      accountDomainId: "domain:a",
+      roles: ["admin"]
+    });
+  }
+
+  registry.armAuthenticationIdentityPairing({
+    principalId: "principal:one",
+    accountDomainId: "domain:a",
+    issuer: "https://auth.example.test",
+    expiresAt: "2026-09-28T00:10:00.000Z",
+    createdAt: "2026-09-28T00:00:00.000Z"
+  });
+
+  assert.throws(
+    () => registry.armAuthenticationIdentityPairing({
+      principalId: "principal:two",
+      accountDomainId: "domain:a",
+      issuer: "https://auth.example.test",
+      expiresAt: "2026-09-28T00:10:00.000Z",
+      createdAt: "2026-09-28T00:01:00.000Z"
+    }),
+    /Another authentication pairing is already active/i
+  );
+});
+
+test("expired pairing cannot detect or approve identity", () => {
+  const bootstrap = bootstrapPersonalIdentity({
+    principalId: "principal:owner",
+    principalDisplayName: "Owner",
+    accountDomainId: "domain:personal",
+    accountDomainName: "Personal"
+  });
+  const registry = bootstrap.registry;
+  const pairing = registry.armAuthenticationIdentityPairing({
+    principalId: "principal:owner",
+    accountDomainId: "domain:personal",
+    issuer: "https://auth.example.test",
+    expiresAt: "2026-09-28T00:01:00.000Z",
+    createdAt: "2026-09-28T00:00:00.000Z"
+  });
+
+  assert.equal(
+    registry.detectAuthenticationIdentityCandidate({
+      issuer: "https://auth.example.test",
+      subject: "subject-123",
+      accountDomainId: "domain:personal",
+      detectedAt: "2026-09-28T00:02:00.000Z"
+    }),
+    undefined
+  );
+
+  assert.throws(
+    () => registry.approveAuthenticationIdentityPairing({
+      pairingId: pairing.pairingId,
+      reviewedByPrincipalId: "principal:owner",
+      approvedAt: "2026-09-28T00:02:00.000Z"
+    }),
+    /expired|no detected identity/i
+  );
+});
+
+test("pairing survives persistent identity-directory restart", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "asc-identity-pairing-"));
+  const path = join(directory, "identity.json");
+  try {
+    const identities = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(path)
+    );
+    await identities.bootstrapPersonal({
+      principalId: "principal:owner",
+      principalDisplayName: "Owner",
+      accountDomainId: "domain:personal",
+      accountDomainName: "Personal"
+    });
+    const pairing = await identities.armAuthenticationIdentityPairing({
+      principalId: "principal:owner",
+      accountDomainId: "domain:personal",
+      issuer: "https://auth.example.test",
+      expiresAt: "2026-09-28T00:10:00.000Z",
+      createdAt: "2026-09-28T00:00:00.000Z"
+    });
+    await identities.detectAuthenticationIdentityCandidate({
+      issuer: "https://auth.example.test",
+      subject: "subject-123",
+      accountDomainId: "domain:personal",
+      detectedAt: "2026-09-28T00:01:00.000Z"
+    });
+
+    const restarted = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(path)
+    );
+    const persisted = await restarted.getAuthenticationPairing(
+      pairing.pairingId
+    );
+    assert.equal(persisted?.state, "candidate_detected");
+    assert.equal(persisted?.candidateSubject, "subject-123");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("Identity Directory v2 upgrades with no pairing state", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "asc-identity-v2-"));
+  const path = join(directory, "identity.json");
+  try {
+    await writeFile(
+      path,
+      JSON.stringify({
+        schemaVersion: 2,
+        revision: 5,
+        principals: [],
+        accountDomains: [],
+        memberships: [],
+        authenticationBindings: []
+      }),
+      "utf8"
+    );
+
+    const identities = new PersistentIdentityRegistry(
+      new JsonFileIdentityDirectoryStore(path)
+    );
+    assert.deepEqual(
+      await identities.listAuthenticationPairings(),
+      []
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
