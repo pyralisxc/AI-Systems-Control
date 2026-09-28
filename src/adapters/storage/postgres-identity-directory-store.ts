@@ -25,6 +25,9 @@ function freezeSnapshot(
     memberships: Object.freeze([...snapshot.memberships]),
     authenticationBindings: Object.freeze([
       ...snapshot.authenticationBindings
+    ]),
+    authenticationPairings: Object.freeze([
+      ...snapshot.authenticationPairings
     ])
   });
 }
@@ -41,6 +44,7 @@ function decode(
 
   if (
     payload.schemaVersion !== 1 &&
+    payload.schemaVersion !== 2 &&
     payload.schemaVersion !== IDENTITY_DIRECTORY_SCHEMA_VERSION
   ) {
     throw new Error(
@@ -66,6 +70,9 @@ function decode(
     authenticationBindings: Array.isArray(payload.authenticationBindings)
       ? payload.authenticationBindings as IdentityDirectorySnapshot["authenticationBindings"]
       : Object.freeze([]),
+    authenticationPairings: Array.isArray(payload.authenticationPairings)
+      ? payload.authenticationPairings as IdentityDirectorySnapshot["authenticationPairings"]
+      : Object.freeze([]),
     ...(typeof updatedAtInput === "string"
       ? { updatedAt: updatedAtInput }
       : typeof payload.updatedAt === "string"
@@ -81,6 +88,7 @@ function encode(input: SaveIdentityDirectoryInput): string {
     accountDomains: input.accountDomains,
     memberships: input.memberships,
     authenticationBindings: input.authenticationBindings,
+    authenticationPairings: input.authenticationPairings,
     ...(input.updatedAt ? { updatedAt: input.updatedAt } : {})
   });
 }
