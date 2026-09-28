@@ -10,3 +10,4 @@ export * from "./auth/sdk-mcp-oauth-token-verifier.js";
 export * from "./auth/oauth-metadata-jwks-resolver.js";
 export * from "./storage/json-file-authorization-flow-store.js";
 export * from "./storage/postgres-authorization-flow-store.js";
+export * from "./github/github-installation-authorization-provider.js";
