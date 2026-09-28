@@ -11,6 +11,16 @@ permissions:
   contents: read
 
 jobs:
+  development-intelligence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run Development Intelligence analysis
+        uses: pyralisxc/Development-Intelligence@76615549ddd17be93b3690dc6ae3a20869285581
+        with:
+          project: pyralisxc/AI-Systems-Control
+          mode: analyze
+
   verify:
     runs-on: ubuntu-latest
     steps:
