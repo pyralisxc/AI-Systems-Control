@@ -4,11 +4,50 @@ import type {
   BeginConnectionAuthorizationResult,
   CompleteConnectionAuthorizationInput,
   ConnectionAuthorizationProvider,
-  GitHubInstallationAttestor,
   RevokeConnectionAuthorizationInput,
   VerifyConnectionAuthorizationInput,
   VerifyConnectionAuthorizationResult
 } from "../../ports/index.js";
+
+export interface GitHubInstallationAttestation {
+  readonly installationId: string;
+  readonly accountId: string;
+  readonly accountLogin: string;
+  readonly accountType: "User" | "Organization" | "Enterprise";
+  readonly repositorySelection: "all" | "selected";
+  readonly capabilities: readonly string[];
+  readonly verifiedAt: string;
+}
+
+export interface AttestGitHubInstallationInput {
+  readonly installationId: string;
+  readonly principalId: string;
+  readonly accountDomainId: string;
+}
+
+export interface VerifyGitHubInstallationInput {
+  readonly installationId: string;
+  readonly principalId: string;
+  readonly accountDomainId: string;
+}
+
+export interface GitHubAppIdentity {
+  readonly appId: string;
+  readonly appSlug: string;
+}
+
+export interface GitHubInstallationAttestor {
+  getAppIdentity(): Promise<GitHubAppIdentity>;
+
+  attestInstallation(
+    input: AttestGitHubInstallationInput
+  ): Promise<GitHubInstallationAttestation>;
+
+  verifyInstallation(
+    input: VerifyGitHubInstallationInput
+  ): Promise<GitHubInstallationAttestation | undefined>;
+}
+
 
 export interface GitHubInstallationAuthorizationProviderOptions {
   readonly appSlug: string;

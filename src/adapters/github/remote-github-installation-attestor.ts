@@ -2,7 +2,7 @@ import type {
   GitHubAppIdentity,
   GitHubInstallationAttestation,
   GitHubInstallationAttestor
-} from "../../ports/index.js";
+} from "./github-installation-authorization-provider.js";
 
 export interface RemoteGitHubInstallationAttestorOptions {
   readonly baseUrl: string;
