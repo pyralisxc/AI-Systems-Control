@@ -11,3 +11,4 @@ export * from "./auth/oauth-metadata-jwks-resolver.js";
 export * from "./storage/json-file-authorization-flow-store.js";
 export * from "./storage/postgres-authorization-flow-store.js";
 export * from "./github/github-installation-authorization-provider.js";
+export * from "./github/remote-github-installation-attestor.js";

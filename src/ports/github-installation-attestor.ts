@@ -20,7 +20,14 @@ export interface VerifyGitHubInstallationInput {
   readonly accountDomainId: string;
 }
 
+export interface GitHubAppIdentity {
+  readonly appId: string;
+  readonly appSlug: string;
+}
+
 export interface GitHubInstallationAttestor {
+  getAppIdentity(): Promise<GitHubAppIdentity>;
+
   attestInstallation(
     input: AttestGitHubInstallationInput
   ): Promise<GitHubInstallationAttestation>;
