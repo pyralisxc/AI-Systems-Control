@@ -48,13 +48,68 @@ function tone(status: string): "positive" | "warning" | "critical" | "neutral" {
   return "neutral";
 }
 
-export default async function ConnectionsPage() {
+type ConnectionsSearchParams = Promise<
+  Record<string, string | string[] | undefined>
+>;
+
+function param(
+  searchParams: Record<string, string | string[] | undefined>,
+  name: string
+): string | undefined {
+  const value = searchParams[name];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function feedback(
+  searchParams: Record<string, string | string[] | undefined>
+): { readonly tone: "positive" | "warning"; readonly message: string } | undefined {
+  if (param(searchParams, "connected") === "github") {
+    return {
+      tone: "positive",
+      message: "GitHub Connection verified and reconciled."
+    };
+  }
+  if (param(searchParams, "githubBinding") === "connected") {
+    return {
+      tone: "positive",
+      message: "Project specialist access is bound to the verified GitHub Connection."
+    };
+  }
+  if (param(searchParams, "githubBinding") === "error") {
+    return {
+      tone: "warning",
+      message: "GitHub Project binding could not be verified. Existing authority was not broadened."
+    };
+  }
+  if (param(searchParams, "revoked") === "connection") {
+    return {
+      tone: "positive",
+      message: "Connection revoked in ASC. Dependent authority will fail closed."
+    };
+  }
+  return undefined;
+}
+
+function verifiedCopy(value: string | undefined): string {
+  if (!value) return "not yet verified";
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return "verification time unavailable";
+  return new Date(timestamp).toLocaleString();
+}
+
+export default async function ConnectionsPage({
+  searchParams
+}: {
+  readonly searchParams?: ConnectionsSearchParams;
+}) {
   if (!(await isOwnerAuthenticated())) {
     redirect("/login?returnTo=%2Fconnections");
   }
 
   const view = await loadConnectionsControlView();
   const githubConfigured = githubConnectionConfigured();
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const currentFeedback = feedback(resolvedSearchParams);
 
   if (!view.configured) {
     return (
@@ -85,6 +140,11 @@ export default async function ConnectionsPage() {
   }
 
   const active = view.connections.filter((connection) => connection.status === "active").length;
+  const attention = view.connections.filter(
+    (connection) =>
+      connection.status === "reconnect_required" ||
+      connection.status === "unavailable"
+  ).length;
   const domains = new Set(view.connections.map((connection) => connection.accountDomainId));
   const projectMap = new Map(view.projects.map((project) => [project.projectId, project]));
 
@@ -106,6 +166,16 @@ export default async function ConnectionsPage() {
           </div>
         </header>
 
+        {currentFeedback ? (
+          <div
+            className="connection-feedback"
+            data-tone={currentFeedback.tone}
+            role="status"
+          >
+            {currentFeedback.message}
+          </div>
+        ) : null}
+
         <section className="connections-summary" aria-label="Connection summary">
           <article className="metric-card">
             <span>Connections</span>
@@ -121,6 +191,11 @@ export default async function ConnectionsPage() {
             <span>Project bindings</span>
             <strong>{view.bindings.filter((binding) => binding.status === "active").length}</strong>
             <small>explicit capability routing</small>
+          </article>
+          <article className="metric-card">
+            <span>Needs attention</span>
+            <strong>{attention}</strong>
+            <small>unavailable / reconnect required</small>
           </article>
         </section>
 
@@ -197,7 +272,13 @@ export default async function ConnectionsPage() {
                       {connection.environment ? " · " + connection.environment : ""}
                     </div>
                     <div>
+                      <strong>Authentication</strong> · {connection.authenticationStrategy.replaceAll("_", " ")}
+                    </div>
+                    <div>
                       <strong>Generation</strong> · {connection.generation}
+                    </div>
+                    <div>
+                      <strong>Last verified</strong> · {verifiedCopy(connection.lastVerifiedAt)}
                     </div>
 
                     <div className="connection-capabilities">
@@ -215,11 +296,35 @@ export default async function ConnectionsPage() {
                         bindings.map((binding) => {
                           const boundProject = projectMap.get(binding.projectId);
                           return (
-                            <div className="connection-binding" key={binding.bindingId}>
-                              <strong>{boundProject?.name ?? binding.projectId}</strong>
+                            <div
+                              className="connection-binding"
+                              data-status={binding.status}
+                              key={binding.bindingId}
+                            >
+                              <div className="connection-binding__heading">
+                                <strong>{boundProject?.name ?? binding.projectId}</strong>
+                                <span
+                                  className="status-pill"
+                                  data-tone={binding.status === "active" ? "positive" : "critical"}
+                                >
+                                  <span className="status-dot" aria-hidden="true" />
+                                  {binding.status}
+                                </span>
+                              </div>
                               <span>
                                 {binding.environment ?? "all environments"} · {binding.capabilityScope.kind}:{binding.capabilityScope.value}
                               </span>
+                              <span>
+                                {binding.selection} selection
+                                {binding.resource
+                                  ? " · " + binding.resource.kind + ":" + binding.resource.value
+                                  : ""}
+                              </span>
+                              {binding.approvalRequiredFor.length > 0 ? (
+                                <span>
+                                  owner approval required for {binding.approvalRequiredFor.join(", ")}
+                                </span>
+                              ) : null}
                             </div>
                           );
                         })
@@ -230,6 +335,23 @@ export default async function ConnectionsPage() {
                   </div>
 
                   <div className="connection-card__actions">
+                    {connection.provider === "github" &&
+                    githubConfigured &&
+                    (connection.status === "reconnect_required" ||
+                      connection.status === "unavailable") ? (
+                      <form
+                        method="post"
+                        action="/api/connections/github/start"
+                      >
+                        <button
+                          className="connection-action"
+                          type="submit"
+                        >
+                          Reconnect GitHub
+                        </button>
+                      </form>
+                    ) : null}
+
                     {connection.provider === "github" &&
                     connection.authenticationStrategy === "app_installation" &&
                     connection.status === "active" ? (
