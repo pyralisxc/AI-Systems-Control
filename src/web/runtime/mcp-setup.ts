@@ -90,7 +90,13 @@ export async function loadMcpSetupReadinessView() {
             Date.parse(candidate.expiresAt) > now
         );
 
-        if (pairing) {
+        if (
+          pairing &&
+          (
+            pairing.state === "armed" ||
+            pairing.state === "candidate_detected"
+          )
+        ) {
           activePairing = Object.freeze({
             pairingId: pairing.pairingId,
             state: pairing.state,
