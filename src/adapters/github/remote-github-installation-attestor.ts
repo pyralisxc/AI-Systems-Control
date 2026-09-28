@@ -3,6 +3,11 @@ import type {
   GitHubInstallationAttestation,
   GitHubInstallationAttestor
 } from "./github-installation-authorization-provider.js";
+import type {
+  AttestExternalRepositoryInput,
+  ExternalRepositoryAttestation,
+  ExternalRepositoryAttestor
+} from "../../ports/index.js";
 
 export interface RemoteGitHubInstallationAttestorOptions {
   readonly baseUrl: string;
@@ -64,6 +69,31 @@ function installationId(value: string): string {
   return normalized;
 }
 
+function repository(value: string): {
+  readonly canonical: string;
+  readonly owner: string;
+  readonly name: string;
+} {
+  const pieces = value.trim().split("/");
+  if (
+    pieces.length !== 2 ||
+    !pieces[0] ||
+    !pieces[1] ||
+    !/^[A-Za-z0-9_.-]+$/u.test(pieces[0]) ||
+    !/^[A-Za-z0-9_.-]+$/u.test(pieces[1])
+  ) {
+    throw new Error(
+      "GitHub repository must be owner/repository."
+    );
+  }
+
+  return Object.freeze({
+    canonical: pieces[0] + "/" + pieces[1],
+    owner: pieces[0],
+    name: pieces[1]
+  });
+}
+
 function stringField(
   value: unknown,
   label: string
@@ -72,6 +102,35 @@ function stringField(
     throw new Error(label + " is missing.");
   }
   return value.trim();
+}
+
+function accountType(
+  value: unknown
+): "User" | "Organization" | "Enterprise" {
+  const raw = stringField(value, "GitHub account type");
+  if (
+    raw !== "User" &&
+    raw !== "Organization" &&
+    raw !== "Enterprise"
+  ) {
+    throw new Error(
+      "GitHub account type is invalid."
+    );
+  }
+  return raw;
+}
+
+function verifiedAt(value: unknown): string {
+  const raw = stringField(
+    value,
+    "GitHub attestation time"
+  );
+  if (!Number.isFinite(Date.parse(raw))) {
+    throw new Error(
+      "GitHub attestation time is invalid."
+    );
+  }
+  return raw;
 }
 
 function safeCapabilities(
@@ -94,7 +153,7 @@ function safeCapabilities(
 }
 
 export class RemoteGitHubInstallationAttestor
-  implements GitHubInstallationAttestor
+  implements GitHubInstallationAttestor, ExternalRepositoryAttestor
 {
   readonly #baseUrl: string;
   readonly #secret: string;
@@ -177,6 +236,65 @@ export class RemoteGitHubInstallationAttestor
     }
   }
 
+  async attestRepository(
+    input: AttestExternalRepositoryInput
+  ): Promise<ExternalRepositoryAttestation> {
+    const id = installationId(input.connectionReference);
+    const requested = repository(input.repository);
+    const value = await this.#get(
+      "/internal/asc/github/installations/" +
+      encodeURIComponent(id) +
+      "/repositories/" +
+      encodeURIComponent(requested.owner) +
+      "/" +
+      encodeURIComponent(requested.name) +
+      "/attest"
+    );
+
+    const returnedId = installationId(
+      stringField(
+        value.installationId,
+        "GitHub installation ID"
+      )
+    );
+    if (returnedId !== id) {
+      throw new Error(
+        "Conductor attested a different GitHub installation."
+      );
+    }
+
+    const returnedRepository = repository(
+      stringField(
+        value.repository,
+        "GitHub repository"
+      )
+    ).canonical;
+    if (
+      returnedRepository.toLowerCase() !==
+      requested.canonical.toLowerCase()
+    ) {
+      throw new Error(
+        "Conductor attested a different GitHub repository."
+      );
+    }
+
+    return Object.freeze({
+      connectionReference: returnedId,
+      repository: returnedRepository,
+      accountReference: stringField(
+        value.accountId,
+        "GitHub account ID"
+      ),
+      accountDisplayName: stringField(
+        value.accountLogin,
+        "GitHub account login"
+      ),
+      accountType: accountType(value.accountType),
+      capabilities: safeCapabilities(value.capabilities),
+      verifiedAt: verifiedAt(value.verifiedAt)
+    });
+  }
+
   async #attest(
     installationIdInput: string
   ): Promise<GitHubInstallationAttestation> {
@@ -201,20 +319,6 @@ export class RemoteGitHubInstallationAttestor
       );
     }
 
-    const accountTypeRaw = stringField(
-      value.accountType,
-      "GitHub account type"
-    );
-    if (
-      accountTypeRaw !== "User" &&
-      accountTypeRaw !== "Organization" &&
-      accountTypeRaw !== "Enterprise"
-    ) {
-      throw new Error(
-        "GitHub account type is invalid."
-      );
-    }
-
     const repositorySelectionRaw = stringField(
       value.repositorySelection,
       "GitHub repository selection"
@@ -228,16 +332,6 @@ export class RemoteGitHubInstallationAttestor
       );
     }
 
-    const verifiedAt = stringField(
-      value.verifiedAt,
-      "GitHub attestation time"
-    );
-    if (!Number.isFinite(Date.parse(verifiedAt))) {
-      throw new Error(
-        "GitHub attestation time is invalid."
-      );
-    }
-
     return Object.freeze({
       installationId: returnedId,
       accountId: stringField(
@@ -248,12 +342,12 @@ export class RemoteGitHubInstallationAttestor
         value.accountLogin,
         "GitHub account login"
       ),
-      accountType: accountTypeRaw,
+      accountType: accountType(value.accountType),
       repositorySelection: repositorySelectionRaw,
       capabilities: safeCapabilities(
         value.capabilities
       ),
-      verifiedAt
+      verifiedAt: verifiedAt(value.verifiedAt)
     });
   }
 }

@@ -9,3 +9,5 @@ export * from "./founder-relay-delivery.js";
 export * from "./mcp-auth.js";
 
 export * from "./project-work-item-source.js";
+
+export * from "./external-repository-attestor.js";

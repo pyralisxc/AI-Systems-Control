@@ -8,6 +8,7 @@ import {
 } from "../../../dist/adapters/index.js";
 import {
   ContinuationAuthorityService,
+  DelegationService,
   PersistentConnectionRegistry,
   resolveControlDatabaseUrl,
   PersistentIdentityRegistry,
@@ -227,6 +228,7 @@ export async function controlRegistryServicesForDomain(
     projects: new PersistentProjectRegistry(store, identities),
     connections: new PersistentConnectionRegistry(store, identities),
     bindings: new PersistentProjectConnectionBindingRegistry(store),
+    delegations: new DelegationService(store),
     authority: new WorkerAuthorityService(store, identities),
     continuation: new ContinuationAuthorityService(store, identities)
   };
