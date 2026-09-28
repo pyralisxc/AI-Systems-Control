@@ -8,11 +8,13 @@ import {
   controlRegistryDatabaseUrlSource,
   defaultAccountDomainId,
   defaultAccountDomainName,
+  identityRegistryServices,
   personalBootstrapEnabled
 } from "./control-registry";
 import {
   ASC_MCP_SCOPES,
   mcpAccountDomainClaim,
+  mcpOAuthIssuer,
   mcpResourceMetadataUrl,
   mcpResourceUrl,
   mcpResourceUrlSource,
@@ -44,40 +46,90 @@ function safeResourceUrls():
   }
 }
 
-export function loadMcpSetupReadinessView() {
+export async function loadMcpSetupReadinessView() {
   const urls = safeResourceUrls();
+  const durableStorageConfigured = controlRegistryConfigured();
+  const oauthIssuerConfigured = present("ASC_OAUTH_ISSUER");
+  const oauthJwksConfigured = present("ASC_OAUTH_JWKS_URL");
+
+  let externalIdentityBound = false;
+  let identityStateReadable = !durableStorageConfigured;
+  let activePairing:
+    | {
+        readonly pairingId: string;
+        readonly state: "armed" | "candidate_detected";
+        readonly expiresAt: string;
+      }
+    | undefined;
+
+  if (durableStorageConfigured && oauthIssuerConfigured) {
+    try {
+      const { identities } = await identityRegistryServices();
+      const issuer = mcpOAuthIssuer();
+      const principalId = bootstrapPrincipalId();
+      const accountDomainId = defaultAccountDomainId();
+
+      const bindings = await identities.listAuthenticationBindings();
+      externalIdentityBound = bindings.some(
+        (binding) =>
+          binding.status === "active" &&
+          binding.principalId === principalId &&
+          binding.issuer === issuer
+      );
+
+      if (!externalIdentityBound) {
+        const now = Date.now();
+        const pairings =
+          await identities.listAuthenticationPairings(accountDomainId);
+        const pairing = pairings.find(
+          (candidate) =>
+            candidate.principalId === principalId &&
+            candidate.issuer === issuer &&
+            (candidate.state === "armed" ||
+              candidate.state === "candidate_detected") &&
+            Date.parse(candidate.expiresAt) > now
+        );
+
+        if (pairing) {
+          activePairing = Object.freeze({
+            pairingId: pairing.pairingId,
+            state: pairing.state,
+            expiresAt: pairing.expiresAt
+          });
+        }
+      }
+
+      identityStateReadable = true;
+    } catch {
+      identityStateReadable = false;
+    }
+  }
+
   const readiness = deriveMcpSetupReadiness({
-    durableStorageConfigured: controlRegistryConfigured(),
+    durableStorageConfigured,
     resourceUrlConfigured: Boolean(urls),
-    oauthIssuerConfigured: present("ASC_OAUTH_ISSUER"),
-    oauthJwksConfigured: present("ASC_OAUTH_JWKS_URL"),
-    externalIdentityIssuerConfigured: present(
-      "ASC_BOOTSTRAP_AUTH_ISSUER"
-    ),
-    externalIdentitySubjectConfigured: present(
-      "ASC_BOOTSTRAP_AUTH_SUBJECT"
-    )
+    oauthIssuerConfigured,
+    oauthJwksConfigured,
+    externalIdentityBound
   });
 
   return Object.freeze({
     readiness,
     configuration: Object.freeze({
-      durableStorageConfigured: controlRegistryConfigured(),
+      durableStorageConfigured,
       durableStorageSource: controlRegistryDatabaseUrlSource(),
       resourceUrlConfigured: Boolean(urls),
       resourceUrlSource: urls?.source,
-      oauthIssuerConfigured: present("ASC_OAUTH_ISSUER"),
-      oauthJwksConfigured: present("ASC_OAUTH_JWKS_URL"),
-      externalIdentityIssuerConfigured: present(
-        "ASC_BOOTSTRAP_AUTH_ISSUER"
-      ),
-      externalIdentitySubjectConfigured: present(
-        "ASC_BOOTSTRAP_AUTH_SUBJECT"
-      ),
+      oauthIssuerConfigured,
+      oauthJwksConfigured,
+      externalIdentityBound,
+      identityStateReadable,
+      pairingState: activePairing?.state,
       documentationConfigured: present(
         "ASC_MCP_DOCUMENTATION_URL"
       )
     }),
+    pairing: activePairing,
     defaults: Object.freeze({
       accountDomainId: defaultAccountDomainId(),
       accountDomainName: defaultAccountDomainName(),

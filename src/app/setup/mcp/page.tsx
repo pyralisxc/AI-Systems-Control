@@ -43,7 +43,7 @@ export default async function McpSetupPage() {
     redirect("/login?returnTo=%2Fsetup%2Fmcp");
   }
 
-  const view = loadMcpSetupReadinessView();
+  const view = await loadMcpSetupReadinessView();
 
   return (
     <main className="setup-shell">
@@ -127,14 +127,152 @@ export default async function McpSetupPage() {
             />
             <Check
               label="External identity binding"
-              configured={
-                view.configuration.externalIdentityIssuerConfigured &&
-                view.configuration.externalIdentitySubjectConfigured
+              configured={view.configuration.externalIdentityBound}
+              detail={
+                view.configuration.externalIdentityBound
+                  ? "A verified external identity is durably bound to the ASC bootstrap Principal."
+                  : "Pair identity through a normal OAuth sign-in. ASC detects the verified subject and waits for explicit owner approval before binding it."
               }
-              detail="Issuer + stable subject mapped to the existing ASC bootstrap Principal. Email is not the identity key."
             />
           </div>
         </section>
+
+
+        {view.configuration.durableStorageConfigured &&
+        view.configuration.oauthIssuerConfigured &&
+        !view.configuration.externalIdentityBound ? (
+          <section className="content-section">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Identity connection</span>
+                <h2>Pair your sign-in</h2>
+                <p>
+                  No subject copying. Arm pairing here, complete the normal
+                  ChatGPT/MCP OAuth sign-in, then approve the verified identity
+                  that ASC detects.
+                </p>
+              </div>
+            </div>
+
+            {!view.configuration.identityStateReadable ? (
+              <div className="connections-notice">
+                ASC can see that storage is configured, but the identity
+                directory is not currently readable. Check the database
+                connection before pairing.
+              </div>
+            ) : view.pairing?.state === "candidate_detected" ? (
+              <div className="setup-pairing setup-pairing--detected">
+                <div>
+                  <span className="eyebrow">Verified identity detected</span>
+                  <strong>Waiting for your approval</strong>
+                  <p>
+                    The OAuth token was cryptographically valid and matched the
+                    configured issuer/AccountDomain, but ASC has not granted it
+                    access yet. Approving creates the durable identity binding.
+                  </p>
+                </div>
+                <div className="setup-pairing__actions">
+                  <form
+                    method="post"
+                    action="/api/setup/mcp/identity-pairing"
+                  >
+                    <input
+                      type="hidden"
+                      name="pairingId"
+                      value={view.pairing.pairingId}
+                    />
+                    <button
+                      className="relay-action relay-action--approve"
+                      type="submit"
+                      name="action"
+                      value="approve"
+                    >
+                      Approve identity
+                    </button>
+                  </form>
+                  <form
+                    method="post"
+                    action="/api/setup/mcp/identity-pairing"
+                  >
+                    <input
+                      type="hidden"
+                      name="pairingId"
+                      value={view.pairing.pairingId}
+                    />
+                    <button
+                      className="relay-action relay-action--reject"
+                      type="submit"
+                      name="action"
+                      value="revoke"
+                    >
+                      Reject
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ) : view.pairing?.state === "armed" ? (
+              <div className="setup-pairing">
+                <div>
+                  <span className="eyebrow">Pairing armed</span>
+                  <strong>Complete your OAuth sign-in</strong>
+                  <p>
+                    Connect ASC from ChatGPT/MCP now. The first verified,
+                    unbound identity from the configured issuer will be captured
+                    as a candidate, but it will remain denied until you approve
+                    it here.
+                  </p>
+                  <small>
+                    Pairing expires at{" "}
+                    {new Date(view.pairing.expiresAt).toLocaleTimeString()}.
+                  </small>
+                </div>
+                <form
+                  method="post"
+                  action="/api/setup/mcp/identity-pairing"
+                >
+                  <input
+                    type="hidden"
+                    name="pairingId"
+                    value={view.pairing.pairingId}
+                  />
+                  <button
+                    className="relay-action relay-action--reject"
+                    type="submit"
+                    name="action"
+                    value="revoke"
+                  >
+                    Cancel pairing
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="setup-pairing">
+                <div>
+                  <span className="eyebrow">Not paired</span>
+                  <strong>Connect identity like a sign-in</strong>
+                  <p>
+                    Start a ten-minute pairing window, then complete the normal
+                    OAuth flow from ChatGPT. ASC never asks you to paste your
+                    provider subject identifier.
+                  </p>
+                </div>
+                <form
+                  method="post"
+                  action="/api/setup/mcp/identity-pairing"
+                >
+                  <button
+                    className="relay-action relay-action--approve"
+                    type="submit"
+                    name="action"
+                    value="arm"
+                  >
+                    Start identity pairing
+                  </button>
+                </form>
+              </div>
+            )}
+          </section>
+        ) : null}
 
         <section className="content-section">
           <div className="section-heading">
@@ -255,13 +393,12 @@ export default async function McpSetupPage() {
             <article>
               <strong>4</strong>
               <div>
-                <h3>Bind your external identity</h3>
+                <h3>Pair your sign-in</h3>
                 <p>
-                  Copy the Auth0 issuer and your stable subject into
-                  <code>ASC_BOOTSTRAP_AUTH_ISSUER</code> and
-                  <code>ASC_BOOTSTRAP_AUTH_SUBJECT</code>. The subject is not
-                  treated as a password; it maps that external identity to
-                  <code>{view.defaults.principalId}</code>.
+                  Click <strong>Start identity pairing</strong>, complete the
+                  OAuth sign-in from ChatGPT/MCP, then approve the detected
+                  identity here. The manual subject environment variables remain
+                  only as an advanced/bootstrap compatibility option.
                 </p>
               </div>
             </article>
