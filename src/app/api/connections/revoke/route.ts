@@ -41,5 +41,8 @@ export async function POST(request: Request) {
   );
   await services.connections.setStatus(connectionId, "revoked");
 
-  return NextResponse.redirect(new URL("/connections", request.url), 303);
+  return NextResponse.redirect(
+    new URL("/connections?revoked=connection", request.url),
+    303
+  );
 }
