@@ -36,7 +36,7 @@ import {
   mcpAllowedHostnames,
   mcpAllowedOriginHostnames,
   mcpOAuthIssuer,
-  mcpOAuthJwksUrl,
+  resolveMcpOAuthJwks,
   mcpResourceMetadataUrl,
   mcpResourceUrl,
   mcpScopeClaim
@@ -107,10 +107,10 @@ let cachedAuthConfigKey: string | undefined;
 let cachedIdentityResolver: McpRequestIdentityResolver | undefined;
 let cachedSdkVerifier: SdkMcpOAuthTokenVerifier | undefined;
 
-function authConfigKey(): string {
+function authConfigKey(jwksUrl: string): string {
   return [
     mcpOAuthIssuer(),
-    mcpOAuthJwksUrl(),
+    jwksUrl,
     mcpResourceUrl(),
     mcpAccountDomainClaim(),
     mcpScopeClaim()
@@ -118,7 +118,8 @@ function authConfigKey(): string {
 }
 
 async function authServices() {
-  const key = authConfigKey();
+  const jwks = await resolveMcpOAuthJwks();
+  const key = authConfigKey(jwks.jwksUrl);
   if (
     cachedIdentityResolver &&
     cachedSdkVerifier &&
@@ -134,7 +135,7 @@ async function authServices() {
   const tokenVerifier = new JwtMcpAccessTokenVerifier({
     issuer: mcpOAuthIssuer(),
     audience: mcpResourceUrl(),
-    jwksUrl: mcpOAuthJwksUrl(),
+    jwksUrl: jwks.jwksUrl,
     accountDomainClaim: mcpAccountDomainClaim(),
     scopeClaim: mcpScopeClaim()
   });
@@ -460,7 +461,8 @@ async function createBearerGate() {
 }
 
 async function bearerGate() {
-  const key = authConfigKey();
+  const jwks = await resolveMcpOAuthJwks();
+  const key = authConfigKey(jwks.jwksUrl);
   if (!cachedGate || cachedGateKey !== key) {
     cachedGate = await createBearerGate();
     cachedGateKey = key;

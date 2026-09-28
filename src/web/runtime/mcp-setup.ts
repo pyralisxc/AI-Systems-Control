@@ -15,6 +15,7 @@ import {
   ASC_MCP_SCOPES,
   mcpAccountDomainClaim,
   mcpOAuthIssuer,
+  resolveMcpOAuthJwks,
   mcpResourceMetadataUrl,
   mcpResourceUrl,
   mcpResourceUrlSource,
@@ -50,7 +51,22 @@ export async function loadMcpSetupReadinessView() {
   const urls = safeResourceUrls();
   const durableStorageConfigured = controlRegistryConfigured();
   const oauthIssuerConfigured = present("ASC_OAUTH_ISSUER");
-  const oauthJwksConfigured = present("ASC_OAUTH_JWKS_URL");
+  let oauthJwksConfigured = false;
+  let oauthJwksSource:
+    | "explicit"
+    | "oauth_metadata"
+    | "oidc_metadata"
+    | undefined;
+
+  if (oauthIssuerConfigured) {
+    try {
+      const resolution = await resolveMcpOAuthJwks();
+      oauthJwksConfigured = true;
+      oauthJwksSource = resolution.source;
+    } catch {
+      oauthJwksConfigured = false;
+    }
+  }
 
   let externalIdentityBound = false;
   let identityStateReadable = !durableStorageConfigured;
@@ -128,6 +144,7 @@ export async function loadMcpSetupReadinessView() {
       resourceUrlSource: urls?.source,
       oauthIssuerConfigured,
       oauthJwksConfigured,
+      oauthJwksSource,
       externalIdentityBound,
       identityStateReadable,
       pairingState: activePairing?.state,
