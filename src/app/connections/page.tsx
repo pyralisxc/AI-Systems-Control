@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { isOwnerAuthenticated } from "@/web/auth/owner-auth";
 import { loadConnectionsControlView } from "@/web/runtime/control-registry";
+import {
+  githubConnectionConfigured
+} from "@/web/runtime/provider-connections";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,6 +21,7 @@ export default async function ConnectionsPage() {
   }
 
   const view = await loadConnectionsControlView();
+  const githubConfigured = githubConnectionConfigured();
 
   if (!view.configured) {
     return (
@@ -87,11 +91,39 @@ export default async function ConnectionsPage() {
           </article>
         </section>
 
+        <section className="connection-provider-card">
+          <div>
+            <span className="eyebrow">GitHub</span>
+            <h2>Connect GitHub</h2>
+            <p>
+              Install the configured GitHub App from ASC. Conductor verifies the
+              resulting installation using its existing App credentials; ASC stores
+              only safe Connection identity and capabilities.
+            </p>
+          </div>
+          {githubConfigured ? (
+            <form
+              method="post"
+              action="/api/connections/github/start"
+            >
+              <button
+                className="connection-action"
+                type="submit"
+              >
+                Connect GitHub
+              </button>
+            </form>
+          ) : (
+            <span className="connection-chip">
+              provider bridge not configured
+            </span>
+          )}
+        </section>
+
         <div className="connections-notice">
-          Provider-native connect/reconnect flows are intentionally not simulated yet.
-          This surface currently inspects real ASC registry state and can revoke ASC
-          authority. OAuth/app-installation adapters will attach here without changing
-          the core Connection model.
+          GitHub App installation is the normal repository-automation connection.
+          User-attributed/account-scoped GitHub authorization remains a separate
+          bounded connection class rather than a pasted PAT.
         </div>
 
         <section className="connections-grid">

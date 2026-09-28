@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   ConnectionAuthorizationBroker,
   ConnectionAuthorizationError,
+  flowIdFromAuthorizationState,
   DelegationService,
   InMemoryAuthorizationFlowStore,
   PersistentConnectionRegistry,
@@ -346,6 +347,35 @@ test("viewer Membership cannot begin provider authorization", async () => {
         now: "2026-09-27T06:10:00.000Z"
       }),
       /does not have owner\/admin authority/i
+    );
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});
+
+
+test("authorization state carries routable flow ID while preserving nonce entropy", async () => {
+  const context = await setup();
+  try {
+    const begun = await context.broker.begin({
+      principalId: "principal:owner-1",
+      accountDomainId: "business-a",
+      provider: "fake-oauth",
+      callbackUrl: "https://asc.invalid/callback",
+      now: "2026-09-28T01:00:00.000Z"
+    });
+
+    assert.equal(
+      flowIdFromAuthorizationState(begun.state),
+      begun.flowId
+    );
+    assert.match(
+      begun.state,
+      /^authflow:[0-9a-f-]+\.[A-Za-z0-9_-]{32,}$/u
+    );
+    assert.throws(
+      () => flowIdFromAuthorizationState("not-a-valid-state"),
+      /malformed/i
     );
   } finally {
     await rm(context.directory, { recursive: true, force: true });

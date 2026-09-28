@@ -44,6 +44,31 @@ function hashState(state: string): string {
   return createHash("sha256").update(state).digest("hex");
 }
 
+export function flowIdFromAuthorizationState(
+  stateInput: string
+): string {
+  const state = stateInput.trim();
+  const separator = state.indexOf(".");
+  if (separator <= 0) {
+    throw new ConnectionAuthorizationError(
+      "Authorization state is malformed."
+    );
+  }
+
+  const flowId = state.slice(0, separator);
+  const nonce = state.slice(separator + 1);
+  if (
+    !flowId.startsWith("authflow:") ||
+    nonce.length < 32
+  ) {
+    throw new ConnectionAuthorizationError(
+      "Authorization state is malformed."
+    );
+  }
+
+  return flowId;
+}
+
 function parseIso(value: string, label: string): number {
   const parsed = Date.parse(value);
   if (!Number.isFinite(parsed)) {
@@ -171,7 +196,8 @@ export class ConnectionAuthorizationBroker {
     const createdAtMs = parseIso(createdAt, "Authorization flow start time");
     const expiresAt = new Date(createdAtMs + ttl * 1000).toISOString();
     const flowId = "authflow:" + randomUUID();
-    const state = randomBytes(32).toString("base64url");
+    const state =
+      flowId + "." + randomBytes(32).toString("base64url");
 
     const begun = await adapter.beginAuthorization({
       flowId,
