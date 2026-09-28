@@ -253,11 +253,11 @@ test("GitHub Project authorization fails closed when repository capability proof
         repositoryAttestor: {
           async attestRepository() {
             return Object.freeze({
-              installationId: "456",
+              connectionReference: "456",
               repository:
                 "pyralisxc/ai-systems-control",
-              accountId: "789",
-              accountLogin: "pyralisxc",
+              accountReference: "789",
+              accountDisplayName: "pyralisxc",
               accountType: "User",
               capabilities: Object.freeze([
                 "source.read",
