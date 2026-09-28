@@ -36,9 +36,10 @@ export default async function ConnectionsPage() {
           </header>
           <div className="connections-notice">
             Durable control-registry storage is not configured on this host.
-            Set <code>ASC_CONTROL_REGISTRY_DATABASE_URL</code> to a PostgreSQL database
-            for hosted/serverless mode, or <code>ASC_CONTROL_REGISTRY_PATH</code> to a
-            persistent server volume for local/self-hosted mode. ASC will not write
+            Connect PostgreSQL with the standard <code>DATABASE_URL</code> for
+            hosted/serverless mode. Use <code>ASC_CONTROL_REGISTRY_DATABASE_URL</code>
+            only as an explicit database override, or <code>ASC_CONTROL_REGISTRY_PATH</code>
+            for a persistent local/self-hosted volume. ASC will not write
             authority state to ephemeral storage.
           </div>
         </div>

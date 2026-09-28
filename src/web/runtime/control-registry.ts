@@ -9,6 +9,7 @@ import {
 import {
   ContinuationAuthorityService,
   PersistentConnectionRegistry,
+  resolveControlDatabaseUrl,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
   PersistentProjectRegistry,
@@ -29,8 +30,40 @@ export function controlRegistryPath(): string | null {
 }
 
 export function controlRegistryDatabaseUrl(): string | null {
-  const value = process.env.ASC_CONTROL_REGISTRY_DATABASE_URL?.trim();
-  return value || null;
+  const explicitAscDatabaseUrl =
+    process.env.ASC_CONTROL_REGISTRY_DATABASE_URL?.trim();
+  const standardDatabaseUrl =
+    process.env.DATABASE_URL?.trim();
+
+  return (
+    resolveControlDatabaseUrl({
+      ...(explicitAscDatabaseUrl
+        ? { explicitAscDatabaseUrl }
+        : {}),
+      ...(standardDatabaseUrl
+        ? { standardDatabaseUrl }
+        : {})
+    })?.value ?? null
+  );
+}
+
+export function controlRegistryDatabaseUrlSource():
+  | "asc_explicit"
+  | "standard_database_url"
+  | undefined {
+  const explicitAscDatabaseUrl =
+    process.env.ASC_CONTROL_REGISTRY_DATABASE_URL?.trim();
+  const standardDatabaseUrl =
+    process.env.DATABASE_URL?.trim();
+
+  return resolveControlDatabaseUrl({
+    ...(explicitAscDatabaseUrl
+      ? { explicitAscDatabaseUrl }
+      : {}),
+    ...(standardDatabaseUrl
+      ? { standardDatabaseUrl }
+      : {})
+  })?.source;
 }
 
 export function defaultAccountDomainId(): string {
@@ -125,8 +158,8 @@ export function controlRegistryStoreForDomain(
   }
 
   throw new Error(
-    "ASC control registry storage is not configured. Set ASC_CONTROL_REGISTRY_DATABASE_URL " +
-    "for PostgreSQL or ASC_CONTROL_REGISTRY_PATH for a persistent local volume."
+    "ASC control registry storage is not configured. Connect standard PostgreSQL through DATABASE_URL, " +
+    "set ASC_CONTROL_REGISTRY_DATABASE_URL as an explicit override, or use ASC_CONTROL_REGISTRY_PATH for a persistent local volume."
   );
 }
 
