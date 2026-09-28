@@ -6,10 +6,35 @@ import { loadMcpSetupReadinessView } from "@/web/runtime/mcp-setup";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function status(
-  configured: boolean
-): "positive" | "warning" {
-  return configured ? "positive" : "warning";
+type Tone = "positive" | "warning" | "critical" | "neutral";
+
+function connectionTone(state: string): Tone {
+  if (state === "connected") return "positive";
+  if (state === "error") return "critical";
+  if (
+    state === "candidate" ||
+    state === "pairing" ||
+    state === "ready_to_pair" ||
+    state === "ready_to_test"
+  ) {
+    return "warning";
+  }
+  return "neutral";
+}
+
+function connectionLabel(state: string): string {
+  const labels: Record<string, string> = {
+    missing: "Connect",
+    connected: "Connected",
+    error: "Needs attention",
+    missing_issuer: "Connect",
+    ready_to_pair: "Ready to pair",
+    pairing: "Pairing",
+    candidate: "Approve",
+    not_ready: "Waiting",
+    ready_to_test: "Ready to test"
+  };
+  return labels[state] ?? state.replaceAll("_", " ");
 }
 
 function Check({
@@ -29,12 +54,28 @@ function Check({
       </div>
       <span
         className="status-pill"
-        data-tone={status(configured)}
+        data-tone={configured ? "positive" : "warning"}
       >
         <span className="status-dot" aria-hidden="true" />
         {configured ? "ready" : "missing"}
       </span>
     </article>
+  );
+}
+
+function StatusPill({
+  state
+}: {
+  readonly state: string;
+}) {
+  return (
+    <span
+      className="status-pill"
+      data-tone={connectionTone(state)}
+    >
+      <span className="status-dot" aria-hidden="true" />
+      {connectionLabel(state)}
+    </span>
   );
 }
 
@@ -44,6 +85,26 @@ export default async function McpSetupPage() {
   }
 
   const view = await loadMcpSetupReadinessView();
+  const nextActionCopy: Record<string, string> = {
+    connect_database:
+      "Connect Postgres first. ASC will detect a standard provider connection automatically.",
+    repair_database:
+      "The database is configured but ASC cannot read it. Check the provider connection.",
+    connect_identity:
+      "Connect an OAuth identity provider next. ASC only needs the canonical issuer on the normal path.",
+    repair_identity:
+      "The identity provider is configured but ASC cannot validate the current discovery or identity state.",
+    start_pairing:
+      "Start identity pairing, then complete the normal OAuth sign-in from ChatGPT.",
+    complete_pairing:
+      "Pairing is armed. Continue the OAuth sign-in from ChatGPT, then return here.",
+    approve_identity:
+      "ASC detected a verified identity. Approve it here before access is granted.",
+    test_chatgpt:
+      "Database and identity are connected. Connect ASC in ChatGPT and publish the first bridge checkpoint.",
+    complete:
+      "ASC has durable evidence from all three connections."
+  };
 
   return (
     <main className="setup-shell">
@@ -51,11 +112,11 @@ export default async function McpSetupPage() {
         <header className="connections-header">
           <div>
             <span className="eyebrow">ASC Setup</span>
-            <h1>MCP + OAuth readiness</h1>
+            <h1>Connect your control plane</h1>
             <p>
-              Presence-only setup diagnostics. ASC never renders bearer tokens,
-              authorization codes, database URLs, client secrets, or signing
-              credentials here.
+              Setup should feel like signing into services. ASC discovers the
+              infrastructure details it can and keeps technical overrides out
+              of the normal path.
             </p>
           </div>
           <div className="connections-header__actions">
@@ -64,122 +125,166 @@ export default async function McpSetupPage() {
           </div>
         </header>
 
-        <section className="setup-readiness">
+        <section className="setup-progress">
           <div>
-            <span className="eyebrow">Current gate</span>
-            <h2>{view.readiness.state.replaceAll("_", " ")}</h2>
-            <p>{view.readiness.summary}</p>
+            <span className="eyebrow">Setup progress</span>
+            <strong>
+              {view.connections.completedConnections}/
+              {view.connections.totalConnections} connected
+            </strong>
+            <p>{nextActionCopy[view.connections.nextAction]}</p>
           </div>
           <span
             className="status-pill"
             data-tone={
-              view.readiness.state === "ready_for_mcp_test"
+              view.connections.overall === "connected"
                 ? "positive"
-                : "warning"
+                : view.connections.overall === "ready_to_test"
+                  ? "warning"
+                  : "neutral"
             }
           >
             <span className="status-dot" aria-hidden="true" />
-            {view.readiness.blockers.length === 0
-              ? "test ready"
-              : view.readiness.blockers.length + " blocker" +
-                (view.readiness.blockers.length === 1 ? "" : "s")}
+            {view.connections.overall.replaceAll("_", " ")}
           </span>
         </section>
 
-        <section className="content-section">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Required infrastructure</span>
-              <h2>What ASC still needs</h2>
-              <p>
-                These checks report only whether configuration exists. Secret
-                values are intentionally unavailable to this page.
-              </p>
-            </div>
-          </div>
-
-          <div className="setup-checks">
-            <Check
-              label="Durable control storage"
-              configured={view.configuration.durableStorageConfigured}
-              detail={
-                view.configuration.durableStorageSource === "standard_database_url"
-                  ? "Connected through standard DATABASE_URL. ASC detected the provider-native Postgres connection automatically."
-                  : view.configuration.durableStorageSource === "asc_explicit"
-                    ? "Connected through the explicit ASC database override."
-                    : "Connect standard PostgreSQL. On Vercel, native Postgres integrations commonly provide DATABASE_URL automatically; ASC detects it without requiring a duplicate ASC-specific variable."
-              }
-            />
-            <Check
-              label="Stable MCP resource URL"
-              configured={view.configuration.resourceUrlConfigured}
-              detail="On Vercel Preview, ASC derives this automatically from VERCEL_BRANCH_URL. ASC_MCP_RESOURCE_URL is only an explicit override or non-Vercel fallback."
-            />
-            <Check
-              label="OAuth issuer"
-              configured={view.configuration.oauthIssuerConfigured}
-              detail="The external authorization server's canonical issuer. ASC validates it exactly."
-            />
-            <Check
-              label="OAuth signing keys"
-              configured={view.configuration.oauthJwksConfigured}
-              detail={
-                view.configuration.oauthJwksConfigured
-                  ? view.configuration.oauthJwksSource === "explicit"
-                    ? "Using the explicit advanced JWKS override."
-                    : view.configuration.oauthJwksSource === "oidc_metadata"
-                      ? "Discovered from the issuer's OpenID Connect metadata."
-                      : "Discovered from the issuer's OAuth authorization-server metadata."
-                  : "ASC will discover signing keys from standard OAuth/OIDC metadata. An explicit JWKS URL is only an advanced override."
-              }
-            />
-            <Check
-              label="External identity binding"
-              configured={view.configuration.externalIdentityBound}
-              detail={
-                view.configuration.externalIdentityBound
-                  ? "A verified external identity is durably bound to the ASC bootstrap Principal."
-                  : "Pair identity through a normal OAuth sign-in. ASC detects the verified subject and waits for explicit owner approval before binding it."
-              }
-            />
-          </div>
-        </section>
-
-
-        {view.configuration.durableStorageConfigured &&
-        view.configuration.oauthIssuerConfigured &&
-        !view.configuration.externalIdentityBound ? (
-          <section className="content-section">
-            <div className="section-heading">
+        <section className="setup-connection-grid">
+          <article
+            className="setup-connection-card"
+            data-state={view.connections.database}
+          >
+            <div className="setup-connection-card__heading">
               <div>
-                <span className="eyebrow">Identity connection</span>
-                <h2>Pair your sign-in</h2>
-                <p>
-                  No subject copying. Arm pairing here, complete the normal
-                  ChatGPT/MCP OAuth sign-in, then approve the verified identity
-                  that ASC detects.
-                </p>
+                <span className="setup-connection-card__number">01</span>
+                <span className="eyebrow">Database</span>
+                <h2>Connect Postgres</h2>
               </div>
+              <StatusPill state={view.connections.database} />
             </div>
 
-            {!view.configuration.identityStateReadable ? (
-              <div className="connections-notice">
-                ASC can see that storage is configured, but the identity
-                directory is not currently readable. Check the database
-                connection before pairing.
+            <p>
+              Give ASC durable memory for identity, connections, authority,
+              Threads, and control state.
+            </p>
+
+            {view.connections.database === "connected" ? (
+              <div className="setup-connection-proof">
+                <strong>Durable storage is reachable.</strong>
+                <span>
+                  {view.configuration.durableStorageSource ===
+                  "standard_database_url"
+                    ? "Provider-native Postgres detected automatically."
+                    : view.configuration.durableStorageSource === "asc_explicit"
+                      ? "Using an explicit ASC database override."
+                      : "Persistent local/self-hosted storage is active."}
+                </span>
               </div>
-            ) : view.pairing?.state === "candidate_detected" ? (
-              <div className="setup-pairing setup-pairing--detected">
-                <div>
-                  <span className="eyebrow">Verified identity detected</span>
-                  <strong>Waiting for your approval</strong>
-                  <p>
-                    The OAuth token was cryptographically valid and matched the
-                    configured issuer/AccountDomain, but ASC has not granted it
-                    access yet. Approving creates the durable identity binding.
-                  </p>
-                </div>
-                <div className="setup-pairing__actions">
+            ) : view.connections.database === "error" ? (
+              <div className="setup-connection-warning">
+                <strong>Connection found, but ASC cannot read it.</strong>
+                <span>
+                  Check the provider/database connection before continuing.
+                </span>
+              </div>
+            ) : (
+              <a
+                className="setup-primary-action"
+                href="#provider-options"
+              >
+                Connect Postgres
+              </a>
+            )}
+          </article>
+
+          <article
+            className="setup-connection-card"
+            data-state={view.connections.identity}
+          >
+            <div className="setup-connection-card__heading">
+              <div>
+                <span className="setup-connection-card__number">02</span>
+                <span className="eyebrow">Identity</span>
+                <h2>Connect your sign-in</h2>
+              </div>
+              <StatusPill state={view.connections.identity} />
+            </div>
+
+            <p>
+              ASC validates your provider, discovers signing keys, and pairs the
+              verified external identity to your ASC Principal.
+            </p>
+
+            {view.connections.identity === "connected" ? (
+              <div className="setup-connection-proof">
+                <strong>Identity is paired.</strong>
+                <span>
+                  The durable binding is active. Email and copied subject IDs
+                  are not used as ASC identity.
+                </span>
+              </div>
+            ) : view.connections.identity === "missing_issuer" ? (
+              <a
+                className="setup-primary-action"
+                href="#provider-options"
+              >
+                Choose identity provider
+              </a>
+            ) : view.connections.identity === "ready_to_pair" ? (
+              <form
+                method="post"
+                action="/api/setup/mcp/identity-pairing"
+              >
+                <button
+                  className="setup-primary-action"
+                  type="submit"
+                  name="action"
+                  value="arm"
+                >
+                  Start identity pairing
+                </button>
+              </form>
+            ) : view.connections.identity === "pairing" &&
+              view.pairing ? (
+              <div className="setup-connection-warning">
+                <strong>Pairing is armed.</strong>
+                <span>
+                  Continue the OAuth connection from ChatGPT. ASC will detect
+                  the verified identity but still deny access until you approve
+                  it here.
+                </span>
+                <small>
+                  Pairing expires at{" "}
+                  {new Date(view.pairing.expiresAt).toLocaleTimeString()}.
+                </small>
+                <form
+                  method="post"
+                  action="/api/setup/mcp/identity-pairing"
+                >
+                  <input
+                    type="hidden"
+                    name="pairingId"
+                    value={view.pairing.pairingId}
+                  />
+                  <button
+                    className="setup-secondary-action"
+                    type="submit"
+                    name="action"
+                    value="revoke"
+                  >
+                    Cancel pairing
+                  </button>
+                </form>
+              </div>
+            ) : view.connections.identity === "candidate" &&
+              view.pairing ? (
+              <div className="setup-connection-candidate">
+                <strong>Verified identity detected.</strong>
+                <span>
+                  ASC has not granted access yet. Approve this pairing to create
+                  the durable identity binding.
+                </span>
+                <div className="setup-inline-actions">
                   <form
                     method="post"
                     action="/api/setup/mcp/identity-pairing"
@@ -190,7 +295,7 @@ export default async function McpSetupPage() {
                       value={view.pairing.pairingId}
                     />
                     <button
-                      className="relay-action relay-action--approve"
+                      className="setup-primary-action"
                       type="submit"
                       name="action"
                       value="approve"
@@ -208,7 +313,7 @@ export default async function McpSetupPage() {
                       value={view.pairing.pairingId}
                     />
                     <button
-                      className="relay-action relay-action--reject"
+                      className="setup-secondary-action"
                       type="submit"
                       name="action"
                       value="revoke"
@@ -218,247 +323,294 @@ export default async function McpSetupPage() {
                   </form>
                 </div>
               </div>
-            ) : view.pairing?.state === "armed" ? (
-              <div className="setup-pairing">
-                <div>
-                  <span className="eyebrow">Pairing armed</span>
-                  <strong>Complete your OAuth sign-in</strong>
-                  <p>
-                    Connect ASC from ChatGPT/MCP now. The first verified,
-                    unbound identity from the configured issuer will be captured
-                    as a candidate, but it will remain denied until you approve
-                    it here.
-                  </p>
-                  <small>
-                    Pairing expires at{" "}
-                    {new Date(view.pairing.expiresAt).toLocaleTimeString()}.
-                  </small>
-                </div>
-                <form
-                  method="post"
-                  action="/api/setup/mcp/identity-pairing"
-                >
-                  <input
-                    type="hidden"
-                    name="pairingId"
-                    value={view.pairing.pairingId}
-                  />
-                  <button
-                    className="relay-action relay-action--reject"
-                    type="submit"
-                    name="action"
-                    value="revoke"
-                  >
-                    Cancel pairing
-                  </button>
-                </form>
-              </div>
             ) : (
-              <div className="setup-pairing">
-                <div>
-                  <span className="eyebrow">Not paired</span>
-                  <strong>Connect identity like a sign-in</strong>
-                  <p>
-                    Start a ten-minute pairing window, then complete the normal
-                    OAuth flow from ChatGPT. ASC never asks you to paste your
-                    provider subject identifier.
-                  </p>
-                </div>
-                <form
-                  method="post"
-                  action="/api/setup/mcp/identity-pairing"
-                >
-                  <button
-                    className="relay-action relay-action--approve"
-                    type="submit"
-                    name="action"
-                    value="arm"
-                  >
-                    Start identity pairing
-                  </button>
-                </form>
+              <div className="setup-connection-warning">
+                <strong>Identity needs attention.</strong>
+                <span>
+                  Check the issuer/provider connection in Advanced setup. ASC
+                  will not bypass discovery or signature validation.
+                </span>
               </div>
             )}
-          </section>
-        ) : null}
+          </article>
 
-        <section className="content-section">
+          <article
+            className="setup-connection-card"
+            id="chatgpt-connection"
+            data-state={view.connections.chatgpt}
+          >
+            <div className="setup-connection-card__heading">
+              <div>
+                <span className="setup-connection-card__number">03</span>
+                <span className="eyebrow">ChatGPT</span>
+                <h2>Connect your conversation</h2>
+              </div>
+              <StatusPill state={view.connections.chatgpt} />
+            </div>
+
+            <p>
+              ChatGPT connects to ASC through the authenticated MCP resource.
+              ASC only marks this connected after durable bridge evidence
+              actually arrives.
+            </p>
+
+            {view.connections.chatgpt === "connected" ? (
+              <div className="setup-connection-proof">
+                <strong>Authenticated bridge activity detected.</strong>
+                <span>
+                  {view.chatgptEvidence.lastSeenAt
+                    ? "Last observed " +
+                      new Date(
+                        view.chatgptEvidence.lastSeenAt
+                      ).toLocaleString()
+                    : "Durable ChatGPT bridge evidence is present."}
+                </span>
+              </div>
+            ) : view.connections.chatgpt === "ready_to_test" &&
+              view.urls ? (
+              <>
+                <div className="setup-resource">
+                  <span>ASC MCP resource</span>
+                  <code>{view.urls.resourceUrl}</code>
+                </div>
+                <a
+                  className="setup-primary-action"
+                  href="https://chatgpt.com"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open ChatGPT
+                </a>
+                <small className="setup-card-note">
+                  Add this MCP resource from ChatGPT Developer Mode. The first
+                  verified identity can be paired from this page if needed.
+                </small>
+              </>
+            ) : (
+              <div className="setup-connection-waiting">
+                <strong>Waiting on the earlier connections.</strong>
+                <span>
+                  Database and Identity must be healthy before ChatGPT can be
+                  tested.
+                </span>
+              </div>
+            )}
+          </article>
+        </section>
+
+        <section className="content-section" id="provider-options">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Built-in defaults</span>
-              <h2>No environment variable needed</h2>
+              <span className="eyebrow">Connection options</span>
+              <h2>Choose the providers you already prefer</h2>
               <p>
-                These values already have safe code defaults. You can override
-                them later, but they are not setup blockers.
+                ASC stays provider-neutral. These are onboarding recipes, not
+                architecture dependencies.
               </p>
             </div>
           </div>
 
-          <div className="setup-default-grid">
+          <div className="setup-provider-grid">
             <article>
-              <span>AccountDomain</span>
-              <code>{view.defaults.accountDomainId}</code>
-              <small>{view.defaults.accountDomainName}</small>
+              <span className="eyebrow">Hosted / mature</span>
+              <h3>Managed Postgres + Auth0</h3>
+              <p>
+                Connect any standard PostgreSQL provider, then use Auth0 or
+                another standards-compatible OAuth/OIDC issuer. ASC detects the
+                database URL and signing keys automatically.
+              </p>
+              <div className="setup-links">
+                <a
+                  className="connections-back"
+                  href="https://auth0.com/ai"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Auth0
+                </a>
+              </div>
             </article>
-            <article>
-              <span>Bootstrap Principal</span>
-              <code>{view.defaults.principalId}</code>
-              <small>{view.defaults.principalName}</small>
-            </article>
-            <article>
-              <span>Tenant claim</span>
-              <code>{view.defaults.accountDomainClaim}</code>
-              <small>{view.defaults.scopeClaim} carries scopes</small>
-            </article>
-            <article>
-              <span>Personal bootstrap</span>
-              <code>
-                {view.defaults.personalBootstrapEnabled ? "enabled" : "disabled"}
-              </code>
-              <small>disable when federated provisioning owns identity</small>
-            </article>
-          </div>
 
-          <div className="setup-scope-list">
-            {view.defaults.scopes.map((scope) => (
-              <code key={scope}>{scope}</code>
-            ))}
+            <article>
+              <span className="eyebrow">Consolidated</span>
+              <h3>Supabase unified</h3>
+              <p>
+                A dedicated ASC Supabase project can provide PostgreSQL and an
+                OAuth/OIDC server in one provider. Keep it separate from
+                product databases such as CardForge.
+              </p>
+              <div className="setup-links">
+                <a
+                  className="connections-back"
+                  href="https://supabase.com"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Supabase
+                </a>
+              </div>
+            </article>
           </div>
         </section>
 
-        {view.urls ? (
-          <section className="content-section">
-            <div className="section-heading">
-              <div>
+        <details className="setup-advanced" id="advanced-setup">
+          <summary>
+            <span>
+              <strong>Advanced setup & diagnostics</strong>
+              <small>
+                Overrides, discovery details, scopes, and provider diagnostics.
+              </small>
+            </span>
+            <span className="setup-advanced__chevron">+</span>
+          </summary>
+
+          <div className="setup-advanced__content">
+            <section>
+              <span className="eyebrow">Technical checks</span>
+              <div className="setup-checks">
+                <Check
+                  label="Durable control storage"
+                  configured={
+                    view.configuration.durableStorageConfigured &&
+                    view.configuration.durableStorageReadable
+                  }
+                  detail={
+                    view.configuration.durableStorageSource ===
+                    "standard_database_url"
+                      ? "Standard DATABASE_URL detected and readable."
+                      : view.configuration.durableStorageSource ===
+                          "asc_explicit"
+                        ? "Explicit ASC database override detected."
+                        : "No readable hosted database is currently available."
+                  }
+                />
+                <Check
+                  label="Stable MCP resource"
+                  configured={view.configuration.resourceUrlConfigured}
+                  detail={
+                    view.configuration.resourceUrlSource === "vercel_branch"
+                      ? "Derived from the stable Vercel branch URL."
+                      : "Using the explicit resource URL override."
+                  }
+                />
+                <Check
+                  label="OAuth issuer"
+                  configured={view.configuration.oauthIssuerConfigured}
+                  detail="Canonical authorization-server issuer."
+                />
+                <Check
+                  label="OAuth signing keys"
+                  configured={view.configuration.oauthJwksConfigured}
+                  detail={
+                    view.configuration.oauthJwksSource === "explicit"
+                      ? "Using explicit advanced JWKS override."
+                      : view.configuration.oauthJwksSource === "oidc_metadata"
+                        ? "Discovered through OpenID Connect metadata."
+                        : view.configuration.oauthJwksSource ===
+                            "oauth_metadata"
+                          ? "Discovered through OAuth authorization-server metadata."
+                          : "Signing-key discovery is unavailable."
+                  }
+                />
+                <Check
+                  label="Identity binding"
+                  configured={view.configuration.externalIdentityBound}
+                  detail="Durable issuer+subject to Principal binding."
+                />
+              </div>
+            </section>
+
+            <section>
+              <span className="eyebrow">Defaults</span>
+              <div className="setup-default-grid">
+                <article>
+                  <span>AccountDomain</span>
+                  <code>{view.defaults.accountDomainId}</code>
+                  <small>{view.defaults.accountDomainName}</small>
+                </article>
+                <article>
+                  <span>Principal</span>
+                  <code>{view.defaults.principalId}</code>
+                  <small>{view.defaults.principalName}</small>
+                </article>
+                <article>
+                  <span>Tenant claim</span>
+                  <code>{view.defaults.accountDomainClaim}</code>
+                  <small>{view.defaults.scopeClaim} carries scopes</small>
+                </article>
+                <article>
+                  <span>Personal bootstrap</span>
+                  <code>
+                    {view.defaults.personalBootstrapEnabled
+                      ? "enabled"
+                      : "disabled"}
+                  </code>
+                  <small>same identity model as multi-user mode</small>
+                </article>
+              </div>
+              <div className="setup-scope-list">
+                {view.defaults.scopes.map((scope) => (
+                  <code key={scope}>{scope}</code>
+                ))}
+              </div>
+            </section>
+
+            {view.urls ? (
+              <section>
                 <span className="eyebrow">Derived endpoints</span>
-                <h2>OAuth resource discovery</h2>
-              </div>
-            </div>
-            <div className="setup-url-card">
-              <span>MCP resource</span>
-              <code>{view.urls.resourceUrl}</code>
-              <span>Source</span>
-              <code>
-                {view.urls.source === "vercel_branch"
-                  ? "Vercel stable branch alias"
-                  : "ASC_MCP_RESOURCE_URL override"}
-              </code>
-              <span>Protected-resource metadata</span>
-              <code>{view.urls.metadataUrl}</code>
-            </div>
-          </section>
-        ) : null}
+                <div className="setup-url-card">
+                  <span>MCP resource</span>
+                  <code>{view.urls.resourceUrl}</code>
+                  <span>Resource source</span>
+                  <code>
+                    {view.urls.source === "vercel_branch"
+                      ? "Vercel stable branch alias"
+                      : "explicit override"}
+                  </code>
+                  <span>Protected-resource metadata</span>
+                  <code>{view.urls.metadataUrl}</code>
+                </div>
+              </section>
+            ) : null}
 
-        <section className="content-section">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Recommended first proof</span>
-              <h2>Auth0 quick path</h2>
-              <p>
-                ASC stays provider-neutral, but Auth0 is currently a practical
-                first IdP because it has first-class MCP authorization support.
-              </p>
+            <section>
+              <span className="eyebrow">Provider documentation</span>
+              <div className="setup-links">
+                <a
+                  className="connections-back"
+                  href="https://developers.openai.com/plugins/build/auth"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  OpenAI MCP auth
+                </a>
+                <a
+                  className="connections-back"
+                  href="https://auth0.com/ai"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Auth0
+                </a>
+                <a
+                  className="connections-back"
+                  href="https://supabase.com"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Supabase
+                </a>
+              </div>
+            </section>
+
+            <div className="connections-notice">
+              Conductor can read this Vercel project's deployment and
+              environment metadata, but deployment/env writes are currently
+              blocked by Conductor issue #182. Secret values are never rendered
+              here.
             </div>
           </div>
-
-          <div className="setup-steps">
-            <article>
-              <strong>1</strong>
-              <div>
-                <h3>Provision durable PostgreSQL</h3>
-                <p>
-                  Neon, Supabase Postgres, ordinary hosted PostgreSQL, or your
-                  future self-hosted PostgreSQL all satisfy the same ASC store
-                  contract. Provider-native <code>DATABASE_URL</code> is detected
-                  automatically; <code>ASC_CONTROL_REGISTRY_DATABASE_URL</code> is
-                  only an advanced override.
-                </p>
-              </div>
-            </article>
-            <article>
-              <strong>2</strong>
-              <div>
-                <h3>Create the Auth0 MCP/API resource</h3>
-                <p>
-                  Use the exact ASC MCP resource URL as the API identifier /
-                  audience, enable MCP-compatible OAuth client registration and
-                  PKCE, and expose the three ASC scopes shown above. ASC normally
-                  discovers signing keys from the issuer metadata automatically.
-                </p>
-              </div>
-            </article>
-            <article>
-              <strong>3</strong>
-              <div>
-                <h3>Add tenant context to the token</h3>
-                <p>
-                  Include <code>{view.defaults.accountDomainClaim}</code> with
-                  value <code>{view.defaults.accountDomainId}</code>. ASC will
-                  still verify that the resolved Principal has active
-                  Membership in that domain.
-                </p>
-              </div>
-            </article>
-            <article>
-              <strong>4</strong>
-              <div>
-                <h3>Pair your sign-in</h3>
-                <p>
-                  Click <strong>Start identity pairing</strong>, complete the
-                  OAuth sign-in from ChatGPT/MCP, then approve the detected
-                  identity here. The manual subject environment variables remain
-                  only as an advanced/bootstrap compatibility option.
-                </p>
-              </div>
-            </article>
-            <article>
-              <strong>5</strong>
-              <div>
-                <h3>Run MCP Inspector, then ChatGPT</h3>
-                <p>
-                  Once this page says <strong>ready for mcp test</strong>, use
-                  MCP Inspector to prove discovery/scopes first, then connect
-                  the same URL in ChatGPT Developer Mode.
-                </p>
-              </div>
-            </article>
-          </div>
-
-          <div className="setup-links">
-            <a
-              className="connections-back"
-              href="https://developers.openai.com/plugins/build/auth"
-              target="_blank"
-              rel="noreferrer"
-            >
-              OpenAI MCP auth guide
-            </a>
-            <a
-              className="connections-back"
-              href="https://auth0.com/ai"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Auth0 for AI / MCP
-            </a>
-            <a
-              className="connections-back"
-              href="https://vercel.com/blog/branch-domains"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Vercel Branch Domains
-            </a>
-          </div>
-        </section>
-
-        <div className="connections-notice">
-          Conductor can currently read this Vercel project's environment
-          metadata, but Preview environment writes are blocked by Conductor
-          issue #182. Once that routing bug is fixed, safe non-secret Preview
-          setup values can be applied from the development flow instead of
-          manually.
-        </div>
+        </details>
       </div>
     </main>
   );

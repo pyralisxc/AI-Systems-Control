@@ -1,4 +1,5 @@
 import {
+  deriveConnectionFirstSetup,
   deriveMcpSetupReadiness
 } from "../../../dist/application/index.js";
 import {
@@ -21,6 +22,9 @@ import {
   mcpResourceUrlSource,
   mcpScopeClaim
 } from "./mcp-resource";
+import {
+  threadStoreForDomain
+} from "./thread-pulse";
 
 function present(name: string): boolean {
   return Boolean(process.env[name]?.trim());
@@ -69,7 +73,11 @@ export async function loadMcpSetupReadinessView() {
   }
 
   let externalIdentityBound = false;
-  let identityStateReadable = !durableStorageConfigured;
+  let databaseReadable = false;
+  let identityStateReadable = false;
+  let identities:
+    | Awaited<ReturnType<typeof identityRegistryServices>>["identities"]
+    | undefined;
   let activePairing:
     | {
         readonly pairingId: string;
@@ -78,9 +86,23 @@ export async function loadMcpSetupReadinessView() {
       }
     | undefined;
 
-  if (durableStorageConfigured && oauthIssuerConfigured) {
+  if (durableStorageConfigured) {
     try {
-      const { identities } = await identityRegistryServices();
+      identities = (await identityRegistryServices()).identities;
+      databaseReadable = true;
+      identityStateReadable = true;
+    } catch {
+      databaseReadable = false;
+      identityStateReadable = false;
+    }
+  }
+
+  if (
+    databaseReadable &&
+    identities &&
+    oauthIssuerConfigured
+  ) {
+    try {
       const issuer = mcpOAuthIssuer();
       const principalId = bootstrapPrincipalId();
       const accountDomainId = defaultAccountDomainId();
@@ -120,10 +142,55 @@ export async function loadMcpSetupReadinessView() {
           });
         }
       }
-
-      identityStateReadable = true;
     } catch {
       identityStateReadable = false;
+    }
+  }
+
+  let chatgptEvidence = false;
+  let chatgptLastSeenAt: string | undefined;
+
+  if (databaseReadable) {
+    try {
+      const principalId = bootstrapPrincipalId();
+      const store = threadStoreForDomain(
+        defaultAccountDomainId()
+      );
+      const snapshots = await store.list();
+      const authenticatedChatgpt = snapshots
+        .filter((snapshot) => {
+          const provider =
+            snapshot.thread.externalReference?.provider
+              ?.trim()
+              .toLowerCase();
+          if (provider !== "chatgpt") return false;
+
+          return (
+            snapshot.checkpoints.some(
+              (checkpoint) =>
+                checkpoint.publishedByPrincipalId === principalId
+            ) ||
+            snapshot.activities.some(
+              (activity) =>
+                activity.publishedByPrincipalId === principalId &&
+                activity.source === "mcp"
+            )
+          );
+        })
+        .sort((left, right) =>
+          right.thread.updatedAt.localeCompare(
+            left.thread.updatedAt
+          )
+        );
+
+      const latest = authenticatedChatgpt[0];
+      if (latest) {
+        chatgptEvidence = true;
+        chatgptLastSeenAt = latest.thread.updatedAt;
+      }
+    } catch {
+      // Thread evidence is supplemental. Storage/identity health is
+      // represented independently and remains fail-closed above.
     }
   }
 
@@ -135,10 +202,25 @@ export async function loadMcpSetupReadinessView() {
     externalIdentityBound
   });
 
+  const connections = deriveConnectionFirstSetup({
+    databaseConfigured: durableStorageConfigured,
+    databaseReadable,
+    resourceConfigured: Boolean(urls),
+    issuerConfigured: oauthIssuerConfigured,
+    signingKeysReady: oauthJwksConfigured,
+    identityStateReadable,
+    identityBound: externalIdentityBound,
+    ...(activePairing
+      ? { pairingState: activePairing.state }
+      : {}),
+    chatgptEvidence
+  });
+
   return Object.freeze({
     readiness,
     configuration: Object.freeze({
       durableStorageConfigured,
+      durableStorageReadable: databaseReadable,
       durableStorageSource: controlRegistryDatabaseUrlSource(),
       resourceUrlConfigured: Boolean(urls),
       resourceUrlSource: urls?.source,
@@ -153,6 +235,13 @@ export async function loadMcpSetupReadinessView() {
       )
     }),
     pairing: activePairing,
+    connections,
+    chatgptEvidence: Object.freeze({
+      connected: chatgptEvidence,
+      ...(chatgptLastSeenAt
+        ? { lastSeenAt: chatgptLastSeenAt }
+        : {})
+    }),
     defaults: Object.freeze({
       accountDomainId: defaultAccountDomainId(),
       accountDomainName: defaultAccountDomainName(),
