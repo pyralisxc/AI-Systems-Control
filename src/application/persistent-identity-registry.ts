@@ -1,14 +1,19 @@
 import {
   IdentityConflictError,
   InMemoryIdentityRegistry,
+  type ApproveAuthenticationIdentityPairingInput,
+  type ArmAuthenticationIdentityPairingInput,
+  type DetectAuthenticationIdentityCandidateInput,
   type RegisterAccountDomainInput,
   type RegisterAuthenticationIdentityInput,
   type RegisterMembershipInput,
-  type RegisterPrincipalInput
+  type RegisterPrincipalInput,
+  type RevokeAuthenticationIdentityPairingInput
 } from "./identity-registry.js";
 import type {
   AccountDomain,
   AuthenticationIdentityBinding,
+  AuthenticationIdentityPairing,
   Membership,
   Principal
 } from "../domain/index.js";
@@ -28,6 +33,7 @@ interface IdentityMutationResult<T> {
   readonly accountDomains: readonly AccountDomain[];
   readonly memberships: readonly Membership[];
   readonly authenticationBindings: readonly AuthenticationIdentityBinding[];
+  readonly authenticationPairings: readonly AuthenticationIdentityPairing[];
   readonly changed: boolean;
 }
 
@@ -48,6 +54,7 @@ async function mutateIdentityDirectory<T>(
         accountDomains: mutation.accountDomains,
         memberships: mutation.memberships,
         authenticationBindings: mutation.authenticationBindings,
+        authenticationPairings: mutation.authenticationPairings,
         updatedAt: new Date().toISOString()
       });
       return mutation.result;
@@ -68,7 +75,8 @@ function registryFrom(snapshot: IdentityDirectorySnapshot) {
     principals: snapshot.principals,
     accountDomains: snapshot.accountDomains,
     memberships: snapshot.memberships,
-    authenticationBindings: snapshot.authenticationBindings
+    authenticationBindings: snapshot.authenticationBindings,
+    authenticationPairings: snapshot.authenticationPairings
   });
 }
 
@@ -81,17 +89,20 @@ function mutationResult<T>(
   const accountDomains = registry.listAccountDomains();
   const memberships = registry.listMemberships();
   const authenticationBindings = registry.listAuthenticationBindings();
+  const authenticationPairings = registry.listAuthenticationPairings();
   const before = stableJson({
     principals: snapshot.principals,
     accountDomains: snapshot.accountDomains,
     memberships: snapshot.memberships,
-    authenticationBindings: snapshot.authenticationBindings
+    authenticationBindings: snapshot.authenticationBindings,
+    authenticationPairings: snapshot.authenticationPairings
   });
   const after = stableJson({
     principals,
     accountDomains,
     memberships,
-    authenticationBindings
+    authenticationBindings,
+    authenticationPairings
   });
 
   return {
@@ -100,6 +111,7 @@ function mutationResult<T>(
     accountDomains,
     memberships,
     authenticationBindings,
+    authenticationPairings,
     changed: before !== after
   };
 }
@@ -144,6 +156,20 @@ export class PersistentIdentityRegistry {
       .resolveAuthenticationIdentity(issuer, subject);
   }
 
+  async listAuthenticationPairings(
+    accountDomainId?: string
+  ): Promise<readonly AuthenticationIdentityPairing[]> {
+    return registryFrom(await this.#store.load())
+      .listAuthenticationPairings(accountDomainId);
+  }
+
+  async getAuthenticationPairing(
+    pairingId: string
+  ): Promise<AuthenticationIdentityPairing | undefined> {
+    return registryFrom(await this.#store.load())
+      .getAuthenticationPairing(pairingId);
+  }
+
   async listAccountDomains(): Promise<readonly AccountDomain[]> {
     return registryFrom(await this.#store.load()).listAccountDomains();
   }
@@ -171,6 +197,49 @@ export class PersistentIdentityRegistry {
     return mutateIdentityDirectory(this.#store, (snapshot) => {
       const registry = registryFrom(snapshot);
       const result = registry.registerAccountDomain(input);
+      return mutationResult(snapshot, registry, result);
+    });
+  }
+
+  async armAuthenticationIdentityPairing(
+    input: ArmAuthenticationIdentityPairingInput
+  ): Promise<AuthenticationIdentityPairing> {
+    return mutateIdentityDirectory(this.#store, (snapshot) => {
+      const registry = registryFrom(snapshot);
+      const result = registry.armAuthenticationIdentityPairing(input);
+      return mutationResult(snapshot, registry, result);
+    });
+  }
+
+  async detectAuthenticationIdentityCandidate(
+    input: DetectAuthenticationIdentityCandidateInput
+  ): Promise<AuthenticationIdentityPairing | undefined> {
+    return mutateIdentityDirectory(this.#store, (snapshot) => {
+      const registry = registryFrom(snapshot);
+      const result = registry.detectAuthenticationIdentityCandidate(input);
+      return mutationResult(snapshot, registry, result);
+    });
+  }
+
+  async approveAuthenticationIdentityPairing(
+    input: ApproveAuthenticationIdentityPairingInput
+  ): Promise<{
+    readonly pairing: AuthenticationIdentityPairing;
+    readonly binding: AuthenticationIdentityBinding;
+  }> {
+    return mutateIdentityDirectory(this.#store, (snapshot) => {
+      const registry = registryFrom(snapshot);
+      const result = registry.approveAuthenticationIdentityPairing(input);
+      return mutationResult(snapshot, registry, result);
+    });
+  }
+
+  async revokeAuthenticationIdentityPairing(
+    input: RevokeAuthenticationIdentityPairingInput
+  ): Promise<AuthenticationIdentityPairing> {
+    return mutateIdentityDirectory(this.#store, (snapshot) => {
+      const registry = registryFrom(snapshot);
+      const result = registry.revokeAuthenticationIdentityPairing(input);
       return mutationResult(snapshot, registry, result);
     });
   }

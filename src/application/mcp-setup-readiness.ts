@@ -14,8 +14,7 @@ export interface McpSetupInputs {
   readonly resourceUrlConfigured: boolean;
   readonly oauthIssuerConfigured: boolean;
   readonly oauthJwksConfigured: boolean;
-  readonly externalIdentityIssuerConfigured: boolean;
-  readonly externalIdentitySubjectConfigured: boolean;
+  readonly externalIdentityBound: boolean;
 }
 
 export interface McpSetupReadiness {
@@ -58,14 +57,11 @@ export function deriveMcpSetupReadiness(
     });
   }
 
-  if (
-    !input.externalIdentityIssuerConfigured ||
-    !input.externalIdentitySubjectConfigured
-  ) {
+  if (!input.externalIdentityBound) {
     return Object.freeze({
       state: "needs_identity_binding",
       summary:
-        "Bind the authenticated external issuer + subject to the existing ASC bootstrap Principal.",
+        "Pair the authenticated external identity to the existing ASC Principal.",
       blockers: Object.freeze(["external_identity_binding"])
     });
   }

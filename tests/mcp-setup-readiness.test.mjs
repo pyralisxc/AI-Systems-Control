@@ -11,8 +11,7 @@ function base(overrides = {}) {
     resourceUrlConfigured: true,
     oauthIssuerConfigured: true,
     oauthJwksConfigured: true,
-    externalIdentityIssuerConfigured: true,
-    externalIdentitySubjectConfigured: true,
+    externalIdentityBound: true,
     ...overrides
   };
 }
@@ -24,8 +23,7 @@ test("MCP readiness reports durable storage as first blocker", () => {
       resourceUrlConfigured: false,
       oauthIssuerConfigured: false,
       oauthJwksConfigured: false,
-      externalIdentityIssuerConfigured: false,
-      externalIdentitySubjectConfigured: false
+      externalIdentityBound: false
     })
   );
 
@@ -58,8 +56,7 @@ test("MCP readiness groups missing issuer and JWKS as IdP blockers", () => {
 test("MCP readiness requires external identity binding after IdP setup", () => {
   const result = deriveMcpSetupReadiness(
     base({
-      externalIdentityIssuerConfigured: false,
-      externalIdentitySubjectConfigured: false
+      externalIdentityBound: false
     })
   );
   assert.equal(result.state, "needs_identity_binding");

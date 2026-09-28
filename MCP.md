@@ -132,7 +132,8 @@ A hosted Preview MCP proof currently needs three external infrastructure decisio
 
 3. **External OAuth/OIDC authorization server**
    - Configure `ASC_OAUTH_ISSUER` and `ASC_OAUTH_JWKS_URL`.
-   - Bind the intended personal Principal using `ASC_BOOTSTRAP_AUTH_ISSUER` + `ASC_BOOTSTRAP_AUTH_SUBJECT` for the first proof.
+   - Normal identity setup uses the owner-approved pairing flow in `/setup/mcp`; the owner does not copy a provider subject identifier.
+   - `ASC_BOOTSTRAP_AUTH_ISSUER` + `ASC_BOOTSTRAP_AUTH_SUBJECT` remain an advanced/bootstrap compatibility path only.
    - Auth0 is a practical first documented provider because it offers MCP-oriented OAuth/CIMD support, but ASC remains provider-neutral.
 
 ### Safe built-in defaults
@@ -156,9 +157,34 @@ The following do not need environment variables for the personal proof unless th
 2. Provision durable PostgreSQL.
 3. Configure the external IdP for the exact MCP resource/audience.
 4. Add the ASC scopes and AccountDomain claim.
-5. Bind issuer + stable subject to the bootstrap Principal.
-6. Confirm `/setup/mcp` reports `ready_for_mcp_test`.
-7. Run MCP Inspector.
-8. Connect the same resource from ChatGPT Developer Mode.
+5. In `/setup/mcp`, arm identity pairing.
+6. Start the normal ChatGPT/MCP OAuth connection. ASC records the verified but unbound identity as a candidate and still denies access.
+7. Approve the detected identity in ASC; this creates the durable issuer+subject binding.
+8. Confirm `/setup/mcp` reports `ready_for_mcp_test`.
+9. Reconnect/run MCP Inspector and then ChatGPT Developer Mode.
 
 Do not promote the OAuth/MCP integration to Main merely because configuration exists; complete the Preview proof first.
+
+
+### Owner-approved identity pairing
+
+The normal personal onboarding path does not require the owner to discover or paste an OAuth subject.
+
+Pairing lifecycle:
+1. the authenticated ASC owner arms a short-lived pairing for the current Principal, AccountDomain, and configured issuer;
+2. a cryptographically valid but unbound MCP token from that issuer may populate the pairing's candidate subject;
+3. the MCP request remains denied;
+4. ASC shows only that a verified identity was detected;
+5. the represented owner approves or rejects the candidate;
+6. approval creates the durable `AuthenticationIdentityBinding` and consumes the pairing;
+7. the next authenticated request resolves normally.
+
+Safety properties:
+- no armed pairing means an unbound token writes no pairing state;
+- one active pairing per issuer + AccountDomain prevents ambiguous multi-user capture in v0;
+- expired/revoked/consumed pairings cannot be reused;
+- another Principal cannot approve someone else's pairing;
+- bearer tokens, authorization codes, and client secrets are never stored;
+- the raw candidate subject is not rendered in the owner setup UI.
+
+This pairing is Identity Directory lifecycle state, not Project truth, Thread history, or execution authority.

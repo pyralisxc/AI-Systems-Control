@@ -22,11 +22,32 @@ export class McpRequestIdentityResolver {
     requiredScopes: readonly string[] = []
   ): Promise<AuthenticatedMcpCaller> {
     const verified = await this.#verifier.verify(token);
-    const binding = await this.#identities.resolveAuthenticationIdentity(
+    let binding = await this.#identities.resolveAuthenticationIdentity(
       verified.issuer,
       verified.subject
     );
     if (!binding) {
+      let pairingDetected = false;
+      try {
+        const pairing =
+          await this.#identities.detectAuthenticationIdentityCandidate({
+            issuer: verified.issuer,
+            subject: verified.subject,
+            accountDomainId: verified.accountDomainId
+          });
+        pairingDetected = Boolean(pairing);
+      } catch {
+        throw new McpAuthenticationError(
+          "Authenticated external identity could not be paired safely."
+        );
+      }
+
+      if (pairingDetected) {
+        throw new McpAuthenticationError(
+          "Authenticated external identity was detected and is awaiting owner approval."
+        );
+      }
+
       throw new McpAuthenticationError(
         "Authenticated external identity is not linked to an ASC Principal."
       );

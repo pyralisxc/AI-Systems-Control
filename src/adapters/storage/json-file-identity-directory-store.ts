@@ -33,6 +33,9 @@ function freezeSnapshot(
     memberships: Object.freeze([...snapshot.memberships]),
     authenticationBindings: Object.freeze([
       ...snapshot.authenticationBindings
+    ]),
+    authenticationPairings: Object.freeze([
+      ...snapshot.authenticationPairings
     ])
   });
 }
@@ -41,6 +44,7 @@ function parseSnapshot(raw: string): IdentityDirectorySnapshot {
   const parsed = JSON.parse(raw) as Record<string, unknown>;
   if (
     parsed.schemaVersion !== 1 &&
+    parsed.schemaVersion !== 2 &&
     parsed.schemaVersion !== IDENTITY_DIRECTORY_SCHEMA_VERSION
   ) {
     throw new Error(
@@ -70,6 +74,9 @@ function parseSnapshot(raw: string): IdentityDirectorySnapshot {
     memberships: parsed.memberships as IdentityDirectorySnapshot["memberships"],
     authenticationBindings: Array.isArray(parsed.authenticationBindings)
       ? parsed.authenticationBindings as IdentityDirectorySnapshot["authenticationBindings"]
+      : Object.freeze([]),
+    authenticationPairings: Array.isArray(parsed.authenticationPairings)
+      ? parsed.authenticationPairings as IdentityDirectorySnapshot["authenticationPairings"]
       : Object.freeze([]),
     ...(typeof parsed.updatedAt === "string"
       ? { updatedAt: parsed.updatedAt }
@@ -143,6 +150,9 @@ implements IdentityDirectoryStore {
         memberships: Object.freeze([...input.memberships]),
         authenticationBindings: Object.freeze([
           ...input.authenticationBindings
+        ]),
+        authenticationPairings: Object.freeze([
+          ...input.authenticationPairings
         ]),
         ...(input.updatedAt ? { updatedAt: input.updatedAt } : {})
       };

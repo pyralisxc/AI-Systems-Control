@@ -164,3 +164,70 @@ test("resolver never persists or returns raw bearer token", async () => {
     await rm(context.directory, { recursive: true, force: true });
   }
 });
+
+
+test("armed pairing records candidate but MCP access still fails", async () => {
+  const context = await setup();
+  try {
+    await context.identities.armAuthenticationIdentityPairing({
+      principalId: "principal:owner",
+      accountDomainId: "business-a",
+      issuer: "https://auth.example.test",
+      expiresAt: "2099-01-01T00:10:00.000Z",
+      createdAt: "2099-01-01T00:00:00.000Z"
+    });
+
+    const resolver = new McpRequestIdentityResolver({
+      verifier: new FakeVerifier(
+        verified({ subject: "candidate-user" })
+      ),
+      identities: context.identities
+    });
+
+    await assert.rejects(
+      () => resolver.resolve("token-value"),
+      /awaiting owner approval/i
+    );
+
+    const pairings =
+      await context.identities.listAuthenticationPairings("business-a");
+    assert.equal(pairings.length, 1);
+    assert.equal(pairings[0]?.state, "candidate_detected");
+    assert.equal(pairings[0]?.candidateSubject, "candidate-user");
+    assert.equal(
+      await context.identities.resolveAuthenticationIdentity(
+        "https://auth.example.test",
+        "candidate-user"
+      ),
+      undefined
+    );
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});
+
+test("unbound identity with no armed pairing leaves identity state unchanged", async () => {
+  const context = await setup();
+  try {
+    const before =
+      await context.identities.listAuthenticationPairings("business-a");
+
+    const resolver = new McpRequestIdentityResolver({
+      verifier: new FakeVerifier(
+        verified({ subject: "unpaired-user" })
+      ),
+      identities: context.identities
+    });
+
+    await assert.rejects(
+      () => resolver.resolve("token-value"),
+      /not linked to an ASC Principal/i
+    );
+
+    const after =
+      await context.identities.listAuthenticationPairings("business-a");
+    assert.deepEqual(after, before);
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});
