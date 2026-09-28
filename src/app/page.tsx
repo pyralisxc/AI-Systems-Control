@@ -9,6 +9,7 @@ import {
   loadProjectWorkspace
 } from "@/web/runtime/project-workspace";
 import { loadProjectControlView } from "@/web/runtime/control-registry";
+import { loadProjectWorkItems } from "@/web/runtime/project-work-items";
 
 export const dynamic = "force-dynamic";
 
@@ -34,15 +35,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   try {
-    const [view, control] = await Promise.all([
+    const [view, control, work] = await Promise.all([
       loadProjectWorkspace(repository),
-      loadProjectControlView(repository)
+      loadProjectControlView(repository),
+      loadProjectWorkItems(repository)
     ]);
     return (
       <ProjectWorkspace
         view={view}
         repository={repository}
         control={control}
+        work={work}
       />
     );
   } catch (error) {
