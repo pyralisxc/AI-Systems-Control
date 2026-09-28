@@ -87,12 +87,28 @@ test("service operator can register and publish observable bridge data", async (
         title: "CardForge Studio",
         provider: "chatgpt",
         projectId: "cardforge",
-        mode: "bridged"
+        mode: "bridged",
+        externalThreadId: "chat-123",
+        navigationUrl: "https://chatgpt.com/c/example"
       },
       caller
     );
 
     const threadId = thread.threadId;
+    const registered = await context.tools.call(
+      "thread.get",
+      { threadId },
+      caller
+    );
+    assert.equal(
+      registered.thread.externalReference.navigationUrl,
+      "https://chatgpt.com/c/example"
+    );
+    assert.equal(
+      registered.thread.externalReference.externalThreadId,
+      "chat-123"
+    );
+
     await context.tools.call(
       "thread.publish_checkpoint",
       {

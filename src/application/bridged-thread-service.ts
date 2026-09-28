@@ -69,6 +69,41 @@ function required(value: string, label: string): string {
   return normalized;
 }
 
+function navigationUrl(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim();
+  if (!normalized) return undefined;
+
+  let url: URL;
+  try {
+    url = new URL(normalized);
+  } catch {
+    throw new BridgedThreadError(
+      "Thread navigation URL must be an absolute URL."
+    );
+  }
+
+  const loopback =
+    url.hostname === "localhost" ||
+    url.hostname === "127.0.0.1" ||
+    url.hostname === "::1";
+  if (
+    url.protocol !== "https:" &&
+    !(loopback && url.protocol === "http:")
+  ) {
+    throw new BridgedThreadError(
+      "Thread navigation URL must use HTTPS outside localhost."
+    );
+  }
+  if (url.username || url.password) {
+    throw new BridgedThreadError(
+      "Thread navigation URL must not contain credentials."
+    );
+  }
+
+  return url.toString();
+}
+
 function capabilities(mode: Extract<ThreadMode, "external" | "bridged">): ThreadRuntimeCapabilities {
   if (mode === "bridged") {
     return Object.freeze({
@@ -191,8 +226,8 @@ export class BridgedThreadService {
         ...(input.externalThreadId
           ? { externalThreadId: input.externalThreadId.trim() }
           : {}),
-        ...(input.navigationUrl
-          ? { navigationUrl: input.navigationUrl.trim() }
+        ...(navigationUrl(input.navigationUrl)
+          ? { navigationUrl: navigationUrl(input.navigationUrl)! }
           : {})
       }),
       createdAt,

@@ -49,6 +49,17 @@ function calibrationTone(
   return "neutral";
 }
 
+function externalThreadActionLabel(provider: string | undefined): string {
+  const normalized = provider?.trim().toLowerCase();
+  if (normalized === "chatgpt" || normalized === "openai-chatgpt") {
+    return "Open ChatGPT";
+  }
+  if (normalized === "codex" || normalized === "openai-codex") {
+    return "Open Codex";
+  }
+  return "Open external thread";
+}
+
 export default async function PulsePage() {
   if (!(await isOwnerAuthenticated())) {
     redirect("/login?returnTo=%2Fpulse");
@@ -497,9 +508,12 @@ export default async function PulsePage() {
                         <a
                           className="connections-back"
                           href={item.thread.externalReference.navigationUrl}
+                          target="_blank"
                           rel="noreferrer"
                         >
-                          Open external thread
+                          {externalThreadActionLabel(
+                            item.thread.externalReference.provider
+                          )}
                         </a>
                       ) : null}
                     </div>
