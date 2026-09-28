@@ -168,3 +168,43 @@ Personal and business contexts must remain visually and technically distinct.
 A worker for a business Project must not implicitly gain access to the owner's personal Google/email/provider context.
 
 Cross-domain access requires explicit authorization.
+
+
+## Connection-first onboarding
+
+Normal ASC onboarding should feel like connecting/signing into services, not editing environment variables.
+
+The default owner surface presents three connections:
+
+1. **Database**
+   - missing / connected / error
+   - connection is only considered healthy when durable storage is readable.
+
+2. **Identity**
+   - missing issuer / ready to pair / pairing / candidate detected / connected / error
+   - owner-approved pairing is the normal personal path;
+   - copied subjects, JWKS overrides, claims, and bootstrap mappings are Advanced details.
+
+3. **ChatGPT**
+   - not ready / ready to test / connected
+   - configuration alone is not "connected";
+   - ASC requires durable authenticated bridge evidence before showing Connected.
+
+ASC should compute one clear next action from current evidence rather than presenting a checklist of environment variables.
+
+Provider recipes are adapters:
+- managed Postgres + standards-compatible IdP;
+- a consolidated provider that offers both PostgreSQL and OAuth/OIDC;
+- future self-hosted equivalents.
+
+Those recipes must resolve into the same ASC storage/identity/MCP contracts rather than becoming separate product architectures.
+
+Technical details remain available under **Advanced setup & diagnostics**:
+- storage/resource source;
+- AccountDomain/scope claim names;
+- required scopes;
+- protected-resource metadata;
+- signing-key discovery source;
+- provider documentation.
+
+Advanced setup must never render secret values.

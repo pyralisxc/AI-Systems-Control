@@ -102,3 +102,16 @@ A future change to an Accepted decision should include:
 2. DI/evidence-backed impact analysis where applicable;
 3. migration consequences for existing control state;
 4. an ADR/amendment when authority boundaries change.
+
+
+## Accepted — connection-first onboarding
+
+- Database, Identity, and ChatGPT connections are the primary setup surface.
+- Environment variables, claims, JWKS, branch aliases, and provider-specific mechanics are Advanced implementation details.
+- "Connected" must be evidence-backed:
+  - Database requires readable durable storage;
+  - Identity requires a durable active authentication binding;
+  - ChatGPT requires durable authenticated bridge evidence.
+- Historical ChatGPT evidence cannot override a currently broken storage/identity/resource chain.
+- Provider recipes are adapters over stable ASC contracts, not product forks.
+- Setup should expose one clear next action rather than a wall of configuration fields.
