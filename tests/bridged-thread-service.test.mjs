@@ -64,6 +64,37 @@ test("bridged external Thread registers with honest runtime limitations", async 
     assert.equal(thread.runtimeCapabilities.canSteer, false);
     assert.equal(thread.runtimeCapabilities.canStopRuntime, false);
     assert.equal(thread.runtimeCapabilities.canAutoSendRelay, false);
+    assert.equal(
+      thread.externalReference?.navigationUrl,
+      "https://chatgpt.com/c/example"
+    );
+  } finally {
+    await rm(context.directory, { recursive: true, force: true });
+  }
+});
+
+test("unsafe external Thread navigation targets fail closed", async () => {
+  const context = await setup();
+  try {
+    await assert.rejects(
+      () => context.service.registerExternal({
+        projectId: "cardforge",
+        title: "Unsafe",
+        provider: "chatgpt",
+        navigationUrl: "javascript:alert(1)"
+      }),
+      /HTTPS outside localhost/i
+    );
+
+    await assert.rejects(
+      () => context.service.registerExternal({
+        projectId: "cardforge",
+        title: "Credential URL",
+        provider: "chatgpt",
+        navigationUrl: "https://user:secret@chatgpt.com/c/example"
+      }),
+      /must not contain credentials/i
+    );
   } finally {
     await rm(context.directory, { recursive: true, force: true });
   }
