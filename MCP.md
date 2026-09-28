@@ -131,7 +131,9 @@ A hosted Preview MCP proof currently needs three external infrastructure decisio
    - ASC never derives OAuth resource identity from deployment-specific `VERCEL_URL`.
 
 3. **External OAuth/OIDC authorization server**
-   - Configure `ASC_OAUTH_ISSUER` and `ASC_OAUTH_JWKS_URL`.
+   - Configure the canonical `ASC_OAUTH_ISSUER`.
+   - ASC discovers `jwks_uri` from RFC 8414 OAuth metadata and falls back to OpenID Connect discovery when the OAuth metadata endpoint is unavailable.
+   - `ASC_OAUTH_JWKS_URL` remains an advanced explicit override.
    - Normal identity setup uses the owner-approved pairing flow in `/setup/mcp`; the owner does not copy a provider subject identifier.
    - `ASC_BOOTSTRAP_AUTH_ISSUER` + `ASC_BOOTSTRAP_AUTH_SUBJECT` remain an advanced/bootstrap compatibility path only.
    - Auth0 is a practical first documented provider because it offers MCP-oriented OAuth/CIMD support, but ASC remains provider-neutral.
@@ -188,3 +190,15 @@ Safety properties:
 - the raw candidate subject is not rendered in the owner setup UI.
 
 This pairing is Identity Directory lifecycle state, not Project truth, Thread history, or execution authority.
+
+
+### Authorization-server signing-key discovery
+
+Normal deployments configure one canonical issuer rather than copying a signing-key URL separately.
+
+Resolution order:
+1. explicit `ASC_OAUTH_JWKS_URL` override;
+2. RFC 8414 authorization-server metadata;
+3. OpenID Connect discovery fallback when the RFC 8414 endpoint is unavailable.
+
+ASC requires the metadata `issuer` to exactly match the configured issuer and requires a secure `jwks_uri`. Successful but mismatched/malformed metadata fails closed rather than falling through to another document. Discovery uses bounded requests and does not alter ASC's configured issuer, resource/audience, scopes, AccountDomain, or identity bindings.

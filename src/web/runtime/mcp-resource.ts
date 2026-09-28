@@ -2,6 +2,10 @@ import {
   deriveMcpResourceUrl,
   type McpResourceUrlSource
 } from "../../../dist/application/index.js";
+import {
+  OAuthMetadataJwksResolver,
+  type OAuthJwksDiscoverySource
+} from "../../../dist/adapters/index.js";
 
 export const ASC_MCP_SCOPE_BASE = "asc.mcp";
 export const ASC_MCP_SCOPE_THREAD_READ = "asc.thread.read";
@@ -86,11 +90,61 @@ export function mcpOAuthIssuer(): string {
   );
 }
 
-export function mcpOAuthJwksUrl(): string {
-  return absoluteUrl(
-    process.env.ASC_OAUTH_JWKS_URL,
-    "ASC_OAUTH_JWKS_URL"
-  );
+export type McpOAuthJwksSource =
+  | "explicit"
+  | OAuthJwksDiscoverySource;
+
+export interface McpOAuthJwksResolution {
+  readonly jwksUrl: string;
+  readonly source: McpOAuthJwksSource;
+}
+
+let cachedJwksKey: string | undefined;
+let cachedJwksPromise:
+  | Promise<McpOAuthJwksResolution>
+  | undefined;
+
+function explicitMcpOAuthJwksUrl(): string | undefined {
+  const value = process.env.ASC_OAUTH_JWKS_URL?.trim();
+  return value
+    ? absoluteUrl(value, "ASC_OAUTH_JWKS_URL")
+    : undefined;
+}
+
+export async function resolveMcpOAuthJwks():
+  Promise<McpOAuthJwksResolution> {
+  const issuer = mcpOAuthIssuer();
+  const explicit = explicitMcpOAuthJwksUrl();
+  if (explicit) {
+    return Object.freeze({
+      jwksUrl: explicit,
+      source: "explicit"
+    });
+  }
+
+  const key = issuer;
+  if (cachedJwksPromise && cachedJwksKey === key) {
+    return cachedJwksPromise;
+  }
+
+  cachedJwksKey = key;
+  cachedJwksPromise = new OAuthMetadataJwksResolver()
+    .resolve(issuer)
+    .then((result) =>
+      Object.freeze({
+        jwksUrl: result.jwksUrl,
+        source: result.source
+      })
+    )
+    .catch((error) => {
+      if (cachedJwksKey === key) {
+        cachedJwksKey = undefined;
+        cachedJwksPromise = undefined;
+      }
+      throw error;
+    });
+
+  return cachedJwksPromise;
 }
 
 export function mcpAccountDomainClaim(): string {
@@ -145,8 +199,7 @@ export function protectedResourceMetadata(): AscProtectedResourceMetadata {
 export function mcpOAuthConfigured(): boolean {
   return Boolean(
     resolvedMcpResource() &&
-    process.env.ASC_OAUTH_ISSUER?.trim() &&
-    process.env.ASC_OAUTH_JWKS_URL?.trim()
+    process.env.ASC_OAUTH_ISSUER?.trim()
   );
 }
 

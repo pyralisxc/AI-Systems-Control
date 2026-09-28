@@ -123,7 +123,15 @@ export default async function McpSetupPage() {
             <Check
               label="OAuth signing keys"
               configured={view.configuration.oauthJwksConfigured}
-              detail="JWKS endpoint used by ASC to verify access-token signatures."
+              detail={
+                view.configuration.oauthJwksConfigured
+                  ? view.configuration.oauthJwksSource === "explicit"
+                    ? "Using the explicit advanced JWKS override."
+                    : view.configuration.oauthJwksSource === "oidc_metadata"
+                      ? "Discovered from the issuer's OpenID Connect metadata."
+                      : "Discovered from the issuer's OAuth authorization-server metadata."
+                  : "ASC will discover signing keys from standard OAuth/OIDC metadata. An explicit JWKS URL is only an advanced override."
+              }
             />
             <Check
               label="External identity binding"
@@ -374,7 +382,8 @@ export default async function McpSetupPage() {
                 <p>
                   Use the exact ASC MCP resource URL as the API identifier /
                   audience, enable MCP-compatible OAuth client registration and
-                  PKCE, and expose the three ASC scopes shown above.
+                  PKCE, and expose the three ASC scopes shown above. ASC normally
+                  discovers signing keys from the issuer metadata automatically.
                 </p>
               </div>
             </article>
