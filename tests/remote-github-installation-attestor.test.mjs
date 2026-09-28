@@ -117,7 +117,7 @@ test("remote GitHub attestor reads exact repository coverage through Conductor b
   });
 
   const result = await attestor.attestRepository({
-    installationId: "456",
+    connectionReference: "456",
     repository: "pyralisxc/AI-Systems-Control",
     principalId: "principal:owner",
     accountDomainId: "domain:personal"
@@ -127,6 +127,7 @@ test("remote GitHub attestor reads exact repository coverage through Conductor b
     seen[0],
     "https://conductor.example/internal/asc/github/installations/456/repositories/pyralisxc/AI-Systems-Control/attest"
   );
+  assert.equal(result.connectionReference, "456");
   assert.deepEqual(result.capabilities, [
     "pull_request.write",
     "repository.read",
@@ -157,7 +158,7 @@ test("remote GitHub repository attestor fails closed on repository or installati
 
   await assert.rejects(
     () => wrongRepository.attestRepository({
-      installationId: "456",
+      connectionReference: "456",
       repository: "pyralisxc/AI-Systems-Control",
       principalId: "principal:owner",
       accountDomainId: "domain:personal"
@@ -183,7 +184,7 @@ test("remote GitHub repository attestor fails closed on repository or installati
 
   await assert.rejects(
     () => wrongInstallation.attestRepository({
-      installationId: "456",
+      connectionReference: "456",
       repository: "pyralisxc/AI-Systems-Control",
       principalId: "principal:owner",
       accountDomainId: "domain:personal"

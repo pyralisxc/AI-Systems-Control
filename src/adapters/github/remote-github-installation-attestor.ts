@@ -4,9 +4,9 @@ import type {
   GitHubInstallationAttestor
 } from "./github-installation-authorization-provider.js";
 import type {
-  AttestGitHubRepositoryInput,
-  GitHubRepositoryAttestation,
-  GitHubRepositoryAttestor
+  AttestExternalRepositoryInput,
+  ExternalRepositoryAttestation,
+  ExternalRepositoryAttestor
 } from "../../ports/index.js";
 
 export interface RemoteGitHubInstallationAttestorOptions {
@@ -153,7 +153,7 @@ function safeCapabilities(
 }
 
 export class RemoteGitHubInstallationAttestor
-  implements GitHubInstallationAttestor, GitHubRepositoryAttestor
+  implements GitHubInstallationAttestor, ExternalRepositoryAttestor
 {
   readonly #baseUrl: string;
   readonly #secret: string;
@@ -237,9 +237,9 @@ export class RemoteGitHubInstallationAttestor
   }
 
   async attestRepository(
-    input: AttestGitHubRepositoryInput
-  ): Promise<GitHubRepositoryAttestation> {
-    const id = installationId(input.installationId);
+    input: AttestExternalRepositoryInput
+  ): Promise<ExternalRepositoryAttestation> {
+    const id = installationId(input.connectionReference);
     const requested = repository(input.repository);
     const value = await this.#get(
       "/internal/asc/github/installations/" +
@@ -279,13 +279,13 @@ export class RemoteGitHubInstallationAttestor
     }
 
     return Object.freeze({
-      installationId: returnedId,
+      connectionReference: returnedId,
       repository: returnedRepository,
-      accountId: stringField(
+      accountReference: stringField(
         value.accountId,
         "GitHub account ID"
       ),
-      accountLogin: stringField(
+      accountDisplayName: stringField(
         value.accountLogin,
         "GitHub account login"
       ),

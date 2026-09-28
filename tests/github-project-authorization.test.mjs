@@ -77,10 +77,10 @@ async function setup() {
       async attestRepository(input) {
         seen.push(input);
         return Object.freeze({
-          installationId: "456",
-          repository: "pyralisxc/AI-Systems-Control",
-          accountId: "789",
-          accountLogin: "pyralisxc",
+          connectionReference: "456",
+          repository: "pyralisxc/ai-systems-control",
+          accountReference: "789",
+          accountDisplayName: "pyralisxc",
           accountType: "User",
           capabilities: Object.freeze([
             "source.read",
@@ -117,10 +117,10 @@ test("exact GitHub repository attestation creates DI read and approval-gated Con
 
     assert.equal(
       context.seen[0]?.repository,
-      "pyralisxc/AI-Systems-Control"
+      "pyralisxc/ai-systems-control"
     );
     assert.equal(
-      context.seen[0]?.installationId,
+      context.seen[0]?.connectionReference,
       "456"
     );
     assert.equal(result.bindings.length, 3);
@@ -138,7 +138,7 @@ test("exact GitHub repository attestation creates DI read and approval-gated Con
     for (const binding of result.bindings) {
       assert.deepEqual(binding.resource, {
         kind: "github_repository",
-        value: "pyralisxc/AI-Systems-Control"
+        value: "pyralisxc/ai-systems-control"
       });
       if (
         binding.capabilityScope.value ===
@@ -195,7 +195,7 @@ test("specialist delegations are issued just in time from attested GitHub bindin
       );
     assert.equal(
       sourceReceipt.resource?.value,
-      "pyralisxc/AI-Systems-Control"
+      "pyralisxc/ai-systems-control"
     );
 
     await assert.rejects(
@@ -255,7 +255,7 @@ test("GitHub Project authorization fails closed when repository capability proof
             return Object.freeze({
               installationId: "456",
               repository:
-                "pyralisxc/AI-Systems-Control",
+                "pyralisxc/ai-systems-control",
               accountId: "789",
               accountLogin: "pyralisxc",
               accountType: "User",

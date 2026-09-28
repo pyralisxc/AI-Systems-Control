@@ -4,8 +4,8 @@ import type {
   ProjectConnectionBinding
 } from "../domain/index.js";
 import type {
-  GitHubRepositoryAttestation,
-  GitHubRepositoryAttestor
+  ExternalRepositoryAttestation,
+  ExternalRepositoryAttestor
 } from "../ports/index.js";
 import {
   PersistentConnectionRegistry
@@ -26,7 +26,7 @@ export interface GitHubProjectAuthorizationServiceOptions {
   readonly connections: PersistentConnectionRegistry;
   readonly bindings: PersistentProjectConnectionBindingRegistry;
   readonly delegations: DelegationService;
-  readonly repositoryAttestor: GitHubRepositoryAttestor;
+  readonly repositoryAttestor: ExternalRepositoryAttestor;
 }
 
 export interface BindGitHubProjectInput {
@@ -41,7 +41,7 @@ export interface BoundGitHubProject {
   readonly repository: string;
   readonly connectionId: string;
   readonly executionCapability: string;
-  readonly attestation: GitHubRepositoryAttestation;
+  readonly attestation: ExternalRepositoryAttestation;
   readonly bindings: readonly ProjectConnectionBinding[];
 }
 
@@ -124,7 +124,7 @@ export class GitHubProjectAuthorizationService {
   readonly #connections: PersistentConnectionRegistry;
   readonly #bindings: PersistentProjectConnectionBindingRegistry;
   readonly #delegations: DelegationService;
-  readonly #repositoryAttestor: GitHubRepositoryAttestor;
+  readonly #repositoryAttestor: ExternalRepositoryAttestor;
 
   constructor(options: GitHubProjectAuthorizationServiceOptions) {
     this.#projects = options.projects;
@@ -139,7 +139,7 @@ export class GitHubProjectAuthorizationService {
     project: Project,
     connection: Connection,
     requiredCapabilities: readonly string[]
-  ): Promise<GitHubRepositoryAttestation> {
+  ): Promise<ExternalRepositoryAttestation> {
     if (!project.accountDomainId) {
       throw new GitHubProjectAuthorizationError(
         "Project " + project.projectId +
@@ -160,7 +160,7 @@ export class GitHubProjectAuthorizationService {
     const repository = canonicalRepository(project);
     const attestation =
       await this.#repositoryAttestor.attestRepository({
-        installationId: installationId(connection),
+        connectionReference: installationId(connection),
         repository,
         principalId,
         accountDomainId: project.accountDomainId
@@ -172,7 +172,7 @@ export class GitHubProjectAuthorizationService {
       );
     }
     if (
-      attestation.installationId !==
+      attestation.connectionReference !==
       installationId(connection)
     ) {
       throw new GitHubProjectAuthorizationError(
