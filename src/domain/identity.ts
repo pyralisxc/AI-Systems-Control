@@ -74,6 +74,30 @@ export interface AuthenticationIdentityBinding {
   readonly revokedAt?: IsoTimestamp;
 }
 
+export const AUTHENTICATION_PAIRING_STATES = [
+  "armed",
+  "candidate_detected",
+  "consumed",
+  "revoked"
+] as const;
+export type AuthenticationIdentityPairingState =
+  (typeof AUTHENTICATION_PAIRING_STATES)[number];
+
+export interface AuthenticationIdentityPairing {
+  readonly pairingId: string;
+  readonly principalId: PrincipalId;
+  readonly accountDomainId: AccountDomainId;
+  readonly issuer: string;
+  readonly state: AuthenticationIdentityPairingState;
+  readonly createdAt: IsoTimestamp;
+  readonly updatedAt: IsoTimestamp;
+  readonly expiresAt: IsoTimestamp;
+  readonly candidateSubject?: string;
+  readonly detectedAt?: IsoTimestamp;
+  readonly consumedAt?: IsoTimestamp;
+  readonly revokedAt?: IsoTimestamp;
+}
+
 export function membershipHasRole(
   membership: Membership,
   role: string

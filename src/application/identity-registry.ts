@@ -5,6 +5,8 @@ import type {
   AccountDomainKind,
   AccountDomainStatus,
   AuthenticationIdentityBinding,
+  AuthenticationIdentityPairing,
+  AuthenticationIdentityPairingState,
   AuthenticationIdentityStatus,
   Membership,
   MembershipStatus,
@@ -57,6 +59,34 @@ export interface RegisterAuthenticationIdentityInput {
   readonly createdAt?: string;
 }
 
+export interface ArmAuthenticationIdentityPairingInput {
+  readonly pairingId?: string;
+  readonly principalId: string;
+  readonly accountDomainId: string;
+  readonly issuer: string;
+  readonly expiresAt: string;
+  readonly createdAt?: string;
+}
+
+export interface DetectAuthenticationIdentityCandidateInput {
+  readonly issuer: string;
+  readonly subject: string;
+  readonly accountDomainId: string;
+  readonly detectedAt?: string;
+}
+
+export interface ApproveAuthenticationIdentityPairingInput {
+  readonly pairingId: string;
+  readonly reviewedByPrincipalId: string;
+  readonly approvedAt?: string;
+}
+
+export interface RevokeAuthenticationIdentityPairingInput {
+  readonly pairingId: string;
+  readonly reviewedByPrincipalId: string;
+  readonly revokedAt?: string;
+}
+
 function required(value: string, label: string): string {
   const normalized = value.trim();
   if (!normalized) throw new Error(label + " cannot be empty.");
@@ -104,6 +134,24 @@ function generatedMembershipId(principalId: string, accountDomainId: string): st
   return "membership:" + digest;
 }
 
+function generatedAuthenticationPairingId(
+  principalId: string,
+  accountDomainId: string,
+  issuer: string,
+  createdAt: string
+): string {
+  const digest = createHash("sha256")
+    .update(
+      principalId + "\u0000" +
+      accountDomainId + "\u0000" +
+      normalizedIssuer(issuer) + "\u0000" +
+      createdAt
+    )
+    .digest("hex")
+    .slice(0, 24);
+  return "auth-pairing:" + digest;
+}
+
 function generatedAuthenticationBindingId(
   issuer: string,
   subject: string
@@ -128,6 +176,19 @@ function freezeAuthenticationBinding(
   return Object.freeze({ ...binding });
 }
 
+function freezeAuthenticationPairing(
+  pairing: AuthenticationIdentityPairing
+): AuthenticationIdentityPairing {
+  return Object.freeze({ ...pairing });
+}
+
+function pairingExpired(
+  pairing: AuthenticationIdentityPairing,
+  now: string
+): boolean {
+  return Date.parse(pairing.expiresAt) <= Date.parse(now);
+}
+
 export class InMemoryIdentityRegistry {
   readonly #principals = new Map<string, Principal>();
   readonly #domains = new Map<string, AccountDomain>();
@@ -135,12 +196,14 @@ export class InMemoryIdentityRegistry {
   readonly #membershipByPair = new Map<string, string>();
   readonly #authenticationBindings = new Map<string, AuthenticationIdentityBinding>();
   readonly #authenticationByKey = new Map<string, string>();
+  readonly #authenticationPairings = new Map<string, AuthenticationIdentityPairing>();
 
   constructor(input: {
     readonly principals?: readonly Principal[];
     readonly accountDomains?: readonly AccountDomain[];
     readonly memberships?: readonly Membership[];
     readonly authenticationBindings?: readonly AuthenticationIdentityBinding[];
+    readonly authenticationPairings?: readonly AuthenticationIdentityPairing[];
   } = {}) {
     for (const principal of input.principals ?? []) {
       if (this.#principals.has(principal.principalId)) {
@@ -166,6 +229,30 @@ export class InMemoryIdentityRegistry {
 
     for (const binding of input.authenticationBindings ?? []) {
       this.#indexAuthenticationBinding(freezeAuthenticationBinding(binding));
+    }
+
+    for (const pairing of input.authenticationPairings ?? []) {
+      if (this.#authenticationPairings.has(pairing.pairingId)) {
+        throw new IdentityConflictError(
+          "Duplicate authentication pairing: " + pairing.pairingId
+        );
+      }
+      if (!this.#principals.has(pairing.principalId)) {
+        throw new IdentityConflictError(
+          "Authentication pairing references unknown Principal: " +
+          pairing.principalId
+        );
+      }
+      if (!this.#domains.has(pairing.accountDomainId)) {
+        throw new IdentityConflictError(
+          "Authentication pairing references unknown AccountDomain: " +
+          pairing.accountDomainId
+        );
+      }
+      this.#authenticationPairings.set(
+        pairing.pairingId,
+        freezeAuthenticationPairing(pairing)
+      );
     }
   }
 
@@ -262,6 +349,29 @@ export class InMemoryIdentityRegistry {
       [...this.#authenticationBindings.values()]
         .sort((left, right) => left.bindingId.localeCompare(right.bindingId))
     );
+  }
+
+  listAuthenticationPairings(
+    accountDomainId?: string
+  ): readonly AuthenticationIdentityPairing[] {
+    return Object.freeze(
+      [...this.#authenticationPairings.values()]
+        .filter((pairing) =>
+          accountDomainId
+            ? pairing.accountDomainId === accountDomainId
+            : true
+        )
+        .sort((left, right) =>
+          right.createdAt.localeCompare(left.createdAt) ||
+          left.pairingId.localeCompare(right.pairingId)
+        )
+    );
+  }
+
+  getAuthenticationPairing(
+    pairingId: string
+  ): AuthenticationIdentityPairing | undefined {
+    return this.#authenticationPairings.get(pairingId);
   }
 
   getPrincipal(principalId: string): Principal | undefined {
@@ -395,6 +505,245 @@ export class InMemoryIdentityRegistry {
 
     this.#indexMembership(membership);
     return membership;
+  }
+
+  armAuthenticationIdentityPairing(
+    input: ArmAuthenticationIdentityPairingInput
+  ): AuthenticationIdentityPairing {
+    const principalId = required(input.principalId, "Principal ID");
+    const accountDomainId = required(
+      input.accountDomainId,
+      "AccountDomain ID"
+    );
+    const issuer = normalizedIssuer(input.issuer);
+    const createdAt = input.createdAt ?? new Date().toISOString();
+
+    if (!Number.isFinite(Date.parse(input.expiresAt))) {
+      throw new IdentityConflictError(
+        "Authentication pairing expiry must be a valid timestamp."
+      );
+    }
+    if (Date.parse(input.expiresAt) <= Date.parse(createdAt)) {
+      throw new IdentityConflictError(
+        "Authentication pairing expiry must be after creation."
+      );
+    }
+
+    const principal = this.#principals.get(principalId);
+    if (!principal || principal.status !== "active" || principal.kind !== "human") {
+      throw new IdentityConflictError(
+        "Authentication pairing requires an active human Principal."
+      );
+    }
+
+    const membership = this.assertActiveMembership(
+      principalId,
+      accountDomainId
+    );
+    if (
+      !membership.roles.includes("owner") &&
+      !membership.roles.includes("admin")
+    ) {
+      throw new IdentityConflictError(
+        "Authentication pairing requires owner/admin authority."
+      );
+    }
+
+    const activeForIssuer = [...this.#authenticationPairings.values()]
+      .filter((pairing) =>
+        pairing.accountDomainId === accountDomainId &&
+        pairing.issuer === issuer &&
+        (pairing.state === "armed" ||
+          pairing.state === "candidate_detected") &&
+        !pairingExpired(pairing, createdAt)
+      );
+
+    const samePrincipal = activeForIssuer.find(
+      (pairing) => pairing.principalId === principalId
+    );
+    if (samePrincipal) return samePrincipal;
+
+    if (activeForIssuer.length > 0) {
+      throw new IdentityConflictError(
+        "Another authentication pairing is already active for this issuer and AccountDomain."
+      );
+    }
+
+    const pairing = freezeAuthenticationPairing({
+      pairingId:
+        input.pairingId ??
+        generatedAuthenticationPairingId(
+          principalId,
+          accountDomainId,
+          issuer,
+          createdAt
+        ),
+      principalId,
+      accountDomainId,
+      issuer,
+      state: "armed",
+      createdAt,
+      updatedAt: createdAt,
+      expiresAt: input.expiresAt
+    });
+    this.#authenticationPairings.set(pairing.pairingId, pairing);
+    return pairing;
+  }
+
+  detectAuthenticationIdentityCandidate(
+    input: DetectAuthenticationIdentityCandidateInput
+  ): AuthenticationIdentityPairing | undefined {
+    const issuer = normalizedIssuer(input.issuer);
+    const subject = required(input.subject, "Authentication subject");
+    const accountDomainId = required(
+      input.accountDomainId,
+      "AccountDomain ID"
+    );
+    const detectedAt = input.detectedAt ?? new Date().toISOString();
+
+    const matching = [...this.#authenticationPairings.values()]
+      .filter((pairing) =>
+        pairing.accountDomainId === accountDomainId &&
+        pairing.issuer === issuer &&
+        (pairing.state === "armed" ||
+          pairing.state === "candidate_detected") &&
+        !pairingExpired(pairing, detectedAt)
+      );
+
+    if (matching.length === 0) return undefined;
+    if (matching.length > 1) {
+      throw new IdentityConflictError(
+        "Authentication pairing is ambiguous for this issuer and AccountDomain."
+      );
+    }
+
+    const pairing = matching[0]!;
+    if (
+      pairing.state === "candidate_detected" &&
+      pairing.candidateSubject !== subject
+    ) {
+      throw new IdentityConflictError(
+        "Authentication pairing already has a different detected identity."
+      );
+    }
+    if (pairing.state === "candidate_detected") return pairing;
+
+    const updated = freezeAuthenticationPairing({
+      ...pairing,
+      state: "candidate_detected",
+      candidateSubject: subject,
+      detectedAt,
+      updatedAt: detectedAt
+    });
+    this.#authenticationPairings.set(pairing.pairingId, updated);
+    return updated;
+  }
+
+  approveAuthenticationIdentityPairing(
+    input: ApproveAuthenticationIdentityPairingInput
+  ): {
+    readonly pairing: AuthenticationIdentityPairing;
+    readonly binding: AuthenticationIdentityBinding;
+  } {
+    const pairing = this.#authenticationPairings.get(
+      required(input.pairingId, "Authentication pairing ID")
+    );
+    if (!pairing) {
+      throw new IdentityConflictError(
+        "Unknown authentication pairing."
+      );
+    }
+
+    const approvedAt = input.approvedAt ?? new Date().toISOString();
+    if (pairingExpired(pairing, approvedAt)) {
+      throw new IdentityConflictError(
+        "Authentication pairing has expired."
+      );
+    }
+    if (
+      pairing.state !== "candidate_detected" ||
+      !pairing.candidateSubject
+    ) {
+      throw new IdentityConflictError(
+        "Authentication pairing has no detected identity to approve."
+      );
+    }
+    if (pairing.principalId !== input.reviewedByPrincipalId) {
+      throw new IdentityConflictError(
+        "Only the represented Principal may approve this authentication pairing."
+      );
+    }
+
+    const principal = this.#principals.get(pairing.principalId);
+    if (!principal || principal.status !== "active" || principal.kind !== "human") {
+      throw new IdentityConflictError(
+        "Authentication pairing Principal is not an active human."
+      );
+    }
+    const membership = this.assertActiveMembership(
+      pairing.principalId,
+      pairing.accountDomainId
+    );
+    if (
+      !membership.roles.includes("owner") &&
+      !membership.roles.includes("admin")
+    ) {
+      throw new IdentityConflictError(
+        "Authentication pairing approval requires owner/admin authority."
+      );
+    }
+
+    const binding = this.registerAuthenticationIdentity({
+      principalId: pairing.principalId,
+      issuer: pairing.issuer,
+      subject: pairing.candidateSubject,
+      label: "Owner-approved identity pairing",
+      createdAt: approvedAt
+    });
+
+    const consumed = freezeAuthenticationPairing({
+      ...pairing,
+      state: "consumed",
+      consumedAt: approvedAt,
+      updatedAt: approvedAt
+    });
+    this.#authenticationPairings.set(pairing.pairingId, consumed);
+
+    return Object.freeze({
+      pairing: consumed,
+      binding
+    });
+  }
+
+  revokeAuthenticationIdentityPairing(
+    input: RevokeAuthenticationIdentityPairingInput
+  ): AuthenticationIdentityPairing {
+    const pairing = this.#authenticationPairings.get(
+      required(input.pairingId, "Authentication pairing ID")
+    );
+    if (!pairing) {
+      throw new IdentityConflictError(
+        "Unknown authentication pairing."
+      );
+    }
+    if (pairing.principalId !== input.reviewedByPrincipalId) {
+      throw new IdentityConflictError(
+        "Only the represented Principal may revoke this authentication pairing."
+      );
+    }
+    if (pairing.state === "consumed" || pairing.state === "revoked") {
+      return pairing;
+    }
+
+    const revokedAt = input.revokedAt ?? new Date().toISOString();
+    const revoked = freezeAuthenticationPairing({
+      ...pairing,
+      state: "revoked",
+      revokedAt,
+      updatedAt: revokedAt
+    });
+    this.#authenticationPairings.set(pairing.pairingId, revoked);
+    return revoked;
   }
 
   registerAuthenticationIdentity(

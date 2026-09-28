@@ -1,11 +1,12 @@
 import type {
   AccountDomain,
   AuthenticationIdentityBinding,
+  AuthenticationIdentityPairing,
   Membership,
   Principal
 } from "../domain/index.js";
 
-export const IDENTITY_DIRECTORY_SCHEMA_VERSION = 2 as const;
+export const IDENTITY_DIRECTORY_SCHEMA_VERSION = 3 as const;
 
 export interface IdentityDirectorySnapshot {
   readonly schemaVersion: typeof IDENTITY_DIRECTORY_SCHEMA_VERSION;
@@ -14,6 +15,7 @@ export interface IdentityDirectorySnapshot {
   readonly accountDomains: readonly AccountDomain[];
   readonly memberships: readonly Membership[];
   readonly authenticationBindings: readonly AuthenticationIdentityBinding[];
+  readonly authenticationPairings: readonly AuthenticationIdentityPairing[];
   readonly updatedAt?: string;
 }
 
@@ -23,6 +25,7 @@ export interface SaveIdentityDirectoryInput {
   readonly accountDomains: readonly AccountDomain[];
   readonly memberships: readonly Membership[];
   readonly authenticationBindings: readonly AuthenticationIdentityBinding[];
+  readonly authenticationPairings: readonly AuthenticationIdentityPairing[];
   readonly updatedAt?: string;
 }
 
@@ -50,6 +53,7 @@ export function emptyIdentityDirectorySnapshot(): IdentityDirectorySnapshot {
     principals: Object.freeze([]),
     accountDomains: Object.freeze([]),
     memberships: Object.freeze([]),
-    authenticationBindings: Object.freeze([])
+    authenticationBindings: Object.freeze([]),
+    authenticationPairings: Object.freeze([])
   });
 }
