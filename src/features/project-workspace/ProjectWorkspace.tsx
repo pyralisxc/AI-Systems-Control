@@ -4,6 +4,10 @@ import type {
   OwnerProjectRealityView,
   OwnerRealityItem
 } from "../../../dist/slice-a/index.js";
+import type {
+  ProjectWorkItemProjection,
+  ProjectWorkItemProjectionItem
+} from "../../../dist/application/index.js";
 
 interface ProjectControlView {
   readonly configured: boolean;
@@ -21,6 +25,7 @@ interface ProjectWorkspaceProps {
   readonly view: OwnerProjectRealityView;
   readonly repository: string;
   readonly control: ProjectControlView;
+  readonly work: ProjectWorkItemProjection;
 }
 
 function displayValue(value: unknown): string {
@@ -158,16 +163,59 @@ function EmptyState({ children }: { readonly children: string }) {
   return <div className="empty-state">{children}</div>;
 }
 
+function WorkItemRow({
+  item,
+  blocker = false
+}: {
+  readonly item: ProjectWorkItemProjectionItem;
+  readonly blocker?: boolean;
+}) {
+  return (
+    <article className={blocker ? "work-item-row work-item-row--blocker" : "work-item-row"}>
+      <div>
+        <span className="eyebrow">Issue #{item.number}</span>
+        <a href={item.url} target="_blank" rel="noreferrer">
+          {item.title}
+        </a>
+      </div>
+      <div className="work-badges" aria-label="Issue classification">
+        {item.productionBlocking ? (
+          <span className="work-badge" data-kind="blocker">production blocker</span>
+        ) : null}
+        {item.severity ? (
+          <span className="work-badge" data-kind={item.severity.toLowerCase()}>
+            severity {item.severity}
+          </span>
+        ) : null}
+        {item.priority ? (
+          <span className="work-badge">priority {item.priority}</span>
+        ) : null}
+        {item.status ? (
+          <span className="work-badge">status {item.status}</span>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 export function ProjectWorkspace({
   view,
   repository,
-  control
+  control,
+  work
 }: ProjectWorkspaceProps) {
   const availableCapabilities = view.capabilities.filter((item) =>
     item.bindings.some((binding) => binding.availabilityState === "available")
   ).length;
   const observationCount =
     view.truth.observed.length + view.truth.inferred.length;
+  const productionBlockers = work.items.filter((item) => item.productionBlocking);
+  const elevatedWork = work.items.filter(
+    (item) =>
+      !item.productionBlocking &&
+      (item.severity?.toLowerCase() === "critical" ||
+        item.severity?.toLowerCase() === "high")
+  );
 
   return (
     <div className="workspace-shell">
@@ -185,36 +233,40 @@ export function ProjectWorkspace({
             <span>01</span>
             Overview
           </a>
-          <a className="nav-item" href="#intelligence">
+          <a className="nav-item" href="#work">
             <span>02</span>
+            Work
+          </a>
+          <a className="nav-item" href="#intelligence">
+            <span>03</span>
             Intelligence
           </a>
           <a className="nav-item" href="#desired">
-            <span>03</span>
+            <span>04</span>
             Desired state
           </a>
           <a className="nav-item" href="#capabilities">
-            <span>04</span>
+            <span>05</span>
             Capabilities
           </a>
           <a className="nav-item" href="#control">
-            <span>05</span>
+            <span>06</span>
             Control
           </a>
           <a className="nav-item" href="/connections">
-            <span>06</span>
+            <span>07</span>
             Connections
           </a>
           <a className="nav-item" href="/pulse">
-            <span>07</span>
+            <span>08</span>
             Pulse
           </a>
           <a className="nav-item" href="/setup/mcp">
-            <span>08</span>
+            <span>09</span>
             Setup
           </a>
           <span className="nav-item nav-item--future">
-            <span>09</span>
+            <span>10</span>
             Actions
             <small>future slice</small>
           </span>
@@ -292,6 +344,108 @@ export function ProjectWorkspace({
           </article>
         </section>
 
+        <section className="content-section work-section" id="work">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Canonical GitHub work</span>
+              <h2>Delivery attention</h2>
+              <p>
+                ASC projects open GitHub issue labels without copying or re-ranking
+                the backlog. Status, severity, priority, and production gates remain
+                separate dimensions.
+              </p>
+            </div>
+            {work.available ? (
+              <span className="section-count">{work.counts.active}</span>
+            ) : null}
+          </div>
+
+          {!work.available ? (
+            <div className="control-panel control-panel--unavailable">
+              <div>
+                <strong>Work visibility unavailable</strong>
+                <p>
+                  {work.reason ??
+                    "ASC could not read canonical GitHub work-item metadata for this Project."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="work-summary-grid" aria-label="Open work classification">
+                <article className="work-summary-card" data-kind="blocker">
+                  <span>Production blockers</span>
+                  <strong>{work.counts.productionBlockers}</strong>
+                  <small>explicit production-blocking labels</small>
+                </article>
+                <article className="work-summary-card" data-kind="critical">
+                  <span>Critical</span>
+                  <strong>{work.counts.critical}</strong>
+                  <small>explicit severity:critical</small>
+                </article>
+                <article className="work-summary-card" data-kind="high">
+                  <span>High</span>
+                  <strong>{work.counts.high}</strong>
+                  <small>explicit severity:high</small>
+                </article>
+                <article className="work-summary-card">
+                  <span>Normal active</span>
+                  <strong>{work.counts.normal}</strong>
+                  <small>no critical/high severity label</small>
+                </article>
+              </div>
+
+              {productionBlockers.length > 0 ? (
+                <div className="work-panel work-panel--blockers">
+                  <div className="work-panel__heading">
+                    <div>
+                      <span className="eyebrow">Release gate</span>
+                      <h3>Production blockers</h3>
+                    </div>
+                    <span>{productionBlockers.length} open</span>
+                  </div>
+                  <p>
+                    These canonical issues are explicitly marked production-blocking.
+                    Preview may continue where valid, but Main/promotion readiness must
+                    keep the blockers visible.
+                  </p>
+                  <div className="work-item-list">
+                    {productionBlockers.map((item) => (
+                      <WorkItemRow item={item} blocker key={item.number} />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="work-panel">
+                  <strong>No open production blockers are reported by GitHub.</strong>
+                </div>
+              )}
+
+              {elevatedWork.length > 0 ? (
+                <div className="work-panel">
+                  <div className="work-panel__heading">
+                    <div>
+                      <span className="eyebrow">Severity projection</span>
+                      <h3>Critical and high work</h3>
+                    </div>
+                    <span>{elevatedWork.length} open</span>
+                  </div>
+                  <div className="work-item-list">
+                    {elevatedWork.slice(0, 8).map((item) => (
+                      <WorkItemRow item={item} key={item.number} />
+                    ))}
+                  </div>
+                  {elevatedWork.length > 8 ? (
+                    <small className="work-overflow-note">
+                      {elevatedWork.length - 8} additional critical/high issues remain
+                      canonical in GitHub.
+                    </small>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
+          )}
+        </section>
 
         <section className="content-section" id="control">
           <div className="section-heading">
