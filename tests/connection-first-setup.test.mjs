@@ -121,3 +121,15 @@ test("signing-key discovery failure is an identity error", () => {
   assert.equal(result.identity, "error");
   assert.equal(result.nextAction, "repair_identity");
 });
+
+
+test("historical ChatGPT evidence does not bypass a broken current identity chain", () => {
+  const result = deriveConnectionFirstSetup(input({
+    signingKeysReady: false,
+    chatgptEvidence: true
+  }));
+
+  assert.equal(result.identity, "error");
+  assert.equal(result.chatgpt, "not_ready");
+  assert.equal(result.overall, "incomplete");
+});

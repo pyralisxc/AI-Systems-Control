@@ -99,16 +99,16 @@ function chatgptState(
   database: SetupDatabaseState,
   identity: SetupIdentityState
 ): SetupChatgptState {
-  if (input.chatgptEvidence) return "connected";
-  if (
+  const currentlyReady =
     database === "connected" &&
     identity === "connected" &&
     input.resourceConfigured &&
-    input.signingKeysReady
-  ) {
-    return "ready_to_test";
-  }
-  return "not_ready";
+    input.signingKeysReady;
+
+  if (!currentlyReady) return "not_ready";
+  return input.chatgptEvidence
+    ? "connected"
+    : "ready_to_test";
 }
 
 function nextAction(
