@@ -29,3 +29,5 @@ export * from "./project-work-item-projection.js";
 export * from "./github-project-authorization-service.js";
 
 export * from "./delegation-audience-bridge.js";
+
+export * from "./vercel-project-authorization-service.js";

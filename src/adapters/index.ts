@@ -14,3 +14,5 @@ export * from "./github/github-installation-authorization-provider.js";
 export * from "./github/remote-github-installation-attestor.js";
 
 export * from "./github/github-work-item-source.js";
+
+export * from "./vercel/remote-vercel-connection-attestor.js";

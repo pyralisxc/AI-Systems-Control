@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { isOwnerAuthenticated } from "@/web/auth/owner-auth";
 import { loadConnectionsControlView } from "@/web/runtime/control-registry";
 import {
-  githubConnectionConfigured
+  githubConnectionConfigured,
+  vercelConnectionConfigured
 } from "@/web/runtime/provider-connections";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,18 @@ function preferredExecutionCapability(
   }
   if (capabilities.includes("issue.write")) {
     return "issue.write";
+  }
+  return undefined;
+}
+
+function preferredVercelExecutionCapability(
+  capabilities: readonly string[]
+): string | undefined {
+  if (capabilities.length === 0) {
+    return "deployment.write";
+  }
+  if (capabilities.includes("deployment.write")) {
+    return "deployment.write";
   }
   return undefined;
 }
@@ -69,6 +82,30 @@ function feedback(
       message: "GitHub Connection verified and reconciled."
     };
   }
+  if (param(searchParams, "connected") === "vercel") {
+    return {
+      tone: "positive",
+      message: "Vercel Connections refreshed from Conductor without importing provider credentials."
+    };
+  }
+  if (param(searchParams, "vercelSync") === "error") {
+    return {
+      tone: "warning",
+      message: "Vercel Connection discovery is unavailable. Existing ASC authority was not broadened."
+    };
+  }
+  if (param(searchParams, "vercelBinding") === "connected") {
+    return {
+      tone: "positive",
+      message: "Vercel Project routing is bound to an exact provider project."
+    };
+  }
+  if (param(searchParams, "vercelBinding") === "error") {
+    return {
+      tone: "warning",
+      message: "Vercel Project binding could not be attested. Existing authority was not broadened."
+    };
+  }
   if (param(searchParams, "githubBinding") === "connected") {
     return {
       tone: "positive",
@@ -108,6 +145,7 @@ export default async function ConnectionsPage({
 
   const view = await loadConnectionsControlView();
   const githubConfigured = githubConnectionConfigured();
+  const vercelConfigured = vercelConnectionConfigured();
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const currentFeedback = feedback(resolvedSearchParams);
 
@@ -219,6 +257,35 @@ export default async function ConnectionsPage({
                 type="submit"
               >
                 Connect GitHub
+              </button>
+            </form>
+          ) : (
+            <span className="connection-chip">
+              provider bridge not configured
+            </span>
+          )}
+        </section>
+
+        <section className="connection-provider-card">
+          <div>
+            <span className="eyebrow">Vercel</span>
+            <h2>Refresh Vercel Connections</h2>
+            <p>
+              Import the safe identities of Vercel installations already connected
+              through Conductor. Provider credentials stay in Conductor; ASC stores
+              only Connection identity, health, capabilities, and Project routing.
+            </p>
+          </div>
+          {vercelConfigured ? (
+            <form
+              method="post"
+              action="/api/connections/vercel/sync"
+            >
+              <button
+                className="connection-action"
+                type="submit"
+              >
+                Refresh Vercel
               </button>
             </form>
           ) : (
@@ -432,6 +499,74 @@ export default async function ConnectionsPage({
                               type="submit"
                             >
                               Bind {project.name} · DI read + Conductor {executionCapability}
+                            </button>
+                          </form>
+                        );
+                      })
+                    ) : null}
+
+                    {connection.provider === "vercel" &&
+                    connection.authenticationStrategy === "delegated_service" &&
+                    connection.status === "active" ? (
+                      view.projects.map((project) => {
+                        const executionCapability =
+                          preferredVercelExecutionCapability(
+                            connection.capabilities
+                          );
+                        const fullyBound =
+                          hasExactBinding(
+                            bindings,
+                            project.projectId,
+                            "deployment.read"
+                          ) &&
+                          Boolean(
+                            executionCapability &&
+                            hasExactBinding(
+                              bindings,
+                              project.projectId,
+                              executionCapability
+                            )
+                          );
+
+                        if (fullyBound) {
+                          return (
+                            <span
+                              className="connection-chip"
+                              key={"vercel:" + project.projectId}
+                            >
+                              {project.name} · Vercel routing bound
+                            </span>
+                          );
+                        }
+
+                        return (
+                          <form
+                            action="/api/connections/vercel/bind-project"
+                            method="post"
+                            key={"vercel:" + project.projectId}
+                          >
+                            <input
+                              type="hidden"
+                              name="connectionId"
+                              value={connection.connectionId}
+                            />
+                            <input
+                              type="hidden"
+                              name="projectId"
+                              value={project.projectId}
+                            />
+                            {executionCapability ? (
+                              <input
+                                type="hidden"
+                                name="executionCapability"
+                                value={executionCapability}
+                              />
+                            ) : null}
+                            <button
+                              className="connection-action"
+                              type="submit"
+                            >
+                              Bind {project.name} · Vercel
                             </button>
                           </form>
                         );

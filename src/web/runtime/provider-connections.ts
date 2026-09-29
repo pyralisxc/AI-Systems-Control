@@ -4,12 +4,14 @@ import {
   GitHubInstallationAuthorizationProvider,
   JsonFileAuthorizationFlowStore,
   PostgresAuthorizationFlowStore,
-  RemoteGitHubInstallationAttestor
+  RemoteGitHubInstallationAttestor,
+  RemoteVercelConnectionAttestor
 } from "../../../dist/adapters/index.js";
 import {
   ConnectionAuthorizationBroker,
   flowIdFromAuthorizationState,
-  GitHubProjectAuthorizationService
+  GitHubProjectAuthorizationService,
+  VercelProjectAuthorizationService
 } from "../../../dist/application/index.js";
 import type {
   AuthorizationFlowStore
@@ -257,5 +259,102 @@ export async function issueGitHubConductorDelegation(input: {
     projectId: input.projectId,
     capabilityId: input.capabilityId,
     approvalReference: input.approvalReference
+  });
+}
+
+
+export function vercelConnectionConfigured(): boolean {
+  try {
+    return Boolean(bridgeConfiguration());
+  } catch {
+    return false;
+  }
+}
+
+async function vercelConnectionServices() {
+  const bridge = bridgeConfiguration();
+  if (!bridge) {
+    throw new Error(
+      "Vercel Connection bridge is not configured."
+    );
+  }
+
+  const control = await controlRegistryServices();
+  if (!control.principalId) {
+    throw new Error(
+      "Vercel Connection requires current Principal context."
+    );
+  }
+
+  const attestor =
+    new RemoteVercelConnectionAttestor({
+      baseUrl: bridge.baseUrl,
+      secret: bridge.secret
+    });
+  const authorization =
+    new VercelProjectAuthorizationService({
+      projects: control.projects,
+      connections: control.connections,
+      bindings: control.bindings,
+      delegations: control.delegations,
+      attestor
+    });
+
+  return {
+    control,
+    attestor,
+    authorization
+  };
+}
+
+export async function refreshVercelConnections() {
+  const services =
+    await vercelConnectionServices();
+  return services.authorization.syncConnections(
+    services.control.principalId!
+  );
+}
+
+export async function bindVercelConnectionToProject(input: {
+  readonly projectId: string;
+  readonly connectionId: string;
+  readonly executionCapability?: string;
+}) {
+  const services =
+    await vercelConnectionServices();
+  return services.authorization.bindProject({
+    principalId:
+      services.control.principalId!,
+    projectId: input.projectId,
+    connectionId: input.connectionId,
+    ...(input.executionCapability
+      ? {
+          executionCapability:
+            input.executionCapability
+        }
+      : {})
+  });
+}
+
+export async function issueVercelConductorDelegation(input: {
+  readonly projectId: string;
+  readonly capabilityId: string;
+  readonly effectClass: "read" | "propose" | "mutate";
+  readonly approvalReference?: string;
+}) {
+  const services =
+    await vercelConnectionServices();
+  return services.authorization.issueConductorDelegation({
+    principalId:
+      services.control.principalId!,
+    projectId: input.projectId,
+    capabilityId: input.capabilityId,
+    effectClass: input.effectClass,
+    ...(input.approvalReference
+      ? {
+          approvalReference:
+            input.approvalReference
+        }
+      : {})
   });
 }

@@ -6,6 +6,11 @@ export interface ExternalRepositoryAttestation {
   readonly accountType: string;
   readonly capabilities: readonly string[];
   readonly verifiedAt: string;
+  readonly resource?: {
+    readonly kind: string;
+    readonly value: string;
+  };
+  readonly resourceDisplayName?: string;
 }
 
 export interface AttestExternalRepositoryInput {
