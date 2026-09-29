@@ -259,6 +259,18 @@ test("Vercel delegated mutation requires approval and is invalidated when connec
           projectId: "asc",
           capabilityId:
             "deployment.write",
+          effectClass: "read"
+        }),
+      /requires effect class mutate/i
+    );
+
+    await assert.rejects(
+      () =>
+        context.service.issueConductorDelegation({
+          principalId: "principal:owner",
+          projectId: "asc",
+          capabilityId:
+            "deployment.write",
           effectClass: "mutate"
         }),
       /approval reference/i

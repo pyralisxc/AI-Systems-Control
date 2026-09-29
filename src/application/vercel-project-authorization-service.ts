@@ -137,6 +137,20 @@ function requireResource(
   return attestation.resource;
 }
 
+function expectedEffectClass(
+  capabilityId: string
+): "read" | "mutate" {
+  if (capabilityId.endsWith(".read")) {
+    return "read";
+  }
+  if (capabilityId.endsWith(".write")) {
+    return "mutate";
+  }
+  throw new VercelProjectAuthorizationError(
+    "Vercel capability must declare a read or write effect."
+  );
+}
+
 function readCapabilities(
   attestation: ExternalRepositoryAttestation
 ): readonly string[] {
@@ -465,6 +479,15 @@ export class VercelProjectAuthorizationService {
     if (!capabilityId) {
       throw new VercelProjectAuthorizationError(
         "Vercel capability is required."
+      );
+    }
+
+    const expectedEffect =
+      expectedEffectClass(capabilityId);
+    if (input.effectClass !== expectedEffect) {
+      throw new VercelProjectAuthorizationError(
+        "Vercel capability " + capabilityId +
+        " requires effect class " + expectedEffect + "."
       );
     }
 
