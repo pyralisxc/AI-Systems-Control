@@ -20,6 +20,9 @@ import {
   controlRegistryServices,
   defaultAccountDomainId
 } from "./control-registry";
+import {
+  conductorServiceBridgeSecret
+} from "./conductor-service-bridge";
 
 const postgresFlowStores =
   new Map<string, PostgresAuthorizationFlowStore>();
@@ -39,8 +42,7 @@ function bridgeConfiguration():
   | undefined {
   const baseUrl =
     process.env.ASC_CONDUCTOR_PROVIDER_BRIDGE_URL?.trim();
-  const secret =
-    process.env.ASC_CONDUCTOR_PROVIDER_BRIDGE_SECRET?.trim();
+  const secret = conductorServiceBridgeSecret();
 
   if (!baseUrl && !secret) return undefined;
   if (!baseUrl || !secret) {

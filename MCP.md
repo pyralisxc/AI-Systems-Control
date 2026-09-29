@@ -202,3 +202,10 @@ Resolution order:
 3. OpenID Connect discovery fallback when the RFC 8414 endpoint is unavailable.
 
 ASC requires the metadata `issuer` to exactly match the configured issuer and requires a secure `jwks_uri`. Successful but mismatched/malformed metadata fails closed rather than falling through to another document. Discovery uses bounded requests and does not alter ASC's configured issuer, resource/audience, scopes, AccountDomain, or identity bindings.
+
+
+## ASC ↔ Conductor internal service bridge
+
+ASC and Conductor use a bounded server-to-server trust boundary for safe provider metadata and delegation consumption. Configure the same high-entropy value as `ASC_CONDUCTOR_SERVICE_BRIDGE_SECRET` on ASC and `CONDUCTOR_ASC_BRIDGE_SECRET` on Conductor. `ASC_CONDUCTOR_PROVIDER_BRIDGE_SECRET` remains a compatibility alias for the initial provider-only bridge.
+
+The internal Conductor delegation-consume route is not a browser/user authorization path. Conductor must present the service credential plus the exact AccountDomain, Project, capability, and effect it expects. ASC hard-binds the consumer audience to `conductor` and atomically consumes the one-time delegation against current Connection state/generation. The route never returns raw provider credentials and does not scan across AccountDomains.

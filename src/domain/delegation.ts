@@ -1,6 +1,7 @@
 import type { EffectClass } from "./capability.js";
 import type { ProviderResourceReference } from "./project-connection-binding.js";
 import type {
+  AccountDomainId,
   ConnectionId,
   IsoTimestamp,
   ProjectId,
@@ -32,6 +33,7 @@ export interface DelegationRecord {
 }
 
 export interface DelegationUseReceipt {
+  readonly accountDomainId: AccountDomainId;
   readonly delegationId: string;
   readonly bindingId: string;
   readonly connectionId: ConnectionId;
