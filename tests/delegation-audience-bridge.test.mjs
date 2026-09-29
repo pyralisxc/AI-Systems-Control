@@ -122,7 +122,6 @@ test("audience bridge consumes one exact delegation and cannot widen or replay i
       effectClass: "mutate",
       audience: "conductor",
       approvalReference: "owner-verified:61",
-      issuedAt: "2026-09-29T01:00:00.000Z",
       expiresInSeconds: 300
     });
 
@@ -191,7 +190,6 @@ test("audience bridge rejects a delegation invalidated by Connection generation"
       effectClass: "mutate",
       audience: "conductor",
       approvalReference: "owner-verified:61",
-      issuedAt: "2026-09-29T01:00:00.000Z",
       expiresInSeconds: 300
     });
 
