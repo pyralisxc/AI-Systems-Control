@@ -37,6 +37,7 @@ export interface DelegationUseReceipt {
   readonly delegationId: string;
   readonly bindingId: string;
   readonly connectionId: ConnectionId;
+  readonly connectionGeneration: number;
   readonly projectId: ProjectId;
   readonly workspaceId?: WorkspaceId;
   readonly capabilityId: string;

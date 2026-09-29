@@ -26,6 +26,7 @@ export interface IssuedDelegation {
   readonly handle: string;
   readonly delegationId: string;
   readonly connectionId: string;
+  readonly connectionGeneration: number;
   readonly bindingId: string;
   readonly expiresAt: string;
 }
@@ -164,6 +165,8 @@ export class DelegationService {
           handle,
           delegationId,
           connectionId: record.connectionId,
+          connectionGeneration:
+            record.connectionGeneration,
           bindingId: record.bindingId,
           expiresAt: record.expiresAt
         }),
@@ -239,6 +242,8 @@ export class DelegationService {
         delegationId: record.delegationId,
         bindingId: record.bindingId,
         connectionId: record.connectionId,
+        connectionGeneration:
+          record.connectionGeneration,
         projectId: record.projectId,
         ...(record.workspaceId ? { workspaceId: record.workspaceId } : {}),
         capabilityId: record.capabilityId,
