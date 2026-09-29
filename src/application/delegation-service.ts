@@ -22,6 +22,7 @@ export interface IssueDelegationInput extends ResolveProjectConnectionInput {
 }
 
 export interface IssuedDelegation {
+  readonly accountDomainId: string;
   readonly handle: string;
   readonly delegationId: string;
   readonly connectionId: string;
@@ -159,6 +160,7 @@ export class DelegationService {
 
       return {
         result: Object.freeze({
+          accountDomainId: this.#store.accountDomainId,
           handle,
           delegationId,
           connectionId: record.connectionId,
@@ -233,6 +235,7 @@ export class DelegationService {
       delegations[index] = consumed;
 
       const receipt: DelegationUseReceipt = Object.freeze({
+        accountDomainId: this.#store.accountDomainId,
         delegationId: record.delegationId,
         bindingId: record.bindingId,
         connectionId: record.connectionId,

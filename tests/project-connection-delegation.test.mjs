@@ -183,6 +183,7 @@ test("opaque delegations are scoped, single-use, audience-bound, and approval-aw
       expiresInSeconds: 300
     });
     assert.match(readDelegation.handle, /^ascd_/u);
+    assert.equal(readDelegation.accountDomainId, "business-a");
 
     const raw = await readFile(context.path, "utf8");
     assert.equal(raw.includes(readDelegation.handle), false);
@@ -195,6 +196,7 @@ test("opaque delegations are scoped, single-use, audience-bound, and approval-aw
       environment: "production",
       now: "2026-09-27T04:00:30.000Z"
     });
+    assert.equal(receipt.accountDomainId, "business-a");
     assert.equal(receipt.connectionId, connection.connectionId);
     assert.equal(receipt.capabilityId, "billing.read");
     assert.equal("handle" in receipt, false);
