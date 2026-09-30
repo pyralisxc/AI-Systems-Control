@@ -209,7 +209,8 @@ test("bridge service Principal cannot impersonate literal owner steering", async
       "thread.register_external",
       {
         title: "Studio",
-        provider: "chatgpt"
+        provider: "chatgpt",
+        projectId: "cardforge"
       },
       caller
     );
