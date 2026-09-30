@@ -8,11 +8,13 @@ import {
 } from "../../../dist/adapters/index.js";
 
 export const ASC_MCP_SCOPE_BASE = "asc.mcp";
+export const ASC_MCP_SCOPE_PROJECT_READ = "asc.project.read";
 export const ASC_MCP_SCOPE_THREAD_READ = "asc.thread.read";
 export const ASC_MCP_SCOPE_THREAD_WRITE = "asc.thread.write";
 
 export const ASC_MCP_SCOPES = Object.freeze([
   ASC_MCP_SCOPE_BASE,
+  ASC_MCP_SCOPE_PROJECT_READ,
   ASC_MCP_SCOPE_THREAD_READ,
   ASC_MCP_SCOPE_THREAD_WRITE
 ]);

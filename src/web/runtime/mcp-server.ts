@@ -17,7 +17,8 @@ import {
 } from "../../../dist/adapters/index.js";
 import {
   AscBridgeToolService,
-  McpRequestIdentityResolver
+  McpRequestIdentityResolver,
+  ProjectDiscoveryService
 } from "../../../dist/application/index.js";
 import type {
   AuthenticatedMcpCaller
@@ -30,6 +31,7 @@ import {
 } from "./control-registry";
 import {
   ASC_MCP_SCOPE_BASE,
+  ASC_MCP_SCOPE_PROJECT_READ,
   ASC_MCP_SCOPE_THREAD_READ,
   ASC_MCP_SCOPE_THREAD_WRITE,
   mcpAccountDomainClaim,
@@ -101,6 +103,10 @@ const refineSchema = z.object({
 
 const getThreadSchema = z.object({
   threadId: z.string().min(1)
+}).strict();
+
+const getProjectSchema = z.object({
+  projectId: z.string().min(1)
 }).strict();
 
 let cachedAuthConfigKey: string | undefined;
@@ -206,6 +212,13 @@ async function bridgeForCaller(caller: AuthenticatedMcpCaller) {
   };
 }
 
+function projectReadSecurity() {
+  return [{
+    type: "oauth2" as const,
+    scopes: [ASC_MCP_SCOPE_PROJECT_READ]
+  }];
+}
+
 function readSecurity() {
   return [{ type: "oauth2" as const, scopes: [ASC_MCP_SCOPE_THREAD_READ] }];
 }
@@ -220,6 +233,12 @@ export async function buildAscMcpServer(
   const { resolver } = await authServices();
   const caller = await resolver.resolve(authInfo.token, [ASC_MCP_SCOPE_BASE]);
   const { services, tools } = await bridgeForCaller(caller);
+  const projectDiscovery =
+    new ProjectDiscoveryService({
+      projects: services.control.projects,
+      projectMemberships:
+        services.control.projectMemberships
+    });
 
   const server = new McpServer({
     name: "AI Systems Control",
@@ -276,11 +295,68 @@ export async function buildAscMcpServer(
   );
 
   server.registerTool(
+    "project.list",
+    {
+      title: "List ASC Projects",
+      description:
+        "List only the ASC Projects visible through the authenticated caller's active ProjectMemberships.",
+      inputSchema: z.object({}).strict(),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false
+      },
+      scopeChallenge: requireScopes(
+        ASC_MCP_SCOPE_PROJECT_READ
+      ),
+      _meta: {
+        securitySchemes:
+          projectReadSecurity()
+      }
+    },
+    async () =>
+      toolResult(
+        await projectDiscovery.list(
+          caller.principalId
+        )
+      )
+  );
+
+  server.registerTool(
+    "project.get",
+    {
+      title: "Get ASC Project",
+      description:
+        "Read one ASC Project only when the authenticated caller has active ProjectMembership read authority.",
+      inputSchema: getProjectSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false
+      },
+      scopeChallenge: requireScopes(
+        ASC_MCP_SCOPE_PROJECT_READ
+      ),
+      _meta: {
+        securitySchemes:
+          projectReadSecurity()
+      }
+    },
+    async (args) =>
+      toolResult(
+        await projectDiscovery.get(
+          caller.principalId,
+          args.projectId
+        )
+      )
+  );
+
+  server.registerTool(
     "thread.list_pulse",
     {
       title: "List ASC Pulse",
       description:
-        "List normalized ASC Pulse projections for the authenticated AccountDomain.",
+        "List normalized ASC Pulse projections visible through the authenticated caller's ProjectMemberships.",
       inputSchema: z.object({}).strict(),
       annotations: {
         readOnlyHint: true,
