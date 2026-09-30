@@ -53,8 +53,16 @@ async function setup() {
     new PersistentProjectConnectionBindingRegistry(
       store
     );
+  const projectMemberships =
+    new PersistentProjectMembershipRegistry(
+      store,
+      identities
+    );
   const delegations =
-    new DelegationService(store);
+    new DelegationService(
+      store,
+      identities
+    );
 
   await projects.resolveOrRegisterGithubProject({
     projectId: "asc",

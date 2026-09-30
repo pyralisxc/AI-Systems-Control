@@ -281,7 +281,7 @@ test("AccountDomain Membership revocation invalidates outstanding Project author
             "project:a",
             "read"
           ),
-      /not active/i
+      /no active Membership|not active/i
     );
   } finally {
     await rm(
