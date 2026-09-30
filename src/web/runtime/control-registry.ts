@@ -248,7 +248,10 @@ export async function controlRegistryServicesForDomain(
     projectMemberships,
     connections: new PersistentConnectionRegistry(store, identities),
     bindings: new PersistentProjectConnectionBindingRegistry(store),
-    delegations: new DelegationService(store),
+    delegations: new DelegationService(
+      store,
+      identities
+    ),
     authority: new WorkerAuthorityService(store, identities),
     continuation: new ContinuationAuthorityService(store, identities)
   };

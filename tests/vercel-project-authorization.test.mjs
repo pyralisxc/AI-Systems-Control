@@ -9,6 +9,7 @@ import {
   PersistentConnectionRegistry,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
+  PersistentProjectMembershipRegistry,
   PersistentProjectRegistry,
   VercelProjectAuthorizationService
 } from "../dist/application/index.js";
@@ -62,6 +63,7 @@ async function setup() {
       "pyralisxc/AI-Systems-Control",
     name: "AI Systems Control"
   });
+  await projectMemberships.ensurePersonalOwnerProjects("principal:owner");
 
   let connected = true;
   const seen = [];

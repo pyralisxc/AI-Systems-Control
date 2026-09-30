@@ -291,11 +291,15 @@ export class GitHubProjectAuthorizationService {
     principalId: string,
     projectId: string,
     capabilityId: string,
-    requiredCapabilities: readonly string[]
+    requiredCapabilities: readonly string[],
+    effectClass: "read" | "mutate"
   ): Promise<void> {
-    await this.#connections.assertPrincipalCanAdminister(
-      principalId
-    );
+    await this.#delegations
+      .assertPrincipalProjectAccess(
+        principalId,
+        projectId,
+        effectClass
+      );
     const project = await this.#projects.get(projectId);
     if (!project) {
       throw new GitHubProjectAuthorizationError(
@@ -335,10 +339,12 @@ export class GitHubProjectAuthorizationService {
       input.principalId,
       input.projectId,
       "source.read",
-      ["source.read", "repository.read"]
+      ["source.read", "repository.read"],
+      "read"
     );
 
     const sourceRead = await this.#delegations.issue({
+      principalId: input.principalId,
       projectId: input.projectId,
       capabilityId: "source.read",
       effectClass: "read",
@@ -349,6 +355,7 @@ export class GitHubProjectAuthorizationService {
       ...(input.issuedAt ? { issuedAt: input.issuedAt } : {})
     });
     const repositoryRead = await this.#delegations.issue({
+      principalId: input.principalId,
       projectId: input.projectId,
       capabilityId: "repository.read",
       effectClass: "read",
@@ -391,10 +398,12 @@ export class GitHubProjectAuthorizationService {
       input.principalId,
       input.projectId,
       capabilityId,
-      [capabilityId]
+      [capabilityId],
+      "mutate"
     );
 
     return this.#delegations.issue({
+      principalId: input.principalId,
       projectId: input.projectId,
       capabilityId,
       effectClass: "mutate",

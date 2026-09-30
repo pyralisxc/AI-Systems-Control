@@ -10,6 +10,7 @@ import {
   PersistentConnectionRegistry,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
+  PersistentProjectMembershipRegistry,
   PersistentProjectRegistry
 } from "../dist/application/index.js";
 import {
@@ -43,7 +44,8 @@ async function setup() {
     new PersistentConnectionRegistry(store, identities);
   const bindings =
     new PersistentProjectConnectionBindingRegistry(store);
-  const delegations = new DelegationService(store);
+  const projectMemberships = new PersistentProjectMembershipRegistry(store, identities);
+  const delegations = new DelegationService(store, identities);
 
   await projects.resolveOrRegisterGithubProject({
     projectId: "asc",
@@ -51,6 +53,7 @@ async function setup() {
     repository: "pyralisxc/AI-Systems-Control",
     name: "AI Systems Control"
   });
+  await projectMemberships.ensurePersonalOwnerProjects("principal:owner");
 
   const connection = await connections.register({
     authorizedByPrincipalId: "principal:owner",

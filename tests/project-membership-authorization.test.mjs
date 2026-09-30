@@ -250,6 +250,47 @@ test("ProjectMembership revocation increments generation and fails closed", asyn
   }
 });
 
+test("AccountDomain Membership revocation invalidates outstanding Project authority generations", async () => {
+  const context = await setup();
+  try {
+    const authority =
+      await context.projectMemberships
+        .assertProjectAccess(
+          "principal:alice",
+          "project:a",
+          "read"
+        );
+    const updated =
+      await context.identities
+        .updateMembershipAuthority({
+          membershipId:
+            context.alice.membershipId,
+          reviewedByPrincipalId:
+            "principal:admin",
+          status: "suspended"
+        });
+    assert.equal(
+      updated.generation,
+      authority.membershipGeneration + 1
+    );
+    await assert.rejects(
+      () =>
+        context.projectMemberships
+          .assertProjectAccess(
+            "principal:alice",
+            "project:a",
+            "read"
+          ),
+      /not active/i
+    );
+  } finally {
+    await rm(
+      context.directory,
+      { recursive: true, force: true }
+    );
+  }
+});
+
 test("cross-domain ProjectMembership grants fail before persistence", async () => {
   const context = await setup();
   try {

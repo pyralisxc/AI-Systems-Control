@@ -10,6 +10,7 @@ import {
   PersistentConnectionRegistry,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
+  PersistentProjectMembershipRegistry,
   PersistentProjectRegistry,
   DelegationService,
   serviceBearerMatches
@@ -44,13 +45,15 @@ async function setup() {
     new PersistentConnectionRegistry(store, identities);
   const bindings =
     new PersistentProjectConnectionBindingRegistry(store);
-  const delegations = new DelegationService(store);
+  const projectMemberships = new PersistentProjectMembershipRegistry(store, identities);
+  const delegations = new DelegationService(store, identities);
 
   await projects.resolveOrRegisterGithubProject({
     projectId: "asc",
     accountDomainId: "domain:personal",
     repository: "pyralisxc/AI-Systems-Control"
   });
+  await projectMemberships.ensurePersonalOwnerProjects("principal:owner");
   const connection = await connections.register({
     authorizedByPrincipalId: "principal:owner",
     accountDomainId: "domain:personal",
@@ -117,6 +120,7 @@ test("audience bridge consumes one exact delegation and cannot widen or replay i
   const context = await setup();
   try {
     const issued = await context.delegations.issue({
+      principalId: "principal:owner",
       projectId: "asc",
       capabilityId: "pull_request.write",
       effectClass: "mutate",
@@ -185,6 +189,7 @@ test("audience bridge rejects a delegation invalidated by Connection generation"
   const context = await setup();
   try {
     const issued = await context.delegations.issue({
+      principalId: "principal:owner",
       projectId: "asc",
       capabilityId: "pull_request.write",
       effectClass: "mutate",
