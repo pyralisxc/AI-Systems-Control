@@ -55,7 +55,7 @@ test("Membership authority changes increment generation and revoke immediately",
         first.principalId,
         first.accountDomainId
       ),
-    /not active/i
+    /no active Membership|not active/i
   );
   const restored =
     bootstrap.registry.updateMembershipAuthority({
