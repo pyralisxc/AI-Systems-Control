@@ -4,6 +4,7 @@ import type {
   DelegationRecord,
   Project,
   ProjectConnectionBinding,
+  ProjectMembership,
   WorkerControlState
 } from "../domain/index.js";
 import {
@@ -15,6 +16,7 @@ import {
 export interface RegistryMutationResult<T> {
   readonly result: T;
   readonly projects: readonly Project[];
+  readonly projectMemberships?: readonly ProjectMembership[];
   readonly connections: readonly Connection[];
   readonly projectConnectionBindings: readonly ProjectConnectionBinding[];
   readonly delegations: readonly DelegationRecord[];
@@ -38,6 +40,9 @@ export async function mutateControlRegistry<T>(
       await store.save({
         expectedRevision: snapshot.revision,
         projects: mutation.projects,
+        projectMemberships:
+          mutation.projectMemberships ??
+          snapshot.projectMemberships,
         connections: mutation.connections,
         projectConnectionBindings: mutation.projectConnectionBindings,
         delegations: mutation.delegations,

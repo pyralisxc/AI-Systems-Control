@@ -10,6 +10,7 @@ import {
   PersistentConnectionRegistry,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
+  PersistentProjectMembershipRegistry,
   PersistentProjectRegistry
 } from "../dist/application/index.js";
 import {
@@ -33,7 +34,8 @@ async function setup() {
   const projects = new PersistentProjectRegistry(store, identities);
   const connections = new PersistentConnectionRegistry(store, identities);
   const bindings = new PersistentProjectConnectionBindingRegistry(store);
-  const delegations = new DelegationService(store);
+  const projectMemberships = new PersistentProjectMembershipRegistry(store, identities);
+  const delegations = new DelegationService(store, identities);
 
   await projects.resolveOrRegisterGithubProject({
     projectId: "cardforge",
@@ -41,6 +43,7 @@ async function setup() {
     repository: "owner/cardforge",
     aliases: ["CardForge"]
   });
+  await projectMemberships.ensurePersonalOwnerProjects("principal:owner-1");
 
   return { directory, path, connections, bindings, delegations };
 }
@@ -174,6 +177,7 @@ test("opaque delegations are scoped, single-use, audience-bound, and approval-aw
     });
 
     const readDelegation = await context.delegations.issue({
+      principalId: "principal:owner-1",
       projectId: "cardforge",
       capabilityId: "billing.read",
       effectClass: "read",
@@ -223,6 +227,7 @@ test("opaque delegations are scoped, single-use, audience-bound, and approval-aw
 
     await assert.rejects(
       () => context.delegations.issue({
+        principalId: "principal:owner-1",
         projectId: "cardforge",
         capabilityId: "billing.write",
         effectClass: "mutate",
@@ -234,6 +239,7 @@ test("opaque delegations are scoped, single-use, audience-bound, and approval-aw
     );
 
     const writeDelegation = await context.delegations.issue({
+      principalId: "principal:owner-1",
       projectId: "cardforge",
       capabilityId: "billing.write",
       effectClass: "mutate",
@@ -299,6 +305,7 @@ test("expired and old-generation delegations fail closed", async () => {
     });
 
     const expired = await context.delegations.issue({
+      principalId: "principal:owner-1",
       projectId: "cardforge",
       capabilityId: "source.read",
       effectClass: "read",
@@ -318,6 +325,7 @@ test("expired and old-generation delegations fail closed", async () => {
     );
 
     const stale = await context.delegations.issue({
+      principalId: "principal:owner-1",
       projectId: "cardforge",
       capabilityId: "source.read",
       effectClass: "read",
@@ -383,6 +391,7 @@ test("delegation capability cannot be widened after issuance", async () => {
     });
 
     const issued = await context.delegations.issue({
+      principalId: "principal:owner-1",
       projectId: "cardforge",
       capabilityId: "source.read",
       effectClass: "read",

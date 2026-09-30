@@ -138,6 +138,42 @@ function assertTenantOwnership(
   }
 }
 
+function normalizeProjectMemberships(
+  values: readonly Record<string, unknown>[],
+  accountDomainId: string
+) {
+  return values.map((membership) => ({
+    ...membership,
+    accountDomainId:
+      typeof membership.accountDomainId === "string"
+        ? membership.accountDomainId
+        : accountDomainId,
+    generation:
+      typeof membership.generation === "number" &&
+      Number.isInteger(membership.generation) &&
+      membership.generation > 0
+        ? membership.generation
+        : 1
+  }));
+}
+
+function assertProjectMembershipTenant(
+  accountDomainId: string,
+  memberships: readonly ControlRegistrySnapshot["projectMemberships"][number][]
+): void {
+  for (const membership of memberships) {
+    if (membership.accountDomainId !== accountDomainId) {
+      throw new Error(
+        "ProjectMembership " +
+        membership.projectMembershipId +
+        " belongs to " +
+        membership.accountDomainId +
+        ", not registry " + accountDomainId + "."
+      );
+    }
+  }
+}
+
 function normalizeProjects(
   projects: readonly Record<string, unknown>[],
   accountDomainId: string
@@ -251,6 +287,7 @@ function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnaps
     ...snapshot,
     projects: Object.freeze([...snapshot.projects]),
     connections: Object.freeze([...snapshot.connections]),
+    projectMemberships: Object.freeze([...snapshot.projectMemberships]),
     projectConnectionBindings: Object.freeze([...snapshot.projectConnectionBindings]),
     delegations: Object.freeze([...snapshot.delegations]),
     workerControl: normalizeWorkerControl(snapshot.workerControl, snapshot.accountDomainId),
@@ -278,6 +315,7 @@ function decodePayload(
     version !== 2 &&
     version !== 3 &&
     version !== 4 &&
+    version !== 5 &&
     version !== CONTROL_REGISTRY_SCHEMA_VERSION
   ) {
     throw new Error("Unsupported control registry schema version: " + String(version));
@@ -305,6 +343,12 @@ function decodePayload(
       payload.projects as readonly Record<string, unknown>[],
       accountDomainId
     ) as unknown as ControlRegistrySnapshot["projects"],
+    projectMemberships: Array.isArray(payload.projectMemberships)
+      ? normalizeProjectMemberships(
+          payload.projectMemberships as readonly Record<string, unknown>[],
+          accountDomainId
+        ) as unknown as ControlRegistrySnapshot["projectMemberships"]
+      : Object.freeze([]),
     connections: normalizeConnections(
       payload.connections as readonly Record<string, unknown>[]
     ) as unknown as ControlRegistrySnapshot["connections"],
@@ -331,7 +375,15 @@ function decodePayload(
     snapshot.projects,
     snapshot.connections
   );
+  assertProjectMembershipTenant(
+    accountDomainId,
+    snapshot.projectMemberships
+  );
   assertNoSecretLikeFields(snapshot.connections, "registry.connections");
+  assertNoSecretLikeFields(
+    snapshot.projectMemberships,
+    "registry.projectMemberships"
+  );
   assertNoSecretLikeFields(
     snapshot.projectConnectionBindings,
     "registry.projectConnectionBindings"
@@ -353,7 +405,15 @@ function encodePayload(
     input.projects,
     input.connections
   );
+  assertProjectMembershipTenant(
+    accountDomainId,
+    input.projectMemberships ?? []
+  );
   assertNoSecretLikeFields(input.connections, "registry.connections");
+  assertNoSecretLikeFields(
+    input.projectMemberships ?? [],
+    "registry.projectMemberships"
+  );
   assertNoSecretLikeFields(
     input.projectConnectionBindings,
     "registry.projectConnectionBindings"
@@ -376,6 +436,8 @@ function encodePayload(
     schemaVersion: CONTROL_REGISTRY_SCHEMA_VERSION,
     accountDomainId,
     projects: input.projects,
+    projectMemberships:
+      input.projectMemberships ?? [],
     connections: input.connections,
     projectConnectionBindings: input.projectConnectionBindings,
     delegations: input.delegations,

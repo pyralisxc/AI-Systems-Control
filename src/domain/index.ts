@@ -1,6 +1,7 @@
 export * from "./shared.js";
 export * from "./identity.js";
 export * from "./project.js";
+export * from "./project-membership.js";
 export * from "./connection.js";
 export * from "./workspace.js";
 export * from "./capability.js";

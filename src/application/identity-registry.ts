@@ -49,6 +49,13 @@ export interface RegisterMembershipInput {
   readonly createdAt?: string;
 }
 
+export interface UpdateMembershipAuthorityInput {
+  readonly membershipId: string;
+  readonly roles?: readonly string[];
+  readonly status?: MembershipStatus;
+  readonly updatedAt?: string;
+}
+
 export interface RegisterAuthenticationIdentityInput {
   readonly bindingId?: string;
   readonly principalId: string;
@@ -166,8 +173,19 @@ function generatedAuthenticationBindingId(
 function freezeMembership(membership: Membership): Membership {
   return Object.freeze({
     ...membership,
+    generation:
+      Number.isInteger(membership.generation) && membership.generation > 0
+        ? membership.generation
+        : 1,
     roles: Object.freeze([...membership.roles])
   });
+}
+
+function withoutMembershipRevokedAt(
+  membership: Membership
+): Membership {
+  const { revokedAt: _revokedAt, ...rest } = membership;
+  return rest;
 }
 
 function freezeAuthenticationBinding(
@@ -394,6 +412,12 @@ export class InMemoryIdentityRegistry {
       : undefined;
   }
 
+  getMembershipById(
+    membershipId: string
+  ): Membership | undefined {
+    return this.#memberships.get(membershipId);
+  }
+
   resolveAuthenticationIdentity(
     issuer: string,
     subject: string
@@ -499,12 +523,52 @@ export class InMemoryIdentityRegistry {
       accountDomainId,
       roles: normalizedRoles(input.roles),
       status: input.status ?? "active",
+      generation: 1,
       createdAt,
       updatedAt: createdAt
     });
 
     this.#indexMembership(membership);
     return membership;
+  }
+
+  updateMembershipAuthority(
+    input: UpdateMembershipAuthorityInput
+  ): Membership {
+    const membershipId = required(
+      input.membershipId,
+      "Membership ID"
+    );
+    const existing = this.#memberships.get(membershipId);
+    if (!existing) {
+      throw new IdentityConflictError(
+        "Unknown Membership: " + membershipId
+      );
+    }
+
+    const roles = input.roles
+      ? normalizedRoles(input.roles)
+      : existing.roles;
+    const status = input.status ?? existing.status;
+    const changed =
+      JSON.stringify(roles) !== JSON.stringify(existing.roles) ||
+      status !== existing.status;
+    if (!changed) return existing;
+
+    const updatedAt =
+      input.updatedAt ?? new Date().toISOString();
+    const updated = freezeMembership({
+      ...withoutMembershipRevokedAt(existing),
+      roles,
+      status,
+      generation: existing.generation + 1,
+      updatedAt,
+      ...(status === "revoked"
+        ? { revokedAt: updatedAt }
+        : {})
+    });
+    this.#memberships.set(membershipId, updated);
+    return updated;
   }
 
   armAuthenticationIdentityPairing(

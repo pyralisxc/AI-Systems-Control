@@ -8,6 +8,7 @@ import {
   type RegisterAuthenticationIdentityInput,
   type RegisterMembershipInput,
   type RegisterPrincipalInput,
+  type UpdateMembershipAuthorityInput,
   type RevokeAuthenticationIdentityPairingInput
 } from "./identity-registry.js";
 import type {
@@ -141,6 +142,13 @@ export class PersistentIdentityRegistry {
     );
   }
 
+  async getMembershipById(
+    membershipId: string
+  ): Promise<Membership | undefined> {
+    return registryFrom(await this.#store.load())
+      .getMembershipById(membershipId);
+  }
+
   async listAuthenticationBindings(): Promise<
     readonly AuthenticationIdentityBinding[]
   > {
@@ -264,6 +272,38 @@ export class PersistentIdentityRegistry {
     });
   }
 
+  async updateMembershipAuthority(
+    input: UpdateMembershipAuthorityInput & {
+      readonly reviewedByPrincipalId: string;
+    }
+  ): Promise<Membership> {
+    return mutateIdentityDirectory(this.#store, (snapshot) => {
+      const registry = registryFrom(snapshot);
+      const target = registry.getMembershipById(
+        input.membershipId
+      );
+      if (!target) {
+        throw new IdentityConflictError(
+          "Unknown Membership: " + input.membershipId
+        );
+      }
+      const reviewer = registry.assertActiveMembership(
+        input.reviewedByPrincipalId,
+        target.accountDomainId
+      );
+      if (
+        !reviewer.roles.includes("owner") &&
+        !reviewer.roles.includes("admin")
+      ) {
+        throw new IdentityConflictError(
+          "Membership authority changes require owner/admin authority."
+        );
+      }
+      const result = registry.updateMembershipAuthority(input);
+      return mutationResult(snapshot, registry, result);
+    });
+  }
+
   async bootstrapPersonal(input: {
     readonly principalId: string;
     readonly principalDisplayName: string;
@@ -312,6 +352,19 @@ export class PersistentIdentityRegistry {
       principalId,
       accountDomainId
     );
+  }
+
+  async assertActiveMembershipById(
+    membershipId: string
+  ): Promise<Membership> {
+    const registry = registryFrom(await this.#store.load());
+    const membership = registry.getMembershipById(membershipId);
+    if (!membership || membership.status !== "active") {
+      throw new IdentityConflictError(
+        "Membership is unavailable or inactive: " + membershipId
+      );
+    }
+    return membership;
   }
 
   async assertActiveDomain(accountDomainId: string): Promise<AccountDomain> {

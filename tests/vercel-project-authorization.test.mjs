@@ -9,6 +9,7 @@ import {
   PersistentConnectionRegistry,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
+  PersistentProjectMembershipRegistry,
   PersistentProjectRegistry,
   VercelProjectAuthorizationService
 } from "../dist/application/index.js";
@@ -52,8 +53,16 @@ async function setup() {
     new PersistentProjectConnectionBindingRegistry(
       store
     );
+  const projectMemberships =
+    new PersistentProjectMembershipRegistry(
+      store,
+      identities
+    );
   const delegations =
-    new DelegationService(store);
+    new DelegationService(
+      store,
+      identities
+    );
 
   await projects.resolveOrRegisterGithubProject({
     projectId: "asc",
@@ -62,6 +71,7 @@ async function setup() {
       "pyralisxc/AI-Systems-Control",
     name: "AI Systems Control"
   });
+  await projectMemberships.ensurePersonalOwnerProjects("principal:owner");
 
   let connected = true;
   const seen = [];

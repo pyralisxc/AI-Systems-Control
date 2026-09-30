@@ -53,6 +53,7 @@ export interface Membership {
   readonly accountDomainId: AccountDomainId;
   readonly roles: readonly string[];
   readonly status: MembershipStatus;
+  readonly generation: number;
   readonly createdAt: IsoTimestamp;
   readonly updatedAt: IsoTimestamp;
   readonly revokedAt?: IsoTimestamp;

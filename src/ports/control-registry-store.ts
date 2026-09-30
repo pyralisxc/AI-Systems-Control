@@ -5,6 +5,7 @@ import type {
   DelegationRecord,
   Project,
   ProjectConnectionBinding,
+  ProjectMembership,
   WorkerControlState
 } from "../domain/index.js";
 import {
@@ -12,13 +13,14 @@ import {
   emptyWorkerControlState
 } from "../domain/index.js";
 
-export const CONTROL_REGISTRY_SCHEMA_VERSION = 5 as const;
+export const CONTROL_REGISTRY_SCHEMA_VERSION = 6 as const;
 
 export interface ControlRegistrySnapshot {
   readonly schemaVersion: typeof CONTROL_REGISTRY_SCHEMA_VERSION;
   readonly accountDomainId: AccountDomainId;
   readonly revision: number;
   readonly projects: readonly Project[];
+  readonly projectMemberships: readonly ProjectMembership[];
   readonly connections: readonly Connection[];
   readonly projectConnectionBindings: readonly ProjectConnectionBinding[];
   readonly delegations: readonly DelegationRecord[];
@@ -30,6 +32,7 @@ export interface ControlRegistrySnapshot {
 export interface SaveControlRegistryInput {
   readonly expectedRevision: number;
   readonly projects: readonly Project[];
+  readonly projectMemberships?: readonly ProjectMembership[];
   readonly connections: readonly Connection[];
   readonly projectConnectionBindings: readonly ProjectConnectionBinding[];
   readonly delegations: readonly DelegationRecord[];
@@ -61,6 +64,7 @@ export function emptyControlRegistrySnapshot(
     accountDomainId,
     revision: 0,
     projects: Object.freeze([]),
+    projectMemberships: Object.freeze([]),
     connections: Object.freeze([]),
     projectConnectionBindings: Object.freeze([]),
     delegations: Object.freeze([]),

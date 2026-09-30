@@ -10,6 +10,7 @@ import {
   BridgedThreadService,
   InMemoryThreadStore,
   PersistentIdentityRegistry,
+  PersistentProjectMembershipRegistry,
   PersistentProjectRegistry
 } from "../dist/application/index.js";
 import {
@@ -43,11 +44,12 @@ async function setup() {
     kind: "human",
     displayName: "Viewer"
   });
-  await identities.registerMembership({
-    principalId: "principal:viewer",
-    accountDomainId: "business-a",
-    roles: ["viewer"]
-  });
+  const viewerMembership =
+    await identities.registerMembership({
+      principalId: "principal:viewer",
+      accountDomainId: "business-a",
+      roles: ["viewer"]
+    });
 
   const control = new JsonFileControlRegistryStore(
     join(directory, "control.json"),
@@ -59,6 +61,38 @@ async function setup() {
     accountDomainId: "business-a",
     repository: "owner/cardforge"
   });
+  await projects.resolveOrRegisterGithubProject({
+    projectId: "restricted",
+    accountDomainId: "business-a",
+    repository: "owner/restricted"
+  });
+
+  const projectMemberships =
+    new PersistentProjectMembershipRegistry(
+      control,
+      identities
+    );
+  const bridgeMembership =
+    await identities.getMembership(
+      "principal:bridge",
+      "business-a"
+    );
+  await projectMemberships.grant({
+    authorizedByPrincipalId:
+      "principal:owner",
+    membershipId:
+      bridgeMembership.membershipId,
+    projectId: "cardforge",
+    roles: ["operator"]
+  });
+  await projectMemberships.grant({
+    authorizedByPrincipalId:
+      "principal:owner",
+    membershipId:
+      viewerMembership.membershipId,
+    projectId: "cardforge",
+    roles: ["viewer"]
+  });
 
   const bridge = new BridgedThreadService(
     new InMemoryThreadStore("business-a"),
@@ -66,9 +100,11 @@ async function setup() {
   );
   return {
     directory,
+    bridge,
     tools: new AscBridgeToolService({
       bridge,
       identities,
+      projectMemberships,
       accountDomainId: "business-a"
     })
   };
@@ -147,7 +183,8 @@ test("viewer cannot publish bridge state", async () => {
         "thread.register_external",
         {
           title: "Nope",
-          provider: "chatgpt"
+          provider: "chatgpt",
+          projectId: "cardforge"
         },
         {
           principalId: "principal:viewer",
@@ -172,7 +209,8 @@ test("bridge service Principal cannot impersonate literal owner steering", async
       "thread.register_external",
       {
         title: "Studio",
-        provider: "chatgpt"
+        provider: "chatgpt",
+        projectId: "cardforge"
       },
       caller
     );
@@ -272,5 +310,111 @@ test("human owner can refine synopsis without rewriting prior checkpoint", async
     assert.equal(refined.publishedByPrincipalId, "principal:owner");
   } finally {
     await rm(context.directory, { recursive: true, force: true });
+  }
+});
+
+
+test("ProjectMembership filters Pulse and direct Thread reads inside one AccountDomain", async () => {
+  const context = await setup();
+  try {
+    const visible =
+      await context.bridge.registerExternal({
+        projectId: "cardforge",
+        title: "Visible",
+        provider: "chatgpt"
+      });
+    const hidden =
+      await context.bridge.registerExternal({
+        projectId: "restricted",
+        title: "Hidden",
+        provider: "chatgpt"
+      });
+    const unbound =
+      await context.bridge.registerExternal({
+        title: "Tenant admin only",
+        provider: "chatgpt"
+      });
+
+    const caller = {
+      principalId: "principal:bridge",
+      source: "chatgpt-plugin"
+    };
+    const pulses = await context.tools.call(
+      "thread.list_pulse",
+      {},
+      caller
+    );
+    assert.deepEqual(
+      pulses.map((pulse) => pulse.threadId),
+      [visible.threadId]
+    );
+
+    await assert.rejects(
+      () =>
+        context.tools.call(
+          "thread.get",
+          { threadId: hidden.threadId },
+          caller
+        ),
+      /Thread is unavailable/i
+    );
+    await assert.rejects(
+      () =>
+        context.tools.call(
+          "thread.get",
+          { threadId: unbound.threadId },
+          caller
+        ),
+      /Thread is unavailable/i
+    );
+  } finally {
+    await rm(
+      context.directory,
+      { recursive: true, force: true }
+    );
+  }
+});
+
+test("Project viewer can read a Thread but cannot publish into it", async () => {
+  const context = await setup();
+  try {
+    const thread =
+      await context.bridge.registerExternal({
+        projectId: "cardforge",
+        title: "Readable",
+        provider: "chatgpt"
+      });
+    const viewer = {
+      principalId: "principal:viewer",
+      source: "chatgpt-plugin"
+    };
+
+    const snapshot = await context.tools.call(
+      "thread.get",
+      { threadId: thread.threadId },
+      viewer
+    );
+    assert.equal(
+      snapshot.thread.threadId,
+      thread.threadId
+    );
+
+    await assert.rejects(
+      () =>
+        context.tools.call(
+          "thread.publish_activity",
+          {
+            threadId: thread.threadId,
+            kind: "heartbeat"
+          },
+          viewer
+        ),
+      /Thread is unavailable/i
+    );
+  } finally {
+    await rm(
+      context.directory,
+      { recursive: true, force: true }
+    );
   }
 });

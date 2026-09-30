@@ -5,6 +5,9 @@ import type {
   ThreadGate
 } from "../domain/index.js";
 import { PersistentIdentityRegistry } from "./persistent-identity-registry.js";
+import {
+  PersistentProjectMembershipRegistry
+} from "./project-membership-registry.js";
 import { BridgedThreadService } from "./bridged-thread-service.js";
 
 export interface BridgeToolCaller {
@@ -194,7 +197,7 @@ export const ASC_BRIDGE_TOOL_DEFINITIONS: readonly BridgeToolDefinition[] =
     },
     {
       name: "thread.list_pulse",
-      description: "List normalized ASC Pulse projections for the caller's AccountDomain.",
+      description: "List normalized ASC Pulse projections visible through the caller's ProjectMemberships.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -206,15 +209,21 @@ export const ASC_BRIDGE_TOOL_DEFINITIONS: readonly BridgeToolDefinition[] =
 export class AscBridgeToolService {
   readonly #bridge: BridgedThreadService;
   readonly #identities: PersistentIdentityRegistry;
+  readonly #projectMemberships:
+    PersistentProjectMembershipRegistry;
   readonly #accountDomainId: string;
 
   constructor(input: {
     readonly bridge: BridgedThreadService;
     readonly identities: PersistentIdentityRegistry;
+    readonly projectMemberships:
+      PersistentProjectMembershipRegistry;
     readonly accountDomainId: string;
   }) {
     this.#bridge = input.bridge;
     this.#identities = input.identities;
+    this.#projectMemberships =
+      input.projectMemberships;
     this.#accountDomainId = input.accountDomainId;
   }
 
@@ -225,36 +234,117 @@ export class AscBridgeToolService {
     );
   }
 
-  async #assertWriter(caller: BridgeToolCaller): Promise<void> {
-    const membership = await this.#membership(caller);
-    if (
-      !membership.roles.some((role) =>
-        role === "owner" || role === "admin" || role === "operator"
-      )
-    ) {
-      throw new BridgeToolAuthorizationError(
-        "Caller lacks owner/admin/operator bridge authority."
-      );
-    }
-  }
-
   async #assertHuman(caller: BridgeToolCaller): Promise<void> {
-    const membership = await this.#membership(caller);
-    const principal = await this.#identities.getPrincipal(caller.principalId);
+    await this.#membership(caller);
+    const principal =
+      await this.#identities.getPrincipal(
+        caller.principalId
+      );
     if (!principal || principal.kind !== "human") {
       throw new BridgeToolAuthorizationError(
         "Synopsis refinement requires a human Principal."
       );
     }
+  }
+
+  async #assertUnboundThreadAuthority(
+    caller: BridgeToolCaller
+  ): Promise<void> {
+    const membership = await this.#membership(caller);
     if (
-      !membership.roles.some((role) =>
-        role === "owner" || role === "admin" || role === "operator"
+      !membership.roles.some(
+        (role) =>
+          role === "owner" ||
+          role === "admin"
       )
     ) {
       throw new BridgeToolAuthorizationError(
-        "Caller lacks synopsis refinement authority."
+        "Thread is unavailable."
       );
     }
+  }
+
+  async #assertProjectAuthority(
+    caller: BridgeToolCaller,
+    projectId: string,
+    effectClass: "read" | "mutate"
+  ): Promise<void> {
+    try {
+      await this.#projectMemberships
+        .assertProjectAccess(
+          caller.principalId,
+          projectId,
+          effectClass
+        );
+    } catch {
+      throw new BridgeToolAuthorizationError(
+        "Thread is unavailable."
+      );
+    }
+  }
+
+  async #authorizedThread(
+    caller: BridgeToolCaller,
+    threadId: string,
+    effectClass: "read" | "mutate"
+  ) {
+    await this.#membership(caller);
+    const snapshot =
+      await this.#bridge.getThread(threadId);
+    if (!snapshot) return undefined;
+
+    if (snapshot.thread.projectId) {
+      await this.#assertProjectAuthority(
+        caller,
+        snapshot.thread.projectId,
+        effectClass
+      );
+    } else {
+      await this.#assertUnboundThreadAuthority(
+        caller
+      );
+    }
+    return snapshot;
+  }
+
+  async #visiblePulse(
+    caller: BridgeToolCaller
+  ): Promise<readonly PulseProjection[]> {
+    const membership = await this.#membership(caller);
+    const admin = membership.roles.some(
+      (role) =>
+        role === "owner" ||
+        role === "admin"
+    );
+    const accessible =
+      new Set(
+        (
+          await this.#projectMemberships
+            .listAccessibleProjects(
+              caller.principalId
+            )
+        ).map((project) => project.projectId)
+      );
+    const pulses = await this.#bridge.listPulse();
+    const visible: PulseProjection[] = [];
+
+    for (const pulse of pulses) {
+      const snapshot =
+        await this.#bridge.getThread(
+          pulse.threadId
+        );
+      if (!snapshot) continue;
+      if (
+        snapshot.thread.projectId
+          ? accessible.has(
+              snapshot.thread.projectId
+            )
+          : admin
+      ) {
+        visible.push(pulse);
+      }
+    }
+    return Object.freeze(visible);
   }
 
   async #validateSteering(
@@ -296,19 +386,19 @@ export class AscBridgeToolService {
     const args = record(argsValue);
 
     if (name === "thread.list_pulse") {
-      await this.#membership(caller);
-      return this.#bridge.listPulse();
+      return this.#visiblePulse(caller);
     }
 
     if (name === "thread.get") {
-      await this.#membership(caller);
-      return this.#bridge.getThread(
-        stringValue(args.threadId, "threadId")!
+      return this.#authorizedThread(
+        caller,
+        stringValue(args.threadId, "threadId")!,
+        "read"
       );
     }
 
     if (name === "thread.register_external") {
-      await this.#assertWriter(caller);
+      await this.#membership(caller);
       const modeValue = stringValue(args.mode, "mode", false);
       if (
         modeValue !== undefined &&
@@ -318,15 +408,31 @@ export class AscBridgeToolService {
         throw new Error("mode must be external or bridged.");
       }
 
+      const projectId =
+        stringValue(
+          args.projectId,
+          "projectId",
+          false
+        );
+      if (projectId) {
+        await this.#assertProjectAuthority(
+          caller,
+          projectId,
+          "mutate"
+        );
+      } else {
+        await this.#assertUnboundThreadAuthority(
+          caller
+        );
+      }
+
       return this.#bridge.registerExternal({
         title: stringValue(args.title, "title")!,
         provider: stringValue(args.provider, "provider")!,
         ...(stringValue(args.purpose, "purpose", false)
           ? { purpose: stringValue(args.purpose, "purpose", false)! }
           : {}),
-        ...(stringValue(args.projectId, "projectId", false)
-          ? { projectId: stringValue(args.projectId, "projectId", false)! }
-          : {}),
+        ...(projectId ? { projectId } : {}),
         ...(modeValue ? { mode: modeValue } : {}),
         ...(stringValue(args.externalThreadId, "externalThreadId", false)
           ? {
@@ -350,7 +456,13 @@ export class AscBridgeToolService {
     }
 
     if (name === "thread.publish_checkpoint") {
-      await this.#assertWriter(caller);
+      const threadId =
+        stringValue(args.threadId, "threadId")!;
+      await this.#authorizedThread(
+        caller,
+        threadId,
+        "mutate"
+      );
       const lastSteering = steering(args.lastSteering);
       await this.#validateSteering(caller, lastSteering);
 
@@ -365,7 +477,7 @@ export class AscBridgeToolService {
       }
 
       return this.#bridge.publishCheckpoint({
-        threadId: stringValue(args.threadId, "threadId")!,
+        threadId,
         synopsis: stringValue(args.synopsis, "synopsis")!,
         gate: gateValue as ThreadGate,
         ...(stringValue(args.blocker, "blocker", false)
@@ -382,14 +494,20 @@ export class AscBridgeToolService {
     }
 
     if (name === "thread.publish_activity") {
-      await this.#assertWriter(caller);
+      const threadId =
+        stringValue(args.threadId, "threadId")!;
+      await this.#authorizedThread(
+        caller,
+        threadId,
+        "mutate"
+      );
       const kindValue = stringValue(args.kind, "kind")!;
       if (!PUBLISHABLE_ACTIVITY_KINDS.has(kindValue as ThreadActivityKind)) {
         throw new Error("Unsupported activity kind.");
       }
       const kind = kindValue as ThreadActivityKind;
       return this.#bridge.recordActivity({
-        threadId: stringValue(args.threadId, "threadId")!,
+        threadId,
         kind,
         source: caller.source,
         ...(stringValue(args.signature, "signature", false)
@@ -413,8 +531,15 @@ export class AscBridgeToolService {
 
     if (name === "thread.refine_synopsis") {
       await this.#assertHuman(caller);
+      const threadId =
+        stringValue(args.threadId, "threadId")!;
+      await this.#authorizedThread(
+        caller,
+        threadId,
+        "mutate"
+      );
       return this.#bridge.refineSynopsis({
-        threadId: stringValue(args.threadId, "threadId")!,
+        threadId,
         checkpointId: stringValue(args.checkpointId, "checkpointId")!,
         synopsis: stringValue(args.synopsis, "synopsis")!,
         principalId: caller.principalId

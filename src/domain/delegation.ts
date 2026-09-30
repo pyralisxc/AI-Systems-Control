@@ -4,7 +4,10 @@ import type {
   AccountDomainId,
   ConnectionId,
   IsoTimestamp,
+  MembershipId,
+  PrincipalId,
   ProjectId,
+  ProjectMembershipId,
   WorkspaceId
 } from "./shared.js";
 
@@ -17,6 +20,11 @@ export interface DelegationRecord {
   readonly bindingId: string;
   readonly connectionId: ConnectionId;
   readonly connectionGeneration: number;
+  readonly principalId?: PrincipalId;
+  readonly membershipId?: MembershipId;
+  readonly membershipGeneration?: number;
+  readonly projectMembershipId?: ProjectMembershipId;
+  readonly projectMembershipGeneration?: number;
   readonly projectId: ProjectId;
   readonly workspaceId?: WorkspaceId;
   readonly capabilityId: string;
@@ -38,6 +46,11 @@ export interface DelegationUseReceipt {
   readonly bindingId: string;
   readonly connectionId: ConnectionId;
   readonly connectionGeneration: number;
+  readonly principalId: PrincipalId;
+  readonly membershipId: MembershipId;
+  readonly membershipGeneration: number;
+  readonly projectMembershipId: ProjectMembershipId;
+  readonly projectMembershipGeneration: number;
   readonly projectId: ProjectId;
   readonly workspaceId?: WorkspaceId;
   readonly capabilityId: string;

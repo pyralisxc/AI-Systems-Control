@@ -1,5 +1,8 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
+import {
+  projectMembershipAllowsEffect
+} from "../domain/index.js";
 import type {
   DelegationRecord,
   DelegationUseReceipt,
@@ -9,11 +12,18 @@ import type {
 import type { ControlRegistryStore } from "../ports/index.js";
 import { mutateControlRegistry } from "./control-registry-mutation.js";
 import {
+  InMemoryProjectMembershipRegistry,
+  PersistentProjectMembershipRegistry,
+  type ProjectAuthorityContext
+} from "./project-membership-registry.js";
+import { PersistentIdentityRegistry } from "./persistent-identity-registry.js";
+import {
   InMemoryProjectConnectionBindingRegistry,
   type ResolveProjectConnectionInput
 } from "./project-connection-binding-registry.js";
 
 export interface IssueDelegationInput extends ResolveProjectConnectionInput {
+  readonly principalId: string;
   readonly effectClass: EffectClass;
   readonly audience: string;
   readonly approvalReference?: string;
@@ -27,6 +37,11 @@ export interface IssuedDelegation {
   readonly delegationId: string;
   readonly connectionId: string;
   readonly connectionGeneration: number;
+  readonly principalId: string;
+  readonly membershipId: string;
+  readonly membershipGeneration: number;
+  readonly projectMembershipId: string;
+  readonly projectMembershipGeneration: number;
   readonly bindingId: string;
   readonly expiresAt: string;
 }
@@ -87,12 +102,70 @@ function optionalMatch(left: string | undefined, right: string | undefined): boo
 
 export class DelegationService {
   readonly #store: ControlRegistryStore;
+  readonly #identities: PersistentIdentityRegistry;
+  readonly #projectMemberships:
+    PersistentProjectMembershipRegistry;
 
-  constructor(store: ControlRegistryStore) {
+  constructor(
+    store: ControlRegistryStore,
+    identities: PersistentIdentityRegistry
+  ) {
     this.#store = store;
+    this.#identities = identities;
+    this.#projectMemberships =
+      new PersistentProjectMembershipRegistry(
+        store,
+        identities
+      );
+  }
+
+  async assertPrincipalProjectAccess(
+    principalId: string,
+    projectId: string,
+    effectClass: EffectClass
+  ): Promise<ProjectAuthorityContext> {
+    return this.#projectMemberships
+      .assertProjectAccess(
+        principalId,
+        projectId,
+        effectClass
+      );
+  }
+
+  async #assertIdentityAuthority(
+    input: {
+      readonly principalId: string;
+      readonly membershipId: string;
+      readonly membershipGeneration: number;
+      readonly accountDomainId: string;
+    }
+  ): Promise<void> {
+    const membership =
+      await this.#identities
+        .assertActiveMembershipById(
+          input.membershipId
+        );
+    if (
+      membership.principalId !==
+        input.principalId ||
+      membership.accountDomainId !==
+        input.accountDomainId ||
+      membership.generation !==
+        input.membershipGeneration
+    ) {
+      throw new DelegationValidationError(
+        "Delegation AccountDomain Membership authority is stale or mismatched."
+      );
+    }
   }
 
   async issue(input: IssueDelegationInput): Promise<IssuedDelegation> {
+    const authority =
+      await this.assertPrincipalProjectAccess(
+        input.principalId,
+        input.projectId,
+        input.effectClass
+      );
     const audience = input.audience.trim();
     if (!audience) throw new DelegationValidationError("Delegation audience is required.");
 
@@ -111,6 +184,39 @@ export class DelegationService {
       if (!projectRecord.accountDomainId) {
         throw new DelegationValidationError(
           "Project " + input.projectId + " has no AccountDomain assignment."
+        );
+      }
+
+      if (
+        authority.accountDomainId !==
+          this.#store.accountDomainId ||
+        authority.projectId !== input.projectId
+      ) {
+        throw new DelegationValidationError(
+          "Project authority context does not match this registry."
+        );
+      }
+
+      const projectMembership =
+        new InMemoryProjectMembershipRegistry(
+          snapshot.projectMemberships
+        ).get(authority.projectMembershipId);
+      if (
+        !projectMembership ||
+        projectMembership.status !== "active" ||
+        projectMembership.membershipId !==
+          authority.membershipId ||
+        projectMembership.projectId !==
+          input.projectId ||
+        projectMembership.generation !==
+          authority.projectMembershipGeneration ||
+        !projectMembershipAllowsEffect(
+          projectMembership,
+          input.effectClass
+        )
+      ) {
+        throw new DelegationValidationError(
+          "ProjectMembership authority is stale, inactive, or insufficient."
         );
       }
 
@@ -144,6 +250,14 @@ export class DelegationService {
         bindingId: resolution.binding.bindingId,
         connectionId: resolution.connection.connectionId,
         connectionGeneration: resolution.connection.generation,
+        principalId: authority.principalId,
+        membershipId: authority.membershipId,
+        membershipGeneration:
+          authority.membershipGeneration,
+        projectMembershipId:
+          authority.projectMembershipId,
+        projectMembershipGeneration:
+          authority.projectMembershipGeneration,
         projectId: input.projectId,
         ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
         capabilityId: input.capabilityId,
@@ -167,6 +281,14 @@ export class DelegationService {
           connectionId: record.connectionId,
           connectionGeneration:
             record.connectionGeneration,
+          principalId: authority.principalId,
+          membershipId: authority.membershipId,
+          membershipGeneration:
+            authority.membershipGeneration,
+          projectMembershipId:
+            authority.projectMembershipId,
+          projectMembershipGeneration:
+            authority.projectMembershipGeneration,
           bindingId: record.bindingId,
           expiresAt: record.expiresAt
         }),
@@ -185,7 +307,31 @@ export class DelegationService {
     const nowMs = Date.parse(now);
     if (!Number.isFinite(nowMs)) throw new DelegationValidationError("Consume time must be valid ISO.");
 
-    return mutateControlRegistry(this.#store, (snapshot) => {
+    const before = await this.#store.load();
+    const preRecord = before.delegations.find(
+      (record) => record.handleHash === digest
+    );
+    if (
+      !preRecord?.principalId ||
+      !preRecord.membershipId ||
+      !preRecord.membershipGeneration ||
+      !preRecord.projectMembershipId ||
+      !preRecord.projectMembershipGeneration
+    ) {
+      throw new DelegationValidationError(
+        "Delegation lacks required Principal/ProjectMembership provenance."
+      );
+    }
+    await this.#assertIdentityAuthority({
+      principalId: preRecord.principalId,
+      membershipId: preRecord.membershipId,
+      membershipGeneration:
+        preRecord.membershipGeneration,
+      accountDomainId:
+        this.#store.accountDomainId
+    });
+
+    const receipt = await mutateControlRegistry(this.#store, (snapshot) => {
       const index = snapshot.delegations.findIndex((record) => record.handleHash === digest);
       if (index < 0) throw new DelegationValidationError("Unknown delegation handle.");
 
@@ -217,6 +363,41 @@ export class DelegationService {
         throw new DelegationValidationError("Delegation environment does not match caller request.");
       }
 
+      if (
+        !record.principalId ||
+        !record.membershipId ||
+        !record.membershipGeneration ||
+        !record.projectMembershipId ||
+        !record.projectMembershipGeneration
+      ) {
+        throw new DelegationValidationError(
+          "Delegation lacks required Principal/ProjectMembership provenance."
+        );
+      }
+
+      const projectMembership =
+        new InMemoryProjectMembershipRegistry(
+          snapshot.projectMemberships
+        ).get(record.projectMembershipId);
+      if (
+        !projectMembership ||
+        projectMembership.status !== "active" ||
+        projectMembership.membershipId !==
+          record.membershipId ||
+        projectMembership.projectId !==
+          record.projectId ||
+        projectMembership.generation !==
+          record.projectMembershipGeneration ||
+        !projectMembershipAllowsEffect(
+          projectMembership,
+          record.effectClass
+        )
+      ) {
+        throw new DelegationValidationError(
+          "Delegation ProjectMembership authority is stale, inactive, or insufficient."
+        );
+      }
+
       const connection = snapshot.connections.find(
         (candidate) => candidate.connectionId === record.connectionId
       );
@@ -244,6 +425,14 @@ export class DelegationService {
         connectionId: record.connectionId,
         connectionGeneration:
           record.connectionGeneration,
+        principalId: record.principalId,
+        membershipId: record.membershipId,
+        membershipGeneration:
+          record.membershipGeneration,
+        projectMembershipId:
+          record.projectMembershipId,
+        projectMembershipGeneration:
+          record.projectMembershipGeneration,
         projectId: record.projectId,
         ...(record.workspaceId ? { workspaceId: record.workspaceId } : {}),
         capabilityId: record.capabilityId,
@@ -264,6 +453,16 @@ export class DelegationService {
         changed: true
       };
     });
+
+    await this.#assertIdentityAuthority({
+      principalId: receipt.principalId,
+      membershipId: receipt.membershipId,
+      membershipGeneration:
+        receipt.membershipGeneration,
+      accountDomainId:
+        receipt.accountDomainId
+    });
+    return receipt;
   }
 
   async revoke(delegationId: string, at = new Date().toISOString()): Promise<void> {

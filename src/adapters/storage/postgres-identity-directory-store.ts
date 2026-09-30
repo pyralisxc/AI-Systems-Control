@@ -15,6 +15,20 @@ import type {
 
 const DIRECTORY_KEY = "primary";
 
+function normalizeMemberships(
+  values: readonly Record<string, unknown>[]
+) {
+  return values.map((membership) => ({
+    ...membership,
+    generation:
+      typeof membership.generation === "number" &&
+      Number.isInteger(membership.generation) &&
+      membership.generation > 0
+        ? membership.generation
+        : 1
+  }));
+}
+
 function freezeSnapshot(
   snapshot: IdentityDirectorySnapshot
 ): IdentityDirectorySnapshot {
@@ -45,6 +59,7 @@ function decode(
   if (
     payload.schemaVersion !== 1 &&
     payload.schemaVersion !== 2 &&
+    payload.schemaVersion !== 3 &&
     payload.schemaVersion !== IDENTITY_DIRECTORY_SCHEMA_VERSION
   ) {
     throw new Error(
@@ -66,7 +81,9 @@ function decode(
     principals: payload.principals as IdentityDirectorySnapshot["principals"],
     accountDomains:
       payload.accountDomains as IdentityDirectorySnapshot["accountDomains"],
-    memberships: payload.memberships as IdentityDirectorySnapshot["memberships"],
+    memberships: normalizeMemberships(
+      payload.memberships as readonly Record<string, unknown>[]
+    ) as unknown as IdentityDirectorySnapshot["memberships"],
     authenticationBindings: Array.isArray(payload.authenticationBindings)
       ? payload.authenticationBindings as IdentityDirectorySnapshot["authenticationBindings"]
       : Object.freeze([]),

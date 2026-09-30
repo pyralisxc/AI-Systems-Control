@@ -469,11 +469,6 @@ export class VercelProjectAuthorizationService {
     readonly approvalReference?: string;
     readonly expiresInSeconds?: number;
   }): Promise<IssuedDelegation> {
-    await this.#connections
-      .assertPrincipalCanAdminister(
-        input.principalId
-      );
-
     const capabilityId =
       input.capabilityId.trim();
     if (!capabilityId) {
@@ -484,6 +479,12 @@ export class VercelProjectAuthorizationService {
 
     const expectedEffect =
       expectedEffectClass(capabilityId);
+    await this.#delegations
+      .assertPrincipalProjectAccess(
+        input.principalId,
+        input.projectId,
+        expectedEffect
+      );
     if (input.effectClass !== expectedEffect) {
       throw new VercelProjectAuthorizationError(
         "Vercel capability " + capabilityId +
@@ -548,6 +549,7 @@ export class VercelProjectAuthorizationService {
     }
 
     return this.#delegations.issue({
+      principalId: input.principalId,
       projectId: input.projectId,
       capabilityId,
       effectClass: input.effectClass,

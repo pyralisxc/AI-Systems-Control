@@ -76,6 +76,7 @@ function emptySave(expectedRevision) {
     expectedRevision,
     projects: [],
     connections: [],
+    projectMemberships: [],
     projectConnectionBindings: [],
     delegations: [],
     workerControl: emptyWorkerControl(),

@@ -13,6 +13,7 @@ import {
   PersistentConnectionRegistry,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
+  PersistentProjectMembershipRegistry,
   PersistentProjectRegistry
 } from "../dist/application/index.js";
 import {
@@ -86,7 +87,8 @@ async function setup() {
   const connections = new PersistentConnectionRegistry(store, identities);
   const projects = new PersistentProjectRegistry(store, identities);
   const bindings = new PersistentProjectConnectionBindingRegistry(store);
-  const delegations = new DelegationService(store);
+  const projectMemberships = new PersistentProjectMembershipRegistry(store, identities);
+  const delegations = new DelegationService(store, identities);
   const flows = new InMemoryAuthorizationFlowStore();
   const broker = new ConnectionAuthorizationBroker({
     flowStore: flows,
@@ -99,6 +101,7 @@ async function setup() {
     accountDomainId: "business-a",
     repository: "owner/cardforge"
   });
+  await projectMemberships.ensurePersonalOwnerProjects("principal:owner-1");
 
   return {
     directory,
@@ -222,6 +225,7 @@ test("reconnect changes Connection generation and invalidates older delegations"
     });
 
     const delegation = await context.delegations.issue({
+      principalId: "principal:owner-1",
       projectId: "cardforge",
       capabilityId: "source.read",
       effectClass: "read",
