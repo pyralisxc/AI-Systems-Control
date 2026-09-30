@@ -2,6 +2,7 @@ export * from "./host-aware-binding-resolver.js";
 export * from "./project-registry.js";
 export * from "./persistent-project-registry.js";
 export * from "./project-membership-registry.js";
+export * from "./project-discovery-service.js";
 export * from "./connection-registry.js";
 export * from "./project-connection-binding-registry.js";
 export * from "./delegation-service.js";
