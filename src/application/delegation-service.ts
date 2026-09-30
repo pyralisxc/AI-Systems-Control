@@ -1,11 +1,13 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
+import {
+  projectMembershipAllowsEffect
+} from "../domain/index.js";
 import type {
   DelegationRecord,
   DelegationUseReceipt,
   EffectClass,
-  ProjectConnectionBinding,
-  projectMembershipAllowsEffect
+  ProjectConnectionBinding
 } from "../domain/index.js";
 import type { ControlRegistryStore } from "../ports/index.js";
 import { mutateControlRegistry } from "./control-registry-mutation.js";
