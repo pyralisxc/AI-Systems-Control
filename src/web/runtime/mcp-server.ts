@@ -199,6 +199,8 @@ async function bridgeForCaller(caller: AuthenticatedMcpCaller) {
     tools: new AscBridgeToolService({
       bridge: services.bridge,
       identities: services.control.identities,
+      projectMemberships:
+        services.control.projectMemberships,
       accountDomainId: caller.accountDomainId
     })
   };
