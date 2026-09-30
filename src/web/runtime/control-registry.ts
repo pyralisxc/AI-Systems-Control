@@ -13,6 +13,7 @@ import {
   resolveControlDatabaseUrl,
   PersistentIdentityRegistry,
   PersistentProjectConnectionBindingRegistry,
+  PersistentProjectMembershipRegistry,
   PersistentProjectRegistry,
   WorkerAuthorityService
 } from "../../../dist/application/index.js";
@@ -221,11 +222,30 @@ export async function controlRegistryServicesForDomain(
   const { identities } = await identityRegistryServices();
   await identities.assertActiveDomain(accountDomainId);
   const store = controlRegistryStoreForDomain(accountDomainId);
+  const projects = new PersistentProjectRegistry(
+    store,
+    identities
+  );
+  const projectMemberships =
+    new PersistentProjectMembershipRegistry(
+      store,
+      identities
+    );
+
+  if (
+    personalBootstrapEnabled() &&
+    accountDomainId === defaultAccountDomainId()
+  ) {
+    await projectMemberships.ensurePersonalOwnerProjects(
+      bootstrapPrincipalId()
+    );
+  }
 
   return {
     store,
     identities,
-    projects: new PersistentProjectRegistry(store, identities),
+    projects,
+    projectMemberships,
     connections: new PersistentConnectionRegistry(store, identities),
     bindings: new PersistentProjectConnectionBindingRegistry(store),
     delegations: new DelegationService(store),

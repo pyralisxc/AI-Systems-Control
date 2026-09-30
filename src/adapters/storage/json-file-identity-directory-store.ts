@@ -23,6 +23,20 @@ function errno(error: unknown): string | undefined {
     : undefined;
 }
 
+function normalizeMemberships(
+  values: readonly Record<string, unknown>[]
+) {
+  return values.map((membership) => ({
+    ...membership,
+    generation:
+      typeof membership.generation === "number" &&
+      Number.isInteger(membership.generation) &&
+      membership.generation > 0
+        ? membership.generation
+        : 1
+  }));
+}
+
 function freezeSnapshot(
   snapshot: IdentityDirectorySnapshot
 ): IdentityDirectorySnapshot {
@@ -45,6 +59,7 @@ function parseSnapshot(raw: string): IdentityDirectorySnapshot {
   if (
     parsed.schemaVersion !== 1 &&
     parsed.schemaVersion !== 2 &&
+    parsed.schemaVersion !== 3 &&
     parsed.schemaVersion !== IDENTITY_DIRECTORY_SCHEMA_VERSION
   ) {
     throw new Error(
@@ -71,7 +86,9 @@ function parseSnapshot(raw: string): IdentityDirectorySnapshot {
     principals: parsed.principals as IdentityDirectorySnapshot["principals"],
     accountDomains:
       parsed.accountDomains as IdentityDirectorySnapshot["accountDomains"],
-    memberships: parsed.memberships as IdentityDirectorySnapshot["memberships"],
+    memberships: normalizeMemberships(
+      parsed.memberships as readonly Record<string, unknown>[]
+    ) as unknown as IdentityDirectorySnapshot["memberships"],
     authenticationBindings: Array.isArray(parsed.authenticationBindings)
       ? parsed.authenticationBindings as IdentityDirectorySnapshot["authenticationBindings"]
       : Object.freeze([]),

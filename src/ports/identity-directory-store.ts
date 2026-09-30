@@ -6,7 +6,7 @@ import type {
   Principal
 } from "../domain/index.js";
 
-export const IDENTITY_DIRECTORY_SCHEMA_VERSION = 3 as const;
+export const IDENTITY_DIRECTORY_SCHEMA_VERSION = 4 as const;
 
 export interface IdentityDirectorySnapshot {
   readonly schemaVersion: typeof IDENTITY_DIRECTORY_SCHEMA_VERSION;

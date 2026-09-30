@@ -8,6 +8,7 @@ export type JsonValue =
 
 export type PrincipalId = string;
 export type MembershipId = string;
+export type ProjectMembershipId = string;
 export type AccountDomainId = string;
 export type ProjectId = string;
 export type WorkspaceId = string;

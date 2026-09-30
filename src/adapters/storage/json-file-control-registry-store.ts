@@ -214,6 +214,7 @@ function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnaps
     ...snapshot,
     projects: Object.freeze([...snapshot.projects]),
     connections: Object.freeze([...snapshot.connections]),
+    projectMemberships: Object.freeze([...snapshot.projectMemberships]),
     projectConnectionBindings: Object.freeze([...snapshot.projectConnectionBindings]),
     delegations: Object.freeze([...snapshot.delegations]),
     workerControl: normalizeWorkerControl(snapshot.workerControl, snapshot.accountDomainId),
@@ -222,6 +223,42 @@ function freezeSnapshot(snapshot: ControlRegistrySnapshot): ControlRegistrySnaps
       snapshot.accountDomainId
     )
   });
+}
+
+function normalizeProjectMemberships(
+  values: readonly Record<string, unknown>[],
+  accountDomainId: string
+) {
+  return values.map((membership) => ({
+    ...membership,
+    accountDomainId:
+      typeof membership.accountDomainId === "string"
+        ? membership.accountDomainId
+        : accountDomainId,
+    generation:
+      typeof membership.generation === "number" &&
+      Number.isInteger(membership.generation) &&
+      membership.generation > 0
+        ? membership.generation
+        : 1
+  }));
+}
+
+function assertProjectMembershipTenant(
+  accountDomainId: string,
+  memberships: readonly ControlRegistrySnapshot["projectMemberships"][number][]
+): void {
+  for (const membership of memberships) {
+    if (membership.accountDomainId !== accountDomainId) {
+      throw new Error(
+        "ProjectMembership " +
+        membership.projectMembershipId +
+        " belongs to " +
+        membership.accountDomainId +
+        ", not registry " + accountDomainId + "."
+      );
+    }
+  }
 }
 
 function normalizeProjects(
@@ -269,6 +306,7 @@ function parseSnapshot(
     version !== 2 &&
     version !== 3 &&
     version !== 4 &&
+    version !== 5 &&
     version !== CONTROL_REGISTRY_SCHEMA_VERSION
   ) {
     throw new Error("Unsupported control registry schema version: " + String(version));
@@ -302,6 +340,12 @@ function parseSnapshot(
       parsed.projects as readonly Record<string, unknown>[],
       expectedAccountDomainId
     ) as unknown as ControlRegistrySnapshot["projects"],
+    projectMemberships: Array.isArray(parsed.projectMemberships)
+      ? normalizeProjectMemberships(
+          parsed.projectMemberships as readonly Record<string, unknown>[],
+          expectedAccountDomainId
+        ) as unknown as ControlRegistrySnapshot["projectMemberships"]
+      : Object.freeze([]),
     connections: connections as unknown as ControlRegistrySnapshot["connections"],
     projectConnectionBindings: Array.isArray(parsed.projectConnectionBindings)
       ? parsed.projectConnectionBindings as ControlRegistrySnapshot["projectConnectionBindings"]
@@ -322,7 +366,15 @@ function parseSnapshot(
     snapshot.projects,
     snapshot.connections
   );
+  assertProjectMembershipTenant(
+    expectedAccountDomainId,
+    snapshot.projectMemberships
+  );
   assertNoSecretLikeFields(snapshot.connections, "registry.connections");
+  assertNoSecretLikeFields(
+    snapshot.projectMemberships,
+    "registry.projectMemberships"
+  );
   assertNoSecretLikeFields(
     snapshot.projectConnectionBindings,
     "registry.projectConnectionBindings"
@@ -395,7 +447,15 @@ export class JsonFileControlRegistryStore implements ControlRegistryStore {
       input.projects,
       input.connections
     );
+    assertProjectMembershipTenant(
+      this.accountDomainId,
+      input.projectMemberships ?? []
+    );
     assertNoSecretLikeFields(input.connections, "registry.connections");
+    assertNoSecretLikeFields(
+      input.projectMemberships ?? [],
+      "registry.projectMemberships"
+    );
     assertNoSecretLikeFields(
       input.projectConnectionBindings,
       "registry.projectConnectionBindings"
@@ -425,6 +485,9 @@ export class JsonFileControlRegistryStore implements ControlRegistryStore {
         accountDomainId: this.accountDomainId,
         revision: current.revision + 1,
         projects: Object.freeze([...input.projects]),
+        projectMemberships: Object.freeze([
+          ...(input.projectMemberships ?? [])
+        ]),
         connections: Object.freeze([...input.connections]),
         projectConnectionBindings: Object.freeze([...input.projectConnectionBindings]),
         delegations: Object.freeze([...input.delegations]),

@@ -24,6 +24,7 @@ test("personal mode is one human Principal with one owner Membership", () => {
   assert.equal(bootstrap.principal.kind, "human");
   assert.equal(bootstrap.accountDomain.kind, "personal");
   assert.equal(bootstrap.membership.status, "active");
+  assert.equal(bootstrap.membership.generation, 1);
   assert.deepEqual(bootstrap.membership.roles, ["owner"]);
 
   const membership = bootstrap.registry.assertActiveMembership(
@@ -31,6 +32,39 @@ test("personal mode is one human Principal with one owner Membership", () => {
     bootstrap.accountDomain.accountDomainId
   );
   assert.equal(membership.membershipId, bootstrap.membership.membershipId);
+});
+
+test("Membership authority changes increment generation and revoke immediately", () => {
+  const bootstrap = bootstrapPersonalIdentity({
+    principalId: "principal:owner",
+    principalDisplayName: "Owner",
+    accountDomainId: "domain:personal",
+    accountDomainName: "Personal"
+  });
+  const first = bootstrap.membership;
+  const suspended =
+    bootstrap.registry.updateMembershipAuthority({
+      membershipId: first.membershipId,
+      status: "suspended"
+    });
+  assert.equal(suspended.generation, 2);
+  assert.equal(suspended.status, "suspended");
+  assert.throws(
+    () =>
+      bootstrap.registry.assertActiveMembership(
+        first.principalId,
+        first.accountDomainId
+      ),
+    /not active/i
+  );
+  const restored =
+    bootstrap.registry.updateMembershipAuthority({
+      membershipId: first.membershipId,
+      status: "active",
+      roles: ["owner", "admin"]
+    });
+  assert.equal(restored.generation, 3);
+  assert.deepEqual(restored.roles, ["admin", "owner"]);
 });
 
 test("organization domains support multiple human and service Principals", () => {
@@ -301,6 +335,13 @@ test("Identity Directory v1 upgrades with no federated bindings", async () => {
     assert.equal((await identities.listPrincipals()).length, 1);
     assert.equal((await identities.listAccountDomains()).length, 1);
     assert.deepEqual(await identities.listAuthenticationBindings(), []);
+    assert.equal(
+      (await identities.getMembership(
+        "principal:legacy",
+        "domain:legacy"
+      ))?.generation,
+      1
+    );
 
     await identities.registerAuthenticationIdentity({
       principalId: "principal:legacy",
